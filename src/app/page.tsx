@@ -19,8 +19,12 @@ import { RoomsManager } from '@/components/client/rooms-manager';
 import { ActivityLogViewer } from '@/components/client/activity-log-viewer';
 import { ActivationPage } from '@/components/client/activation-page';
 
+// Module pages
+import { ModuleConfigPage } from '@/components/client/module-config';
+import { ModulePreviewPage } from '@/components/client/module-preview';
+
 export default function App() {
-  const [activePage, setActivePage] = useState<AdminPage>('client-home');
+  const [activePage, setActivePage] = useState<AdminPage>('module-preview');
 
   const renderPage = () => {
     switch (activePage) {
@@ -49,8 +53,14 @@ export default function App() {
         return <ActivityLogViewer />;
       case 'activation-public':
         return <ActivationPage />;
+      case 'module-config':
+        return <ModuleConfigPage />;
+      case 'module-preview':
+        return <ModulePreviewPage />;
+      case 'modules':
+        return <ModulePreviewPage />;
       default:
-        return <ClientDashboard />;
+        return <ModulePreviewPage />;
     }
   };
 

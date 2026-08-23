@@ -84,3 +84,52 @@ Stage Summary:
 - Workflow d'activation complet (vérification → module → pièce → confirmation)
 - Système d'invitation de membres avec rôles
 - Dashboard client avec vue d'ensemble + gestion complète
+
+---
+Task ID: 4
+Agent: Main Architect
+Task: PROMPT 4 Étape 1 — Modules V1 (Wi-Fi, Lien Externe, Page Info)
+
+Work Log:
+- Créé l'API route `/api/client/module-content` (GET + PUT pour qr_contents)
+- Ajouté `external_link` au type QrModuleType dans types/database.ts + label FR
+- Mis à jour le label `home_manual` → "Page Info / Guide"
+- Construit 6 composants de module (3 config + 3 display):
+  - `WifiConfig.tsx` : Formulaire SSID, mot de passe, sécurité (WPA/WEP/Ouvert), réseau masqué, switch
+  - `WifiDisplay.tsx` : Gradient emerald, bouton natif Wi-Fi, copier mot de passe, show/hide
+  - `LinkConfig.tsx` : URL avec normalisation auto (https://), titre, description, aperçu live, validation URL
+  - `LinkDisplay.tsx` : Gradient blue, hostname, favicon, bouton "Ouvrir le lien"
+  - `InfoConfig.tsx` : Titre, éditeur Markdown avec barre d'outils (10 boutons), aperçu en live toggle
+  - `InfoDisplay.tsx` : Gradient violet, rendu Markdown (titres, gras, italique, listes, citations, liens)
+- Créé `modules/registry.ts` avec MODULE_DEFINITIONS + MODULE_MAP + getModuleDef()
+- Créé `client/module-config.tsx` : Page configuration avec:
+  - Liste QR codes filtrable + recherche
+  - Badge "Configuré" pour les QR avec contenu
+  - Router vers le bon composant Config selon le type
+  - Mode "Aperçu mobile" avec cadre téléphone (traffic lights macOS)
+  - Fallback "Module non disponible" pour les types non supportés
+- Créé `client/module-preview.tsx` : Page démo avec:
+  - 3 onglets (Wi-Fi, Lien, Info)
+  - Cadre téléphone pour chaque module
+  - Card avec données JSON du module
+  - Contenu de démo réaliste pour chaque module
+- Mis à jour `admin-layout.tsx` : Nouvelle section "Modules V1" dans la sidebar
+  - 3 entrées : Configurer un module, Aperçu des modules, Catalogue Modules
+  - Imports Eye, Settings2 de lucide-react
+- Mis à jour `page.tsx` : Routes module-config, module-preview, modules
+- Fix pre-existing lint errors:
+  - `homes-manager.tsx` : Separator importé de lucide-react → @/components/ui/separator
+  - `v2/info-display-modules.tsx` : String literals multilignes → single-line
+  - `v2/social-guest-modules.tsx` : Imports manquants Moon, Car
+  - `v2/tasks-smarthome-modules.tsx` : setState in effect → refactored timer logic
+- Lint: 0 erreurs, 0 warnings
+- Compilation: GET / 200 OK
+- Agent Browser vérifié: 3 onglets fonctionnels, sidebar Modules V1, footer sticky, 0 erreurs console
+
+Stage Summary:
+- 8 nouveaux fichiers créés (6 modules + registry + 2 pages client)
+- 1 API route (module-content GET/PUT)
+- 3 modules complets: Wi-Fi (config + display), Lien Externe (config + display), Page Info (config + display)
+- Module Config Page avec liste QR + aperçu mobile
+- Module Preview Page avec démo des 3 modules + cadres téléphone
+- Sidebar étendue avec section "Modules V1" (3 entrées)
