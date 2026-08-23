@@ -22,3 +22,35 @@ Stage Summary:
 - `prisma/schema.prisma` : Schéma Prisma 28 models avec relations complètes
 - `src/types/database.ts` : Types TS, enums, 53 types de modules QR avec labels FR
 - DB locale SQLite fonctionnelle avec toutes les tables
+
+---
+Task ID: 2
+Agent: Main Architect + Subagents
+Task: Étape 2 - Dashboard Superadmin complet (6 pages)
+
+Work Log:
+- Installé qr-code-styling, jspdf, html2canvas
+- Créé le layout admin avec sidebar responsive (admin-layout.tsx)
+- Construit le composant GenerateBatch (733 lignes) avec:
+  - Formulaire complet (quantité, design, templates, nom du lot)
+  - Aperçu QR temps réel via qr-code-styling
+  - 3 templates prêts (Airbnb, Famille, Bureau)
+  - 6 styles de points, 2 styles de coins, 5 logos presets SVG
+  - Génération de codes d'activation uniques (QR-XXXXXXXX)
+  - Export PDF A4 avec mise en page planche d'autocollants
+- Créé 4 API routes (batches, physical-qr, stats, users)
+- Construit ManageBatches (tableau avec badges de progression)
+- Construit ManagePhysicalQr (filtres, pagination, changement de statut)
+- Construit AdminUsers (recherche, pagination)
+- Construit AdminStats (4 cards + 3 graphiques Recharts)
+- Construit StatsOverview (vue d'ensemble avec stats et tableaux récents)
+- Créé les utilitaires (activation-code.ts, pdf-export.ts)
+- Lint: 0 erreurs, 0 warnings
+- Compilation: GET / 200 OK (35KB), API /stats 200 OK
+
+Stage Summary:
+- 3 203 lignes de code pour le dashboard
+- 8 composants admin, 4 API routes, 2 utilitaires
+- 6 pages: Overview, Generate, Batches, Physical QR, Users, Stats
+- QR code personnalisable avec aperçu temps réel
+- Export PDF A4/A5 pour impression

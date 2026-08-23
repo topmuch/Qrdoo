@@ -1,31 +1,39 @@
-'use client'
+'use client';
 
-export default function Home() {
+import { useState } from 'react';
+import { AdminLayout, type AdminPage } from '@/components/admin/admin-layout';
+import { StatsOverview } from '@/components/admin/stats-overview';
+import { GenerateBatch } from '@/components/admin/generate-batch';
+import { ManageBatches } from '@/components/admin/manage-batches';
+import { ManagePhysicalQr } from '@/components/admin/manage-physical-qr';
+import { AdminUsers } from '@/components/admin/admin-users';
+import { AdminStats } from '@/components/admin/admin-stats';
+
+export default function AdminDashboard() {
+  const [activePage, setActivePage] = useState<AdminPage>('overview');
+
+  const renderPage = () => {
+    switch (activePage) {
+      case 'overview':
+        return <StatsOverview />;
+      case 'generate':
+        return <GenerateBatch />;
+      case 'batches':
+        return <ManageBatches />;
+      case 'physical-qr':
+        return <ManagePhysicalQr />;
+      case 'users':
+        return <AdminUsers />;
+      case 'stats':
+        return <AdminStats />;
+      default:
+        return <StatsOverview />;
+    }
+  };
+
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      gap: '2rem',
-      padding: '1rem'
-    }}>
-      <div style={{
-        position: 'relative',
-        width: '6rem',
-        height: '6rem'
-      }}>
-        <img
-          src="/logo.svg"
-          alt="Z.ai Logo"
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain'
-          }}
-        />
-      </div>
-    </div>
-  )
+    <AdminLayout activePage={activePage} onPageChange={setActivePage}>
+      {renderPage()}
+    </AdminLayout>
+  );
 }
