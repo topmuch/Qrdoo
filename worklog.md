@@ -54,3 +54,33 @@ Stage Summary:
 - 6 pages: Overview, Generate, Batches, Physical QR, Users, Stats
 - QR code personnalisable avec aperçu temps réel
 - Export PDF A4/A5 pour impression
+
+---
+Task ID: 3
+Agent: Main Architect + Subagents
+Task: Dashboard Client complet (activation + gestion)
+
+Work Log:
+- Créé 8 API routes client (check-code, activate, activate-batch, qr-codes, homes, rooms, activity, invite)
+- ensureDemoUser auto-créé utilisateur + maison "Ma Maison" au premier appel
+- Construit PhysicalQrCodes (1 435 lignes) avec 3 onglets:
+  - Onglet 1: Wizard 3 étapes (saisie code, type module, confirmation)
+  - Onglet 2: Activation par lot (saisie multiligne + upload)
+  - Onglet 3: Tableau QR activés (filtres, édition, désactivation)
+- Construit ActivationPage (page publique /activate/[code])
+  - Validation temps réel du code
+  - Sélecteur de 12 modules populaires
+  - Écran de succès
+- Construit ClientDashboard (4 stat cards + actions rapides)
+- Construit HomesManager (CRUD maisons + invitation membres)
+- Construit RoomsManager (CRUD pièces avec icônes émojis)
+- Construit ActivityLogViewer (timeline + export CSV)
+- Layout unifié admin + client avec sidebar 2 sections
+- Lint: 0 erreurs, 0 warnings
+
+Stage Summary:
+- 3 244 lignes de code client
+- 6 composants client, 8 API routes
+- Workflow d'activation complet (vérification → module → pièce → confirmation)
+- Système d'invitation de membres avec rôles
+- Dashboard client avec vue d'ensemble + gestion complète

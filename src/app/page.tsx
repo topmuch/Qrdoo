@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { AdminLayout, type AdminPage } from '@/components/admin/admin-layout';
+
+// Admin pages
 import { StatsOverview } from '@/components/admin/stats-overview';
 import { GenerateBatch } from '@/components/admin/generate-batch';
 import { ManageBatches } from '@/components/admin/manage-batches';
@@ -9,8 +11,16 @@ import { ManagePhysicalQr } from '@/components/admin/manage-physical-qr';
 import { AdminUsers } from '@/components/admin/admin-users';
 import { AdminStats } from '@/components/admin/admin-stats';
 
-export default function AdminDashboard() {
-  const [activePage, setActivePage] = useState<AdminPage>('overview');
+// Client pages
+import { ClientDashboard } from '@/components/client/client-dashboard';
+import { PhysicalQrCodes } from '@/components/client/physical-qr-codes';
+import { HomesManager } from '@/components/client/homes-manager';
+import { RoomsManager } from '@/components/client/rooms-manager';
+import { ActivityLogViewer } from '@/components/client/activity-log-viewer';
+import { ActivationPage } from '@/components/client/activation-page';
+
+export default function App() {
+  const [activePage, setActivePage] = useState<AdminPage>('client-home');
 
   const renderPage = () => {
     switch (activePage) {
@@ -26,8 +36,21 @@ export default function AdminDashboard() {
         return <AdminUsers />;
       case 'stats':
         return <AdminStats />;
+      case 'client-home':
+        return <ClientDashboard />;
+      case 'client-activate':
+      case 'client-qr-codes':
+        return <PhysicalQrCodes />;
+      case 'client-homes':
+        return <HomesManager />;
+      case 'client-rooms':
+        return <RoomsManager />;
+      case 'client-activity':
+        return <ActivityLogViewer />;
+      case 'activation-public':
+        return <ActivationPage />;
       default:
-        return <StatsOverview />;
+        return <ClientDashboard />;
     }
   };
 
