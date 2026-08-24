@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { AdminLayout, type AdminPage } from '@/components/admin/admin-layout';
+import { RoleSelector } from '@/components/role-selector';
+import { SuperAdminLayout, type SuperAdminPage } from '@/components/admin/super-admin-layout';
+import { ClientLayout, type ClientPage } from '@/components/client/client-layout';
 
-// Admin pages
+// Superadmin pages
 import { StatsOverview } from '@/components/admin/stats-overview';
 import { GenerateBatch } from '@/components/admin/generate-batch';
 import { ManageBatches } from '@/components/admin/manage-batches';
@@ -18,28 +20,77 @@ import { HomesManager } from '@/components/client/homes-manager';
 import { RoomsManager } from '@/components/client/rooms-manager';
 import { ActivityLogViewer } from '@/components/client/activity-log-viewer';
 import { ActivationPage } from '@/components/client/activation-page';
-
-// Module pages
 import { ModuleConfigPage } from '@/components/client/module-config';
 import { ModulePreviewPage } from '@/components/client/module-preview';
 
-export default function App() {
-  const [activePage, setActivePage] = useState<AdminPage>('module-preview');
+// Placeholder pour les pages V3
+function PlaceholderPage({ title }: { title: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="rounded-2xl border-2 border-dashed border-muted-foreground/25 p-12 max-w-md">
+        <p className="text-lg font-semibold">{title}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Cette fonctionnalité sera disponible dans les prochaines étapes.
+        </p>
+      </div>
+    </div>
+  );
+}
 
-  const renderPage = () => {
-    switch (activePage) {
-      case 'overview':
-        return <StatsOverview />;
-      case 'generate':
-        return <GenerateBatch />;
-      case 'batches':
-        return <ManageBatches />;
-      case 'physical-qr':
-        return <ManagePhysicalQr />;
-      case 'users':
-        return <AdminUsers />;
-      case 'stats':
-        return <AdminStats />;
+type AppRole = 'select' | 'superadmin' | 'client';
+
+export default function App() {
+  const [role, setRole] = useState<AppRole>('select');
+  const [adminPage, setAdminPage] = useState<SuperAdminPage>('overview');
+  const [clientPage, setClientPage] = useState<ClientPage>('module-preview');
+
+  // === Role selector ===
+  if (role === 'select') {
+    return (
+      <RoleSelector
+        onSelectAdmin={() => setRole('superadmin')}
+        onSelectClient={() => setRole('client')}
+      />
+    );
+  }
+
+  // === Super Admin Dashboard ===
+  if (role === 'superadmin') {
+    const renderAdminPage = () => {
+      switch (adminPage) {
+        case 'overview':
+          return <StatsOverview />;
+        case 'generate':
+          return <GenerateBatch />;
+        case 'batches':
+          return <ManageBatches />;
+        case 'physical-qr':
+          return <ManagePhysicalQr />;
+        case 'users':
+          return <AdminUsers />;
+        case 'stats':
+          return <AdminStats />;
+        default:
+          return <StatsOverview />;
+      }
+    };
+
+    return (
+      <SuperAdminLayout
+        activePage={adminPage}
+        onPageChange={setAdminPage}
+        onSwitchToClient={() => {
+          setRole('client');
+        }}
+      >
+        {renderAdminPage()}
+      </SuperAdminLayout>
+    );
+  }
+
+  // === Client Dashboard ===
+  const renderClientPage = () => {
+    switch (clientPage) {
       case 'client-home':
         return <ClientDashboard />;
       case 'client-activate':
@@ -51,6 +102,8 @@ export default function App() {
         return <RoomsManager />;
       case 'client-activity':
         return <ActivityLogViewer />;
+      case 'client-notifications':
+        return <PlaceholderPage title="Notifications" />;
       case 'activation-public':
         return <ActivationPage />;
       case 'module-config':
@@ -59,14 +112,22 @@ export default function App() {
         return <ModulePreviewPage />;
       case 'modules':
         return <ModulePreviewPage />;
+      case 'client-settings':
+        return <PlaceholderPage title="Paramètres" />;
       default:
         return <ModulePreviewPage />;
     }
   };
 
   return (
-    <AdminLayout activePage={activePage} onPageChange={setActivePage}>
-      {renderPage()}
-    </AdminLayout>
+    <ClientLayout
+      activePage={clientPage}
+      onPageChange={setClientPage}
+      onSwitchToAdmin={() => {
+        setRole('superadmin');
+      }}
+    >
+      {renderClientPage()}
+    </ClientLayout>
   );
 }

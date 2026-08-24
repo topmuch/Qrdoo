@@ -209,3 +209,35 @@ Stage Summary:
 - 7 nouveaux types TS: FlashSaleStatus, CouponDiscountType, CouponStatus, ChatSenderType, ChatMessageType, NotificationType
 - 9 types de notifications: flash_sale_nearby, coupon_expiring, service_request_update, service_chat, promo_match, chore_reminder, stock_alert, membership_invite, system
 - Fichiers modifiés: supabase/schema.sql (1446→1732 lignes), prisma/schema.prisma (692→869 lignes), src/types/database.ts (495→573 lignes)
+
+---
+Task ID: 7
+Agent: Main Architect
+Task: Séparer le dashboard Superadmin du dashboard Client
+
+Work Log:
+- Créé `SuperAdminLayout` (super-admin-layout.tsx) avec sidebar dédiée rouge/destructive
+  - 6 items: Vue d'ensemble, Générer un lot, Lots générés, QR physiques, Utilisateurs, Statistiques
+  - Badge "Superadmin" dans le header, bouton "Passer au client"
+- Créé `ClientLayout` (client-layout.tsx) avec sidebar dédiée primaire
+  - Section "Mon Espace" (6 items dont Notifications)
+  - Section "Modules V1" (3 items: Configurer, Aperçu, Catalogue)
+  - Section "Marketplace V3" (2 items avec badge V3: Mon Quartier, Services Pro)
+  - Section "Demo" (Page activation)
+  - Bouton "Passer en admin" dans le footer
+- Créé `RoleSelector` (role-selector.tsx) : page d'accueil avec 2 cartes visuelles
+  - Carte Super Admin (icône Shield, hover rouge)
+  - Carte Espace Client (icône QR Code, hover primaire)
+  - Design centré avec gradient, header/footer
+- Refondu `page.tsx` : state machine à 3 états (select → superadmin ↔ client)
+  - Placeholders pour les pages V3 non encore implémentées
+  - Ancien `AdminLayout` conservé (non supprimé, pour compatibilité)
+- Lint: 0 erreurs, 0 warnings
+- Agent Browser vérifié: sélecteur → Super Admin → Client → retour, 0 erreurs console, mobile responsive
+
+Stage Summary:
+- 3 nouveaux fichiers: super-admin-layout.tsx, client-layout.tsx, role-selector.tsx
+- 1 fichier refondu: page.tsx (séparation des routes superadmin/client)
+- Navigation bidirectionnelle entre les 2 dashboards via boutons footer
+- Page d'accueil redesignée comme sélecteur de rôle
+- Identité visuelle distincte: Super Admin (rouge), Client (primaire)
