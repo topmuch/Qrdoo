@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, createElement } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import { generateUniqueCodes } from '@/lib/activation-code';
 import { downloadPdf, type QrCodeForPdf } from '@/lib/pdf-export';
+import { QRCodeSVG } from 'qrcode.react';
+import { createRoot } from 'react-dom/client';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -111,6 +113,81 @@ const DEFAULT_DESIGN: DesignConfig = {
 };
 
 /* ------------------------------------------------------------------ */
+/*  SVG → PNG conversion utility (browser-only, zero native deps)       */
+/* ------------------------------------------------------------------ */
+
+/** Convert an SVG Blob to a PNG data-URL using the browser Canvas API */
+function svgBlobToPngDataUrl(svgBlob: Blob, size: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); reject(new Error('No 2d context')); return; }
+      ctx.drawImage(img, 0, 0, size, size);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG image load failed')); };
+    img.src = url;
+  });
+}
+
+/** Convert an inline SVG element to a PNG data-URL */
+function svgElementToPngDataUrl(svgEl: SVGSVGElement, size: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    svgBlobToPngDataUrl(svgBlob, size).then(resolve).catch(reject);
+  });
+}
+
+/**
+ * Fallback QR PNG generator using qrcode.react (pure JS, no native deps).
+ * Renders QRCodeSVG into a hidden container, extracts the SVG, converts to PNG.
+ */
+async function generateFallbackQrPng(
+  data: string,
+  size: number,
+  fgColor: string,
+  bgColor: string,
+  level: string,
+): Promise<string> {
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+  document.body.appendChild(container);
+
+  const root = createRoot(container);
+  root.render(
+    createElement(QRCodeSVG, {
+      value: data,
+      size,
+      bgColor,
+      fgColor,
+      level: level as 'L' | 'M' | 'Q' | 'H',
+    }),
+  );
+
+  // Wait for React to commit the render
+  await new Promise((r) => setTimeout(r, 60));
+
+  const svgEl = container.querySelector('svg');
+  if (!svgEl) {
+    root.unmount();
+    document.body.removeChild(container);
+    throw new Error('Fallback: SVG element not rendered');
+  }
+
+  const pngUrl = await svgElementToPngDataUrl(svgEl, size);
+  root.unmount();
+  document.body.removeChild(container);
+  return pngUrl;
+}
+
+/* ------------------------------------------------------------------ */
 /*  SVG Logo presets (as data URIs)                                    */
 /* ------------------------------------------------------------------ */
 
@@ -145,17 +222,21 @@ export function GenerateBatch() {
   /* ---- refs ---- */
   const previewRef = useRef<HTMLDivElement>(null);
   const qrInstanceRef = useRef<any>(null);
+  const fallbackRef = useRef(false);
+
+  /* ---- state ---- */
+  const [showFallback, setShowFallback] = useState(false);
 
   /* ---- QR preview ---- */
   const updateQrPreview = useCallback(async () => {
-    if (!previewRef.current) return;
+    if (fallbackRef.current || !previewRef.current) return;
     try {
       const QRCodeStyling = (await import('qr-code-styling')).default;
 
       const opts: any = {
         width: 280,
         height: 280,
-        type: 'canvas',
+        type: 'svg',
         data: 'https://qrdomotik.com/activate/QR-XXXXXXXX',
         dotsOptions: {
           color: design.dotsColor,
@@ -195,7 +276,11 @@ export function GenerateBatch() {
         qrInstanceRef.current = instance;
       }
     } catch (err) {
-      console.error('QR preview error:', err);
+      console.error('QR preview error — switching to SVG fallback:', err);
+      fallbackRef.current = true;
+      setShowFallback(true);
+      if (previewRef.current) previewRef.current.innerHTML = '';
+      qrInstanceRef.current = null;
     }
   }, [design]);
 
@@ -261,34 +346,59 @@ export function GenerateBatch() {
     if (generatedCodes.length === 0) return;
     setIsExporting(true);
     try {
-      const QRCodeStyling = (await import('qr-code-styling')).default;
       const qrCodes: QrCodeForPdf[] = [];
 
-      for (const code of generatedCodes) {
-        const opts: any = {
-          width: 400,
-          height: 400,
-          type: 'canvas',
-          data: `https://qrdomotik.com/activate/${code}`,
-          dotsOptions: { color: design.dotsColor, type: design.dotsType },
-          backgroundOptions: { color: design.backgroundColor },
-          cornersSquareOptions: { color: design.dotsColor, type: design.cornersSquareType },
-          cornersDotOptions: { color: design.dotsColor, type: design.cornersDotType },
-          qrOptions: { errorCorrectionLevel: design.errorCorrectionLevel },
-          imageOptions: { crossOrigin: 'anonymous', margin: 8, imageSize: 0.35 },
-        };
-        if (design.logoPreset) {
-          opts.image = getPresetLogoDataUrl(design.logoPreset);
+      // Try loading qr-code-styling once; if it fails, use fallback for all codes
+      let QRCodeStyling: any = null;
+      if (!fallbackRef.current) {
+        try {
+          QRCodeStyling = (await import('qr-code-styling')).default;
+        } catch {
+          fallbackRef.current = true;
+          setShowFallback(true);
         }
-        const qr = new QRCodeStyling(opts);
-        const blob: Blob = await new Promise((resolve, reject) => {
-          qr.download({ name: 'qr', extension: 'png' as any });
-          qr.getRawData('png').then((d: any) => {
-            if (d) resolve(d);
-            else reject(new Error('No data'));
-          }).catch(reject);
-        });
-        const imageUrl = URL.createObjectURL(blob);
+      }
+
+      for (const code of generatedCodes) {
+        const data = `https://qrdomotik.com/activate/${code}`;
+        let imageUrl: string;
+
+        if (QRCodeStyling) {
+          // Preferred path: qr-code-styling → SVG → PNG
+          const opts: any = {
+            width: 400,
+            height: 400,
+            type: 'svg',
+            data,
+            dotsOptions: { color: design.dotsColor, type: design.dotsType },
+            backgroundOptions: { color: design.backgroundColor },
+            cornersSquareOptions: { color: design.dotsColor, type: design.cornersSquareType },
+            cornersDotOptions: { color: design.dotsColor, type: design.cornersDotType },
+            qrOptions: { errorCorrectionLevel: design.errorCorrectionLevel },
+            imageOptions: { crossOrigin: 'anonymous', margin: 8, imageSize: 0.35 },
+          };
+          if (design.logoPreset) {
+            opts.image = getPresetLogoDataUrl(design.logoPreset);
+          }
+          try {
+            const qr = new QRCodeStyling(opts);
+            const svgBlob: Blob = await qr.getRawData('svg');
+            imageUrl = await svgBlobToPngDataUrl(svgBlob, 400);
+          } catch {
+            // qr-code-styling loaded but getRawData failed — switch to fallback
+            fallbackRef.current = true;
+            setShowFallback(true);
+            imageUrl = await generateFallbackQrPng(
+              data, 400, design.dotsColor, design.backgroundColor, design.errorCorrectionLevel,
+            );
+          }
+        } else {
+          // Fallback path: qrcode.react → SVG → PNG
+          imageUrl = await generateFallbackQrPng(
+            data, 400, design.dotsColor, design.backgroundColor, design.errorCorrectionLevel,
+          );
+        }
+
         qrCodes.push({ code, imageUrl });
       }
 
@@ -298,11 +408,9 @@ export function GenerateBatch() {
         batchName: batchName || `Lot ${batchId?.slice(0, 8)}`,
       });
 
-      // Cleanup object URLs
-      qrCodes.forEach((qr) => URL.revokeObjectURL(qr.imageUrl));
       toast.success('PDF téléchargé !');
     } catch (err: any) {
-      toast.error('Erreur lors de l\'export PDF');
+      toast.error("Erreur lors de l'export PDF");
       console.error(err);
     } finally {
       setIsExporting(false);
@@ -702,7 +810,17 @@ export function GenerateBatch() {
                     ref={previewRef}
                     className="flex items-center justify-center"
                     style={{ width: 280, height: 280 }}
-                  />
+                  >
+                    {showFallback && (
+                      <QRCodeSVG
+                        value="https://qrdomotik.com/activate/QR-XXXXXXXX"
+                        size={280}
+                        bgColor={design.backgroundColor}
+                        fgColor={design.dotsColor}
+                        level={design.errorCorrectionLevel as 'L' | 'M' | 'Q' | 'H'}
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {/* Design Summary */}

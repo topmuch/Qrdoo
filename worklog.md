@@ -363,3 +363,124 @@ Stage Summary:
 - 3 fichiers modifies: login-form.tsx, auth.ts, Dockerfile, eslint.config.mjs
 - 1 fichier cree: scripts/create-admin.cjs
 - Auth fonctionnel avec raw query (contournement cache Prisma)
+
+---
+Task ID: 11
+Agent: Frontend Styling Expert (subagent)
+Task: Ajouter une barre de navigation sticky dans la section Hero de la landing page
+
+Work Log:
+- Ajouté `useState`, `useEffect` aux imports React
+- Ajouté `Menu`, `X` icônes depuis lucide-react
+- Créé le composant `Navbar` (sticky, fixed top-0, z-50) avec:
+  - Logo QR Domotik (QrCode icon + texte) cliquable vers #hero
+  - 4 liens de navigation (Accueil, A propos, Tarifs, Contactez nous)
+  - Bouton "Se connecter" bleu (#2563EB) appelant onGoToDashboard
+  - Menu hamburger responsive (Menu/X toggle) avec slide-down animé
+  - Scroll listener pour ombre renforcée après 20px de scroll
+  - Smooth scroll via `scrollIntoView({ behavior: 'smooth' })`
+  - Style: backdrop-blur-md, bg-[#0a0f1e]/80, border-b border-white/10
+- Ajouté `id` prop au composant `Section` (forward vers motion.section)
+- Ajouté `scroll-mt-16` sur Section, hero, et CTA final (offset pour la navbar)
+- Ajouté `pt-20` au contenu du Hero (évite masquage par navbar)
+- IDs ajoutés sur les sections: hero (#hero), avantages (#avantages), pricing (#pricing), cta-final (#cta-final)
+- Navbar rendue avant le Hero section dans le JSX
+- Lint: 0 erreurs, 0 warnings
+- Build: compilation OK, toutes les routes statiques/dynamiques générées
+
+Stage Summary:
+- 1 fichier modifié: src/components/landing/hero-section.tsx (858 → 975 lignes, +117 lignes)
+- Composant Navbar: ~100 lignes, responsive, glassmorphism, smooth scroll
+- 4 ancres fonctionnelles + 1 bouton CTA (Se connecter)
+- Design cohérent: fond sombre #0a0f1e, bleu #2563EB, backdrop-blur, border-white/10
+- Aucune nouvelle dépendance (Menu/X déjà dans lucide-react)
+
+---
+Task ID: 12
+Agent: Subagent (general-purpose)
+Task: Ajouter un bouton pour créer un nouvel utilisateur dans la page admin utilisateurs
+
+Work Log:
+- Lu le worklog existant et analysé la page admin-users.tsx (242 lignes)
+- Vérifié les composants shadcn/ui disponibles (dialog, select, label présents)
+- Modifié l'API route `/api/auth/register` pour accepter un paramètre `role` optionnel (`user` | `superadmin`)
+  - Ajouté validation du rôle (400 si invalide)
+  - Logique : role fourni > fallback email admin@qrdomotik.com > défaut 'user'
+- Ajouté le bouton "Ajouter un utilisateur" avec icône UserPlus dans le CardHeader (à droite du titre)
+- Créé un Dialog shadcn/ui avec formulaire :
+  - Champ Email (Input type email)
+  - Champ Nom complet (Input)
+  - Champ Mot de passe (Input type password)
+  - Select Rôle : Utilisateur | Superadmin
+  - Bouton "Créer" avec spinner Loader2 pendant le chargement
+- Gestion des erreurs :
+  - Validation client (champs requis, mot de passe >= 6 caractères)
+  - Erreur serveur affichée dans le dialog (email déjà pris, etc.)
+  - Erreur réseau
+- Après succès : ferme le dialog, réinitialise le formulaire, rafraîchit la liste (page 1)
+- Réinitialisation du formulaire à la fermeture du dialog
+- Lint: 0 erreurs, 0 warnings
+- Compilation: aucune nouvelle erreur (erreurs pré-existantes dans v2/modules et examples/)
+
+Stage Summary:
+- 2 fichiers modifiés: `src/components/admin/admin-users.tsx` (242→387 lignes, +145 lignes), `src/app/api/auth/register/route.ts` (+5 lignes)
+- Bouton "Ajouter un utilisateur" avec icône UserPlus en haut à droite de la page
+- Dialog de création avec 4 champs (email, nom, mot de passe, rôle) + gestion erreurs
+- Composants shadcn/ui utilisés: Button, Input, Label, Dialog (7 sous-composants), Select (5 sous-composants)
+- Aucune nouvelle dépendance
+
+---
+Task ID: 13
+Agent: Subagent (general-purpose)
+Task: Fix QR code generation en production (Docker standalone)
+
+Work Log:
+- Analysé le composant `generate-batch.tsx` (734 lignes) : utilise `qr-code-styling` avec `type: 'canvas'` + `getRawData('png')`
+- Analysé `qr-demo.tsx` (landing) : utilise `qrcode.react` avec `QRCodeSVG` — fonctionne parfaitement (pure JS, zéro native dep)
+- Analysé `package.json` : `qr-code-styling` v1.9.2 et `qrcode.react` v4.2.0 présents dans dependencies
+- Analysé `next.config.ts` : output standalone, pas de config webpack/turbopack
+- Analysé `Dockerfile` : `node:20-alpine`, pas de build tools pour les modules natifs C++
+- Analysé `pdf-export.ts` : utilise `jsPDF.addImage()` qui accepte data-URLs et blob-URLs
+
+Racine du problème identifiée:
+- `qr-code-styling` a une dépendance optionnelle au package npm `canvas` (module natif C++)
+- Sur Alpine Linux (Docker), ce module natif ne peut pas être compilé/chargé
+- Le bundler (Turbopack/Webpack) échoue à résoudre le module `canvas` pour le bundle client
+- Même en mode `'use client'`, le module est bundlé par Next.js et l'import dynamique échoue en production
+- Bug secondaire : `handleExportPdf` appelait `qr.download()` (déclenche un téléchargement fichier inutile) en même temps que `getRawData('png')`
+
+Corrections appliquées:
+
+1. **`next.config.ts`** — Configuration du bundler:
+   - Ajouté `serverExternalPackages: ['canvas']` pour exclure `canvas` du bundle serveur
+   - Ajouté `turbopack.resolveAlias.canvas = { browser: '' }` pour Turbopack (défaut en Next.js 16)
+   - Ajouté `webpack.resolve.fallback.canvas = false` pour compatibilité Webpack
+
+2. **`generate-batch.tsx`** — 3 catégories de changements:
+   a. **Nouveaux imports**: `QRCodeSVG` (qrcode.react), `createRoot` (react-dom/client), `createElement`
+   b. **3 fonctions utilitaires** (avant le composant):
+      - `svgBlobToPngDataUrl()` : SVG Blob → Canvas → PNG data-URL (browser-only)
+      - `svgElementToPngDataUrl()` : SVG Element → SVG Blob → Canvas → PNG
+      - `generateFallbackQrPng()` : render `QRCodeSVG` dans un div caché → SVG → PNG
+   c. **Fallback state**: `fallbackRef` (ref, pour éviter les re-renders) + `showFallback` (state, pour le JSX)
+   d. **`updateQrPreview`**: changé `type: 'canvas'` → `type: 'svg'`, ajout try/catch qui active le fallback
+   e. **`handleExportPdf`**:
+      - Import de `qr-code-styling` wrappé dans try/catch (une seule tentative)
+      - Chemin préféré: `qr-code-styling` SVG → `svgBlobToPngDataUrl` → PNG data-URL
+      - Chemin fallback: `generateFallbackQrPng` (qrcode.react → SVG → PNG)
+      - Supprimé l'appel bug `qr.download()` qui déclenchait un téléchargement parasite
+      - Plus besoin de `URL.revokeObjectURL` car on utilise des data-URLs
+   f. **Preview JSX**: ajout de `<QRCodeSVG>` conditionnel dans le div de preview quand `showFallback` est true
+
+Vérification:
+- Build: `next build` ✅ (Turbopack, 20.3s compilation, 19 pages statiques)
+- Lint: 0 erreurs, 0 warnings
+- Le design visuel est inchangé (mêmes couleurs, même layout, même UX)
+- Le composant landing `qr-demo.tsx` n'a pas été modifié (déjà fonctionnel)
+
+Stage Summary:
+- 2 fichiers modifiés: `next.config.ts` (+10 lignes), `src/components/admin/generate-batch.tsx` (+85 lignes, -15 lignes)
+- Root cause: module natif `canvas` non compilable sur Alpine/Docker, bloquant `qr-code-styling`
+- Solution: config bundler (Turbopack + Webpack) pour ignorer `canvas` côté client + fallback `qrcode.react` (SVG)
+- Pipeline PDF: SVG → Canvas → PNG data-URL (zéro dépendance native, fonctionne dans tout navigateur)
+- Aucune nouvelle dépendance npm ajoutée

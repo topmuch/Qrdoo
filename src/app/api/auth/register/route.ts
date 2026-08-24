@@ -4,10 +4,14 @@ import { db } from '@/lib/db';
 
 export async function POST(req: Request) {
   try {
-    const { email, password, fullName } = await req.json();
+    const { email, password, fullName, role } = await req.json();
 
     if (!email || !password || !fullName) {
       return NextResponse.json({ error: 'Email, mot de passe et nom requis' }, { status: 400 });
+    }
+
+    if (role && role !== 'user' && role !== 'superadmin') {
+      return NextResponse.json({ error: 'Rôle invalide' }, { status: 400 });
     }
 
     if (password.length < 6) {
@@ -26,7 +30,7 @@ export async function POST(req: Request) {
         email,
         fullName,
         passwordHash,
-        role: email === 'admin@qrdomotik.com' ? 'superadmin' : 'user',
+        role: role || (email === 'admin@qrdomotik.com' ? 'superadmin' : 'user'),
       },
     });
 

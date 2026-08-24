@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { motion, useInView } from 'framer-motion';
 import {
   QrCode,
@@ -20,6 +20,8 @@ import {
   Star,
   ArrowRight,
   Check,
+  Menu,
+  X,
 } from 'lucide-react';
 import {
   Accordion,
@@ -58,24 +60,135 @@ function FadeIn({
   );
 }
 
+/* ─── Sticky Navbar ─── */
+function Navbar({ onGoToDashboard }: { onGoToDashboard: () => void }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const links = [
+    { label: 'Accueil', href: '#hero' },
+    { label: 'A propos', href: '#avantages' },
+    { label: 'Tarifs', href: '#pricing' },
+    { label: 'Contactez nous', href: '#cta-final' },
+  ];
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    setMobileOpen(false);
+    const target = document.querySelector(href);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  return (
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'bg-[#0a0f1e]/95 backdrop-blur-md border-b border-white/10 shadow-lg shadow-black/20'
+          : 'bg-[#0a0f1e]/80 backdrop-blur-md border-b border-white/10'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center justify-between h-16">
+        {/* Logo */}
+        <a
+          href="#hero"
+          onClick={(e) => handleNavClick(e, '#hero')}
+          className="flex items-center gap-2 group"
+        >
+          <QrCode className="w-6 h-6 text-[#2563EB] group-hover:scale-110 transition-transform" />
+          <span className="font-bold text-lg tracking-tight">QR Domotik</span>
+        </a>
+
+        {/* Desktop links */}
+        <div className="hidden md:flex items-center gap-8">
+          {links.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              onClick={(e) => handleNavClick(e, link.href)}
+              className="text-sm text-gray-300 hover:text-white transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+          <button
+            onClick={onGoToDashboard}
+            className="ml-2 px-5 py-2 rounded-lg bg-[#2563EB] text-white text-sm font-medium hover:bg-[#1d4ed8] transition-colors"
+          >
+            Se connecter
+          </button>
+        </div>
+
+        {/* Mobile hamburger */}
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="md:hidden p-2 text-gray-300 hover:text-white transition-colors"
+          aria-label="Menu"
+        >
+          {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+      </div>
+
+      {/* Mobile menu */}
+      <div
+        className={`md:hidden overflow-hidden transition-all duration-300 ${
+          mobileOpen ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
+        }`}
+      >
+        <div className="px-4 pb-4 space-y-1 bg-[#0a0f1e]/95 backdrop-blur-md border-t border-white/5">
+          {links.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              onClick={(e) => handleNavClick(e, link.href)}
+              className="block py-3 px-3 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+          <button
+            onClick={() => {
+              setMobileOpen(false);
+              onGoToDashboard();
+            }}
+            className="w-full mt-2 px-5 py-3 rounded-lg bg-[#2563EB] text-white text-sm font-medium hover:bg-[#1d4ed8] transition-colors"
+          >
+            Se connecter
+          </button>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 /* ─── Section wrapper ─── */
 function Section({
   children,
   className = '',
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-50px' });
 
   return (
     <motion.section
+      id={id}
       ref={ref}
       initial={{ opacity: 0, y: 30 }}
       animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
       transition={{ duration: 0.6 }}
-      className={`py-20 md:py-28 px-4 md:px-8 ${className}`}
+      className={`py-20 md:py-28 px-4 md:px-8 scroll-mt-16 ${className}`}
     >
       <div className="max-w-7xl mx-auto">{children}</div>
     </motion.section>
@@ -115,10 +228,14 @@ export function LandingPage({ onGoToDemo, onGoToDashboard }: LandingPageProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0a0f1e] text-white">
+      {/* ═══ NAVBAR ═══ */}
+      <Navbar onGoToDashboard={onGoToDashboard} />
+
       {/* ═══ 1. HERO SECTION ═══ */}
       <section
+        id="hero"
         ref={heroRef}
-        className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-[#0a0f1e] via-[#111827] to-[#0d1526]"
+        className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-[#0a0f1e] via-[#111827] to-[#0d1526] scroll-mt-16"
       >
         {/* Animated background orbs */}
         <motion.div
@@ -137,7 +254,7 @@ export function LandingPage({ onGoToDemo, onGoToDashboard }: LandingPageProps) {
           transition={{ duration: 7, repeat: Infinity, delay: 4 }}
         />
 
-        <div className="max-w-7xl mx-auto px-4 md:px-8 w-full">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 w-full pt-20">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left content */}
             <motion.div
@@ -391,7 +508,7 @@ export function LandingPage({ onGoToDemo, onGoToDashboard }: LandingPageProps) {
       </Section>
 
       {/* ═══ 5. AVANTAGES (Bento Grid) ═══ */}
-      <Section>
+      <Section id="avantages">
         <SectionTitle title="Pourquoi QR Domotik ?" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Large: Installation instantanée */}
@@ -575,7 +692,7 @@ export function LandingPage({ onGoToDemo, onGoToDashboard }: LandingPageProps) {
       </Section>
 
       {/* ═══ 6. PRICING ═══ */}
-      <Section>
+      <Section id="pricing">
         <SectionTitle
           title="Simple et transparent"
           subtitle="Choisissez le plan qui vous convient"
@@ -744,7 +861,7 @@ export function LandingPage({ onGoToDemo, onGoToDashboard }: LandingPageProps) {
       </Section>
 
       {/* ═══ 8. CTA FINAL ═══ */}
-      <section className="bg-gradient-to-r from-[#2563EB] to-[#10B981] py-20 px-4 md:px-8">
+      <section id="cta-final" className="bg-gradient-to-r from-[#2563EB] to-[#10B981] py-20 px-4 md:px-8 scroll-mt-16">
         <FadeIn>
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">

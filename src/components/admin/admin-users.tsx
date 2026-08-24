@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Users, Search } from 'lucide-react';
+import { Users, Search, UserPlus, Loader2 } from 'lucide-react';
 
 import {
   Card,
@@ -12,6 +12,23 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -79,6 +96,51 @@ export function AdminUsers() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
 
+  // Create user dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    email: '',
+    fullName: '',
+    password: '',
+    role: 'user' as 'user' | 'superadmin',
+  });
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createLoading, setCreateLoading] = useState(false);
+
+  const handleCreateUser = async () => {
+    if (!createForm.email.trim() || !createForm.fullName.trim() || !createForm.password.trim()) {
+      setCreateError('Tous les champs sont requis');
+      return;
+    }
+    if (createForm.password.length < 6) {
+      setCreateError('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    try {
+      setCreateLoading(true);
+      setCreateError(null);
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(createForm),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCreateError(data.error || 'Erreur lors de la création');
+        return;
+      }
+      setDialogOpen(false);
+      setCreateForm({ email: '', fullName: '', password: '', role: 'user' });
+      setPage(1);
+      fetchUsers();
+    } catch {
+      setCreateError('Erreur réseau, veuillez réessayer');
+    } finally {
+      setCreateLoading(false);
+    }
+  };
+
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
@@ -121,10 +183,94 @@ export function AdminUsers() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Utilisateurs</CardTitle>
-        <CardDescription>
-          Liste de tous les utilisateurs inscrits sur la plateforme
-        </CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Utilisateurs</CardTitle>
+            <CardDescription>
+              Liste de tous les utilisateurs inscrits sur la plateforme
+            </CardDescription>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) {
+              setCreateError(null);
+              setCreateForm({ email: '', fullName: '', password: '', role: 'user' });
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Ajouter un utilisateur
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Nouvel utilisateur</DialogTitle>
+                <DialogDescription>
+                  Créer un compte utilisateur sur la plateforme
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-2">
+                {createError && (
+                  <p className="text-sm text-destructive">{createError}</p>
+                )}
+                <div className="grid gap-2">
+                  <Label htmlFor="create-email">Email</Label>
+                  <Input
+                    id="create-email"
+                    type="email"
+                    placeholder="user@example.com"
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="create-name">Nom complet</Label>
+                  <Input
+                    id="create-name"
+                    placeholder="Jean Dupont"
+                    value={createForm.fullName}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, fullName: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="create-password">Mot de passe</Label>
+                  <Input
+                    id="create-password"
+                    type="password"
+                    placeholder="6 caractères minimum"
+                    value={createForm.password}
+                    onChange={(e) => setCreateForm((f) => ({ ...f, password: e.target.value }))}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="create-role">Rôle</Label>
+                  <Select
+                    value={createForm.role}
+                    onValueChange={(v) => setCreateForm((f) => ({ ...f, role: v as 'user' | 'superadmin' }))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sélectionner un rôle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">Utilisateur</SelectItem>
+                      <SelectItem value="superadmin">Superadmin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  onClick={handleCreateUser}
+                  disabled={createLoading}
+                >
+                  {createLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Créer
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Search */}
