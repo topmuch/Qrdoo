@@ -19,6 +19,7 @@ export async function GET() {
       recentUsers,
       activationRecords,
       moduleDistributionRaw,
+      qrStatusDistributionRaw,
     ] = await Promise.all([
       // 1. Total batches
       db.qrBatch.count(),
@@ -53,6 +54,7 @@ export async function GET() {
         take: 5,
         include: {
           _count: { select: { physicalQrCodes: true } },
+          physicalQrCodes: { select: { status: true } },
         },
       }),
 
@@ -74,6 +76,12 @@ export async function GET() {
       db.qrCode.groupBy({
         by: ['type'],
         _count: { type: true },
+      }),
+
+      // 14. QR status distribution for pie chart
+      db.physicalQrCode.groupBy({
+        by: ['status'],
+        _count: { status: true },
       }),
     ]);
 
@@ -102,14 +110,28 @@ export async function GET() {
 
     // ---- Module distribution ----
     const moduleDistribution = moduleDistributionRaw.map((entry) => ({
-      type: entry.type,
+      name: entry.type,
       count: entry._count.type,
+    }));
+
+    // ---- QR Status distribution ----
+    const statusLabels: Record<string, string> = {
+      active: 'Actifs',
+      inactive: 'Inactifs',
+      lost: 'Perdus',
+      cancelled: 'Annulés',
+    };
+    const qrStatusDistribution = qrStatusDistributionRaw.map((entry) => ({
+      name: statusLabels[entry.status] || entry.status,
+      value: entry._count.status,
     }));
 
     return NextResponse.json({
       totalBatches,
       totalPhysicalQrs,
+      totalPhysicalQr: totalPhysicalQrs,
       activeQrCount,
+      activatedQr: activeQrCount,
       inactiveQrCount,
       lostQrCount,
       cancelledQrCount,
@@ -118,6 +140,7 @@ export async function GET() {
       totalDynamicQrCodes,
       activationTrend,
       moduleDistribution,
+      qrStatusDistribution,
       recentBatches,
       recentUsers,
     });

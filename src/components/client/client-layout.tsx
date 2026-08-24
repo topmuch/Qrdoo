@@ -23,7 +23,6 @@ import {
   Briefcase,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 
@@ -54,7 +53,7 @@ const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode }
   { key: 'client-activate', label: 'Activer QR codes', icon: <Plus className="h-5 w-5" /> },
   { key: 'client-homes', label: 'Mes Maisons', icon: <Home className="h-5 w-5" /> },
   { key: 'client-rooms', label: 'Mes Pièces', icon: <DoorOpen className="h-5 w-5" /> },
-  { key: 'client-activity', label: 'Journal d\'activité', icon: <Activity className="h-5 w-5" /> },
+  { key: 'client-activity', label: "Journal d'activité", icon: <Activity className="h-5 w-5" /> },
   { key: 'client-notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" /> },
 ];
 
@@ -87,32 +86,32 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Violet/Purple gradient */}
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform duration-300 lg:static lg:translate-x-0',
+        'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r-violet-900/50 bg-gradient-to-b from-violet-950 via-violet-900 to-purple-950 transition-transform duration-300 lg:static lg:translate-x-0',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full',
       )}>
         {/* Brand */}
         <div className="flex h-16 items-center gap-3 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-            <QrCode className="h-5 w-5 text-primary-foreground" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500">
+            <QrCode className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-sm font-bold leading-none">QR Domotik</h1>
-            <p className="text-[11px] text-muted-foreground">Espace Client</p>
+            <h1 className="text-sm font-bold leading-none text-white">QR Domotik</h1>
+            <p className="text-[11px] text-violet-300/70">Espace Client</p>
           </div>
-          <Button variant="ghost" size="icon" className="ml-auto lg:hidden h-8 w-8" onClick={() => setSidebarOpen(false)}>
+          <Button variant="ghost" size="icon" className="ml-auto lg:hidden h-8 w-8 text-white hover:bg-violet-800/50" onClick={() => setSidebarOpen(false)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <Separator />
+        <div className="h-px bg-violet-800/50" />
 
         {/* Navigation */}
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="flex flex-col gap-1">
             {/* Dashboard section */}
-            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
               Mon Espace
             </p>
             {DASHBOARD_ITEMS.map((item) => (
@@ -125,8 +124,8 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                   activePage === item.key
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/30'
+                    : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
                 )}
               >
                 {item.icon}
@@ -135,10 +134,10 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
               </button>
             ))}
 
-            <Separator className="my-3" />
+            <div className="my-3 h-px bg-violet-800/50" />
 
             {/* Modules V1 section */}
-            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
               Modules V1
             </p>
             {MODULE_ITEMS_V1.map((item) => (
@@ -151,8 +150,8 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                   activePage === item.key
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/30'
+                    : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
                 )}
               >
                 {item.icon}
@@ -161,10 +160,10 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
               </button>
             ))}
 
-            <Separator className="my-3" />
+            <div className="my-3 h-px bg-violet-800/50" />
 
             {/* Marketplace V3 section */}
-            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
               Marketplace V3
             </p>
             {MODULE_ITEMS_V3.map((item, idx) => (
@@ -177,14 +176,14 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                   activePage === item.key
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/30'
+                    : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
                 )}
               >
                 {item.icon}
                 <span className="flex-1 text-left">{item.label}</span>
                 {item.badge && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  <Badge className="text-[10px] px-1.5 py-0 bg-violet-800/40 text-violet-300/60 hover:bg-violet-800/60">
                     {item.badge}
                   </Badge>
                 )}
@@ -192,10 +191,10 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
               </button>
             ))}
 
-            <Separator className="my-3" />
+            <div className="my-3 h-px bg-violet-800/50" />
 
             {/* Demo section */}
-            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
               Démo
             </p>
             <button
@@ -206,8 +205,8 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                 activePage === 'activation-public'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/30'
+                  : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
               )}
             >
               <Zap className="h-5 w-5" />
@@ -217,20 +216,20 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
           </nav>
         </ScrollArea>
 
-        <Separator />
+        <div className="h-px bg-violet-800/50" />
 
         {/* Footer */}
         <div className="p-3 flex flex-col gap-1">
           <button
             onClick={onSwitchToAdmin}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-violet-200/70 hover:bg-violet-800/40 hover:text-white transition-all"
           >
             <ArrowLeftRight className="h-5 w-5" />
             Passer en admin
           </button>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-violet-300/70 hover:bg-red-500/20 hover:text-red-300 transition-all"
           >
             <LogOut className="h-5 w-5" />
             Déconnexion
@@ -249,11 +248,11 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
             <h2 className="text-lg font-semibold">{current?.label}</h2>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5">
-              <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center">
-                <span className="text-[10px] font-bold text-primary-foreground">UD</span>
+            <div className="hidden sm:flex items-center gap-2 rounded-full bg-violet-100 dark:bg-violet-500/10 px-3 py-1.5">
+              <div className="h-6 w-6 rounded-full bg-violet-600 flex items-center justify-center">
+                <span className="text-[10px] font-bold text-white">UD</span>
               </div>
-              <span className="text-xs font-medium">Utilisateur Démo</span>
+              <span className="text-xs font-medium text-violet-700 dark:text-violet-300">Utilisateur Démo</span>
             </div>
           </div>
         </header>

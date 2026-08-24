@@ -115,7 +115,7 @@ function AppContent() {
         onSwitchToClient={() => setView('client')}
         onLogout={handleLogout}
       >
-        <ErrorBoundary>{renderAdminPage()}</ErrorBoundary>
+        <ErrorBoundary key={adminPage}>{renderAdminPage()}</ErrorBoundary>
       </SuperAdminLayout>
     );
   }
@@ -145,7 +145,7 @@ function AppContent() {
       onSwitchToAdmin={() => setView('superadmin')}
       onLogout={handleLogout}
     >
-      <ErrorBoundary>{renderClientPage()}</ErrorBoundary>
+      <ErrorBoundary key={clientPage}>{renderClientPage()}</ErrorBoundary>
     </ClientLayout>
   );
 }

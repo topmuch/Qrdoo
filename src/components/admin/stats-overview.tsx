@@ -136,7 +136,9 @@ export function StatsOverview() {
             ) : (
               <div className="space-y-3">
                 {stats.recentBatches.map((batch) => {
-                  const active = batch.physicalQrCodes.filter((qr: any) => qr.status === 'active').length;
+                  const qrList = (batch.physicalQrCodes as Array<{ status: string }>) || [];
+                  const active = qrList.filter((qr) => qr.status === 'active').length;
+                  const total = qrList.length || batch.quantity || 0;
                   return (
                     <div key={batch.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
                       <div className="flex items-center gap-3">
@@ -151,8 +153,8 @@ export function StatsOverview() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant={active === batch.quantity ? 'default' : 'secondary'}>
-                          {active}/{batch.quantity}
+                        <Badge variant={active >= total && total > 0 ? 'default' : 'secondary'}>
+                          {active}/{total}
                         </Badge>
                         <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
                       </div>

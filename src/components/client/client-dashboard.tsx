@@ -80,11 +80,32 @@ export function ClientDashboard() {
     );
   }
 
-  const stats = [
-    { label: 'Mes maisons', value: homes.length, icon: <Home className="h-5 w-5 text-emerald-500" />, bg: 'bg-emerald-500/10' },
-    { label: 'QR activés', value: qrCodes.length, icon: <QrCode className="h-5 w-5 text-amber-500" />, bg: 'bg-amber-500/10' },
-    { label: 'Modules', value: new Set(qrCodes.map((q) => q.type)).size, icon: <Zap className="h-5 w-5 text-violet-500" />, bg: 'bg-violet-500/10' },
-    { label: 'Dernière activité', value: activities.length > 0 ? new Date(activities[0].createdAt).toLocaleDateString('fr-FR') : '-', icon: <Clock className="h-5 w-5 text-rose-500" />, bg: 'bg-rose-500/10', isText: true },
+  const kpiCards = [
+    {
+      label: 'Mes maisons',
+      value: homes.length,
+      icon: <Home className="h-6 w-6 text-white" />,
+      gradient: 'from-emerald-400 via-emerald-500 to-teal-600',
+    },
+    {
+      label: 'QR activés',
+      value: qrCodes.length,
+      icon: <QrCode className="h-6 w-6 text-white" />,
+      gradient: 'from-amber-400 via-orange-500 to-red-500',
+    },
+    {
+      label: 'Modules',
+      value: new Set(qrCodes.map((q) => q.type)).size,
+      icon: <Zap className="h-6 w-6 text-white" />,
+      gradient: 'from-violet-400 via-purple-500 to-fuchsia-600',
+    },
+    {
+      label: 'Dernière activité',
+      value: activities.length > 0 ? new Date(activities[0].createdAt).toLocaleDateString('fr-FR') : '-',
+      icon: <Clock className="h-6 w-6 text-white" />,
+      gradient: 'from-sky-400 via-blue-500 to-indigo-600',
+      isText: true,
+    },
   ];
 
   return (
@@ -94,41 +115,46 @@ export function ClientDashboard() {
         <p className="text-muted-foreground">Bienvenue sur QR Domotik. Gérez vos QR codes et votre maison.</p>
       </div>
 
-      {/* Stats */}
+      {/* KPI Cards - Multicolor Gradients */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((s) => (
-          <Card key={s.label}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">{s.label}</p>
-                  <p className={s.isText ? 'text-lg font-semibold' : 'text-3xl font-bold tabular-nums'}>{s.value}</p>
-                </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${s.bg}`}>{s.icon}</div>
+        {kpiCards.map((card) => (
+          <div
+            key={card.label}
+            className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${card.gradient} p-6 text-white shadow-lg`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white/80">{card.label}</p>
+                <p className={card.isText ? 'text-lg font-semibold' : 'text-3xl font-bold tabular-nums'}>{card.value}</p>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                {card.icon}
+              </div>
+            </div>
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
+            <div className="absolute -right-2 -bottom-6 h-16 w-16 rounded-full bg-white/5" />
+          </div>
         ))}
       </div>
 
       {/* Quick actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardContent className="p-6 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <ScanLine className="h-6 w-6 text-primary" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10">
+              <ScanLine className="h-6 w-6 text-emerald-600" />
             </div>
             <div className="flex-1">
               <h3 className="font-semibold">Activer un QR code</h3>
-              <p className="text-sm text-muted-foreground">Scannez ou saisissez votre code d'activation</p>
+              <p className="text-sm text-muted-foreground">Scannez ou saisissez votre code d&apos;activation</p>
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground" />
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
           <CardContent className="p-6 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-              <Plus className="h-6 w-6 text-primary" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10">
+              <Plus className="h-6 w-6 text-amber-600" />
             </div>
             <div className="flex-1">
               <h3 className="font-semibold">Créer un QR dynamique</h3>
