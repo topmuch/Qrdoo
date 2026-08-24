@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { signOut } from 'next-auth/react';
+import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -16,6 +17,8 @@ import {
   LogOut,
   Shield,
   ArrowLeftRight,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -49,6 +52,7 @@ const SUPER_ADMIN_ITEMS: { key: SuperAdminPage; label: string; icon: React.React
 export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, onLogout, children }: SuperAdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const current = SUPER_ADMIN_ITEMS.find((n) => n.key === activePage);
+  const { theme, setTheme } = useTheme();
   const handleLogout = () => { signOut({ redirect: false }); onLogout(); };
 
   return (
@@ -60,29 +64,29 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, o
 
       {/* Sidebar */}
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r bg-card transition-transform duration-300 lg:static lg:translate-x-0',
+        'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r-rose-900/50 bg-gradient-to-b from-rose-950 via-rose-900 to-pink-950 transition-transform duration-300 lg:static lg:translate-x-0',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full',
       )}>
         {/* Brand */}
         <div className="flex h-16 items-center gap-3 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-destructive">
-            <Shield className="h-5 w-5 text-destructive-foreground" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-500">
+            <Shield className="h-5 w-5 text-white" />
           </div>
           <div>
             <h1 className="text-sm font-bold leading-none">QR Domotik</h1>
-            <p className="text-[11px] text-muted-foreground">Super Admin</p>
+            <p className="text-[11px] text-rose-300/70">Super Admin</p>
           </div>
           <Button variant="ghost" size="icon" className="ml-auto lg:hidden h-8 w-8" onClick={() => setSidebarOpen(false)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <Separator />
+        <Separator className="bg-rose-800/50" />
 
         {/* Navigation */}
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="flex flex-col gap-1">
-            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-rose-300/60">
               Super Administration
             </p>
             {SUPER_ADMIN_ITEMS.map((item) => (
@@ -95,8 +99,8 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, o
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
                   activePage === item.key
-                    ? 'bg-destructive text-destructive-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                    ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/30'
+                    : 'text-rose-200/70 hover:bg-rose-800/40 hover:text-white',
                 )}
               >
                 {item.icon}
@@ -105,8 +109,8 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, o
                   <span className={cn(
                     'rounded-full px-2 py-0.5 text-[10px] font-semibold',
                     activePage === item.key
-                      ? 'bg-destructive-foreground/20 text-destructive-foreground'
-                      : 'bg-muted text-muted-foreground',
+                      ? 'bg-white/20 text-white'
+                      : 'bg-rose-800/40 text-rose-300/60',
                   )}>
                     {item.badge}
                   </span>
@@ -117,20 +121,20 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, o
           </nav>
         </ScrollArea>
 
-        <Separator />
+        <Separator className="bg-rose-800/50" />
 
         {/* Footer */}
         <div className="p-3 flex flex-col gap-1">
           <button
             onClick={onSwitchToClient}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-rose-200/70 hover:bg-rose-800/40 hover:text-white transition-all"
           >
             <ArrowLeftRight className="h-5 w-5" />
             Passer au client
           </button>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-rose-300/70 hover:bg-red-500/20 hover:text-red-300 transition-all"
           >
             <LogOut className="h-5 w-5" />
             Déconnexion
@@ -149,9 +153,17 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, o
             <h2 className="text-lg font-semibold">{current?.label}</h2>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 rounded-full bg-destructive/10 px-3 py-1.5">
-              <Shield className="h-4 w-4 text-destructive" />
-              <span className="text-xs font-semibold text-destructive">Superadmin</span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+            <div className="hidden sm:flex items-center gap-2 rounded-full bg-rose-100 dark:bg-rose-500/10 px-3 py-1.5">
+              <Shield className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+              <span className="text-xs font-semibold text-rose-700 dark:text-rose-300">Superadmin</span>
             </div>
           </div>
         </header>

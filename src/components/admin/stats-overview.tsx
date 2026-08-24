@@ -59,28 +59,28 @@ export function StatsOverview() {
     {
       label: 'Lots générés',
       value: stats.totalBatches,
-      icon: <Package className="h-5 w-5 text-amber-500" />,
-      bgColor: 'bg-amber-500/10',
+      icon: <Package className="h-6 w-6 text-white" />,
+      gradient: 'from-amber-400 via-orange-500 to-red-500',
     },
     {
       label: 'QR codes physiques',
       value: stats.totalPhysicalQrs,
-      icon: <QrCode className="h-5 w-5 text-emerald-500" />,
-      bgColor: 'bg-emerald-500/10',
+      icon: <QrCode className="h-6 w-6 text-white" />,
+      gradient: 'from-emerald-400 via-teal-500 to-cyan-600',
     },
     {
       label: 'QR activés',
       value: stats.activeQrCount,
       sublabel: `${stats.inactiveQrCount} en attente`,
-      icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
-      bgColor: 'bg-green-500/10',
+      icon: <CheckCircle2 className="h-6 w-6 text-white" />,
+      gradient: 'from-violet-500 via-purple-600 to-fuchsia-700',
     },
     {
       label: 'Utilisateurs',
       value: stats.totalUsers,
       sublabel: `${stats.totalHomes} foyers`,
-      icon: <Users className="h-5 w-5 text-violet-500" />,
-      bgColor: 'bg-violet-500/10',
+      icon: <Users className="h-6 w-6 text-white" />,
+      gradient: 'from-rose-400 via-pink-500 to-fuchsia-600',
     },
   ];
 
@@ -96,22 +96,25 @@ export function StatsOverview() {
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card) => (
-          <Card key={card.label}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">{card.label}</p>
-                  <p className="text-3xl font-bold tabular-nums">{card.value}</p>
-                  {card.sublabel && (
-                    <p className="text-xs text-muted-foreground">{card.sublabel}</p>
-                  )}
-                </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${card.bgColor}`}>
-                  {card.icon}
-                </div>
+          <div
+            key={card.label}
+            className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${card.gradient} p-6 text-white shadow-lg`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-white/80">{card.label}</p>
+                <p className="text-3xl font-bold">{card.value}</p>
+                {card.sublabel && (
+                  <p className="text-xs text-white/70">{card.sublabel}</p>
+                )}
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                {card.icon}
+              </div>
+            </div>
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
+            <div className="absolute -right-2 -bottom-6 h-16 w-16 rounded-full bg-white/5" />
+          </div>
         ))}
       </div>
 
