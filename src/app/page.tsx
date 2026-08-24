@@ -77,7 +77,6 @@ function AppContent() {
     if (effectiveView === 'landing') {
       return (
         <LandingPage
-          onGoToDemo={() => setView('auth')}
           onGoToDashboard={() => setView('auth')}
         />
       );

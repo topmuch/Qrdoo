@@ -33,7 +33,6 @@ import { QrDemoMini } from './qr-demo';
 import { QrDemo } from './qr-demo';
 
 interface LandingPageProps {
-  onGoToDemo: () => void;
   onGoToDashboard: () => void;
 }
 
@@ -222,7 +221,7 @@ function SectionTitle({
 /* ═══════════════════════════════════════════════════════
    LANDING PAGE
    ═══════════════════════════════════════════════════════ */
-export function LandingPage({ onGoToDemo, onGoToDashboard }: LandingPageProps) {
+export function LandingPage({ onGoToDashboard }: LandingPageProps) {
   const heroRef = useRef(null);
   const heroInView = useInView(heroRef, { once: true });
 
@@ -310,12 +309,14 @@ export function LandingPage({ onGoToDemo, onGoToDashboard }: LandingPageProps) {
                   Commencer gratuitement
                   <ArrowRight className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={onGoToDemo}
+                <a
+                  href="https://qrdomotik.roomscan.pro"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 backdrop-blur-xl bg-white/10 border border-white/20 text-white font-semibold px-8 py-4 rounded-xl transition-all hover:bg-white/20"
                 >
                   Voir la démo
-                </button>
+                </a>
               </motion.div>
 
               {/* Social proof */}
@@ -878,12 +879,14 @@ export function LandingPage({ onGoToDemo, onGoToDashboard }: LandingPageProps) {
               >
                 Commencer gratuitement
               </button>
-              <button
-                onClick={onGoToDemo}
+              <a
+                href="https://qrdomotik.roomscan.pro"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="px-8 py-4 rounded-xl border-2 border-white text-white font-semibold hover:bg-white/10 transition-all"
               >
                 Voir la démo
-              </button>
+              </a>
             </div>
           </div>
         </FadeIn>
