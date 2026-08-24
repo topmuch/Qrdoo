@@ -1,55 +1,34 @@
-# =============================================================
-# QR Domotik - Dockerfile pour Coolify
-# =============================================================
+FROM node:20-alpine
 
-FROM node:20-alpine AS base
+# Install required packages
+RUN apk add --no-cache git libc6-compat sqlite
+RUN npm install -g bun
 
-# --- Dépendances ---
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-COPY package.json bun.lock* ./
-RUN npm install -g bun@1.2.0
-RUN bun install --frozen-lockfile --production=false
+# Clone the repository
+RUN git clone https://github.com/topmuch/qrdomotik.git .
 
-# --- Build ---
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Install dependencies
+RUN bun install
 
-# Générer le client Prisma
+# Generate Prisma Client
 RUN npx prisma generate
 
-# Build Next.js
+# Build the application
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DATABASE_URL=file:/app/data/qrdomotik.db
 RUN bun run build
 
-# --- Production ---
-FROM base AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/public ./public
-
-# Standalone output
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# DB folder
-RUN mkdir -p /app/db && chown nextjs:nodejs /app/db
-
-USER nextjs
+# Create data directory
+RUN mkdir -p /app/data
 
 EXPOSE 3000
 
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV DATABASE_URL=file:/app/data/qrdomotik.db
+ENV NEXTAUTH_SECRET=qrdomotik-deploy-secret-key-2024
 
-CMD ["node", "server.js"]
+# Start command - create admin and start server
+CMD sh -c "mkdir -p /app/data && export DATABASE_URL=file:/app/data/qrdomotik.db && npx prisma db push --skip-generate 2>/dev/null || true && node scripts/create-admin.cjs 2>/dev/null || true && exec node .next/standalone/server.js"

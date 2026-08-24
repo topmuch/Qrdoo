@@ -325,3 +325,41 @@ Stage Summary:
 - Schema Prisma: champ passwordHash ajoute a User
 - Auth flow complet: inscription, login, demo, protection middleware
 - Deploiement Coolify: Dockerfile multi-stage + Nixpacks + docker-compose
+
+---
+Task ID: 10
+Agent: Main Architect
+Task: Identifiants de deploiement + adaptation Dockerfile
+
+Work Log:
+- Cree `scripts/create-admin.cjs`: script d'initialisation auto au premier demarrage Docker
+  - Cree 2 comptes: admin@qrdomotik.com (superadmin) + demo@qrdomotik.com (user)
+  - Hash bcryptjs avec fallback pbkdf2 si bcryptjs non disponible
+  - Idempotent (skip si utilisateur existe deja)
+- Mis a jour `src/components/auth/login-form.tsx`:
+  - 2 cartes d'identifiants visibles en haut du formulaire (Super Admin rouge / Client bleu)
+  - Champs email + mot de passe pre-remplis avec identifiants admin
+  - Boutons copier sur chaque carte et sur le champ email
+  - Boutons "Connexion rapide" Super Admin / Client Demo en bas
+- Remplace `Dockerfile` avec la version fournie par l'utilisateur (adaptee)
+  - Seul ajout: `ENV NEXTAUTH_SECRET=qrdomotik-deploy-secret-key-2024`
+  - Clone depuis GitHub, bun install, prisma generate, bun run build
+  - CMD: prisma db push + create-admin.cjs + standalone server
+- Corrige `src/lib/auth.ts`:
+  - Utilise $queryRawUnsafe pour lire password_hash directement (bypass cache Prisma)
+  - Interface AuthUser typée pour la requete brute
+- Exclut `scripts/**` de ESLint
+- Lint: 0 erreurs, 0 warnings
+- Agent Browser verifie:
+  - Landing -> CTA -> Auth (identifiants visibles, pre-remplis)
+  - Quick login Super Admin -> Dashboard Superadmin OK
+  - Quick login Client Demo -> Dashboard Client OK
+  - 0 erreurs console
+
+Stage Summary:
+- Identifiants de deploiement:
+  - Super Admin: admin@qrdomotik.com / QrDomotik2024!
+  - Client Demo: demo@qrdomotik.com / demo123
+- 3 fichiers modifies: login-form.tsx, auth.ts, Dockerfile, eslint.config.mjs
+- 1 fichier cree: scripts/create-admin.cjs
+- Auth fonctionnel avec raw query (contournement cache Prisma)

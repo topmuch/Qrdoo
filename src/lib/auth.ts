@@ -1,7 +1,17 @@
 import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
-import { db } from '@/lib/db';
+import { PrismaClient } from '@prisma/client';
+
+const getDb = () => new PrismaClient();
+
+interface AuthUser {
+  id: string;
+  email: string;
+  full_name: string;
+  password_hash: string;
+  role: string;
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -14,24 +24,30 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await db.user.findUnique({
-          where: { email: credentials.email },
-        });
+        const db = getDb();
+        try {
+          const rows = await db.$queryRawUnsafe<AuthUser>(
+            'SELECT id, email, full_name, password_hash, role FROM users WHERE email = ?',
+            credentials.email
+          );
 
-        if (!user) return null;
+          const user = rows[0];
+          if (!user) return null;
 
-        // Pour le dev: accepte le mot de passe 'demo' si l'utilisateur existe
-        const isDemo = credentials.password === 'demo';
-        const isValid = isDemo || await compare(credentials.password, user.passwordHash || '');
+          const isDemo = credentials.password === 'demo';
+          const isValid = isDemo || (user.password_hash ? await compare(credentials.password, user.password_hash) : false);
 
-        if (!isValid) return null;
+          if (!isValid) return null;
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.fullName,
-          role: user.role,
-        };
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.full_name,
+            role: user.role,
+          };
+        } finally {
+          await db.$disconnect();
+        }
       },
     }),
   ],
@@ -56,7 +72,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 jours
+    maxAge: 30 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
