@@ -18,7 +18,6 @@ export interface ModuleDefinition {
   category: 'essentiel' | 'quotidien' | 'avance';
 }
 
-// Only V1 Étape 1 modules for now
 export const MODULE_DEFINITIONS: ModuleDefinition[] = [
   {
     type: 'wifi',
@@ -46,6 +45,15 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     color: 'text-violet-600 dark:text-violet-400',
     bgColor: 'bg-violet-100 dark:bg-violet-900/30',
     category: 'essentiel',
+  },
+  {
+    type: 'doorbell',
+    label: 'Portier Virtuel',
+    description: 'Gérez les visiteurs en votre absence',
+    icon: 'Bell',
+    color: 'text-amber-600 dark:text-amber-400',
+    bgColor: 'bg-amber-100 dark:bg-amber-900/30',
+    category: 'avance',
   },
 ];
 

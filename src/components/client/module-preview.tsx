@@ -2,13 +2,13 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, Wifi, Link2, FileText, Smartphone } from 'lucide-react';
+import { Eye, Wifi, Link2, FileText, Bell, Smartphone } from 'lucide-react';
 import { MODULE_DEFINITIONS } from '@/components/modules/registry';
 import { WifiDisplay, type WifiContent } from '@/components/modules/wifi/WifiDisplay';
 import { LinkDisplay, type LinkContent } from '@/components/modules/link/LinkDisplay';
 import { InfoDisplay, type InfoContent } from '@/components/modules/info/InfoDisplay';
+import { DoorbellDisplay, type DoorbellContent } from '@/components/modules/doorbell/DoorbellDisplay';
 
 const DEMO_CONTENT: Record<string, unknown> = {
   wifi: {
@@ -24,27 +24,23 @@ const DEMO_CONTENT: Record<string, unknown> = {
   } satisfies LinkContent,
   home_manual: {
     title: 'Bienvenue chez nous !',
-    body: `# Guide de la maison
-
-Merci de votre visite ! Voici les informations utiles.
-
-## Wi-Fi
-- **SSID** : MaisonDesDupont_5G
-- **Mot de passe** : Scannez le QR code dans l'entrée
-
-## Consignes
-> Merci de retirer vos chaussures
-> Pas de bruit après 22h
-
-## Équipements
-1. **Cuisine** : Ouverte, aidez-vous !
-2. **Salle de bain** : Serviettes dans le placard
-3. **Jardin** : Accès libre
-
----
-
-*Pour toute question, n'hésitez pas à nous contacter.*`,
+    body: `# Guide de la maison\n\nMerci de votre visite ! Voici les informations utiles.\n\n## Wi-Fi\n- **SSID** : MaisonDesDupont_5G\n- **Mot de passe** : Scannez le QR code dans l'entrée\n\n## Consignes\n> Merci de retirer vos chaussures\n> Pas de bruit après 22h\n\n## Équipements\n1. **Cuisine** : Ouverte, aidez-vous !\n2. **Salle de bain** : Serviettes dans le placard\n3. **Jardin** : Accès libre\n\n---\n\n*Pour toute question, n'hésitez pas à nous contacter.*`,
   } satisfies InfoContent,
+  doorbell: {
+    mode: 'present' as const,
+    instructions: ['Chez le gardien, au 2ème étage', 'Dans la boîte à colis à gauche de la porte', 'Déposer au bureau de poste si absent > 2h'],
+    allowMessages: true,
+    allowDoorbell: true,
+    presentMessage: 'Je suis là, merci de sonner !',
+    absentMessage: 'Je suis absent pour le moment. Suivez les consignes ci-dessous.',
+  } satisfies DoorbellContent,
+};
+
+const ICON_MAP: Record<string, React.ReactNode> = {
+  wifi: <Wifi className="h-4 w-4" />,
+  external_link: <Link2 className="h-4 w-4" />,
+  home_manual: <FileText className="h-4 w-4" />,
+  doorbell: <Bell className="h-4 w-4" />,
 };
 
 export function ModulePreviewPage() {
@@ -53,7 +49,6 @@ export function ModulePreviewPage() {
   const renderDisplay = (type: string) => {
     const content = DEMO_CONTENT[type];
     if (!content) return null;
-
     switch (type) {
       case 'wifi':
         return <WifiDisplay content={content as WifiContent} qrName={"QR Wi-Fi Entrée"} />;
@@ -61,14 +56,17 @@ export function ModulePreviewPage() {
         return <LinkDisplay content={content as LinkContent} qrName={"QR Site Web"} />;
       case 'home_manual':
         return <InfoDisplay content={content as InfoContent} qrName={"QR Guide Maison"} />;
+      case 'doorbell':
+        return <DoorbellDisplay content={content as DoorbellContent} qrName={"QR Portier Entrée"} />;
       default:
         return null;
     }
   };
 
+  const colCount = MODULE_DEFINITIONS.length;
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
           <Eye className="h-5 w-5 text-primary" />
@@ -79,31 +77,26 @@ export function ModulePreviewPage() {
         </div>
       </div>
 
-      {/* Module selector tabs */}
       <Tabs value={activeModule} onValueChange={setActiveModule}>
-        <TabsList className="grid w-full grid-cols-3">
-          {MODULE_DEFINITIONS.map((mod) => {
-            const Icon = mod.type === 'wifi' ? Wifi : mod.type === 'external_link' ? Link2 : FileText;
-            return (
-              <TabsTrigger key={mod.type} value={mod.type} className="gap-2 text-xs sm:text-sm">
-                <Icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{mod.label}</span>
-              </TabsTrigger>
-            );
-          })}
+        <TabsList className={`grid w-full grid-cols-${colCount} relative z-10`}>
+          {MODULE_DEFINITIONS.map((mod) => (
+            <TabsTrigger key={mod.type} value={mod.type} className="gap-2 text-xs sm:text-sm">
+              {ICON_MAP[mod.type] || <FileText className="h-4 w-4" />}
+              <span className="hidden sm:inline">{mod.label}</span>
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         {MODULE_DEFINITIONS.map((mod) => (
-          <TabsContent key={mod.type} value={mod.type} className="mt-6">
+          <TabsContent key={mod.type} value={mod.type} className="mt-6 isolate">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Info Card */}
               <div className="lg:col-span-4 space-y-4">
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center gap-2">
                       <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${mod.bgColor}`}>
                         <span className={mod.color}>
-                          {mod.type === 'wifi' ? <Wifi className="h-4 w-4" /> : mod.type === 'external_link' ? <Link2 className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                          {ICON_MAP[mod.type] || <FileText className="h-4 w-4" />}
                         </span>
                       </div>
                       <CardTitle className="text-base">{mod.label}</CardTitle>
@@ -118,7 +111,6 @@ export function ModulePreviewPage() {
                   </CardContent>
                 </Card>
 
-                {/* QR code info */}
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm">Données du module</CardTitle>
@@ -133,7 +125,6 @@ export function ModulePreviewPage() {
                 </Card>
               </div>
 
-              {/* Phone Preview */}
               <div className="lg:col-span-8">
                 <div className="rounded-xl border shadow-sm overflow-hidden">
                   <div className="bg-muted/30 px-4 py-2 flex items-center gap-2 border-b">
@@ -146,7 +137,7 @@ export function ModulePreviewPage() {
                       <span className="text-xs text-muted-foreground">{mod.label} — Aperçu mobile</span>
                     </div>
                   </div>
-                  <div className="mx-auto max-w-[390px] max-h-[700px] overflow-y-auto border-x">
+                  <div className="mx-auto max-w-[390px] h-[500px] overflow-y-auto overflow-x-hidden border-x relative">
                     {renderDisplay(mod.type)}
                   </div>
                 </div>

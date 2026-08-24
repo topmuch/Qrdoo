@@ -133,3 +133,46 @@ Stage Summary:
 - Module Config Page avec liste QR + aperçu mobile
 - Module Preview Page avec démo des 3 modules + cadres téléphone
 - Sidebar étendue avec section "Modules V1" (3 entrées)
+
+---
+Task ID: 5
+Agent: Main Architect
+Task: PROMPT 5 Étape 1 — Module Portier Virtuel
+
+Work Log:
+- Créé l'API route `/api/client/doorbell` (POST pour ring/message actions)
+  - Enregistre les actions dans activity_logs (doorbell_ring, doorbell_message)
+  - TODO placeholder pour push notifications (Étape 6)
+- Construit `DoorbellConfig.tsx` (230 lignes) :
+  - Toggle Présent/Absent avec cartes visuelles (vert/orange)
+  - Messages personnalisables par mode (présentMessage, absentMessage)
+  - Gestion des consignes (ajouter/supprimer, numérotées)
+  - Switches : Autoriser sonnette, Autoriser messages
+  - Validation : minimum 1 consigne en mode absent
+- Construit `DoorbellDisplay.tsx` (260 lignes) :
+  - Vue Home : 3 boutons (Consignes, Sonner/Notifier, Message)
+  - Vue Instructions : liste numérotée des consignes
+  - Vue Message : formulaire textarea + envoi
+  - Vues Succès : écran de confirmation animé (sonnette/message)
+  - Mode Présent : gradient vert, message "Je suis là"
+  - Mode Absent : gradient amber, message + consignes visibles
+- Ajouté `doorbell` au module registry (catégorie 'avance', couleur amber)
+- Mis à jour `module-config.tsx` : imports + switch cases doorbell
+- Mis à jour `module-preview.tsx` :
+  - 4e onglet Portier Virtuel
+  - Contenu démo réaliste (mode présent, 3 consignes)
+  - Refactored : ICON_MAP dynamique au lieu de ternaires
+  - Fix layout : h-[500px] fixed phone frame + z-10 on TabsList
+- Fix pre-existing layout bug : phone frames overflowed over tabs
+  - Racine : min-h-screen in display components + Radix renders all TabsContent simultaneously
+  - Fix : `isolate` on TabsContent + `relative z-10` on TabsList + `h-[500px]` container
+- Lint: 0 erreurs, 0 warnings
+- Compilation: GET / 200 OK
+- Agent Browser vérifié: 4 onglets, Portier Virtuel sélectionné, 3 boutons interactifs, 0 erreurs console, footer sticky
+
+Stage Summary:
+- 3 nouveaux fichiers créés (DoorbellConfig, DoorbellDisplay, doorbell API route)
+- Module Portier Virtuel complet : config + display + API logging
+- 5 vues publiques : Home, Consignes, Message, Succès Sonner, Succès Message
+- Registry étendu à 4 modules (wifi, external_link, home_manual, doorbell)
+- Fix layout critique : tabs z-index + phone frame height containment

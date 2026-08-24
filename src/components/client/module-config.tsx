@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Settings2, QrCode, Wifi, Link2, FileText,
+  Settings2, QrCode, Wifi, Link2, FileText, Bell,
   Search, ChevronRight, Puzzle,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -19,11 +19,13 @@ import { MODULE_DEFINITIONS, getModuleDef } from '@/components/modules/registry'
 import { WifiConfig, type WifiContent } from '@/components/modules/wifi/WifiConfig';
 import { LinkConfig, type LinkContent } from '@/components/modules/link/LinkConfig';
 import { InfoConfig, type InfoContent } from '@/components/modules/info/InfoConfig';
+import { DoorbellConfig, type DoorbellContent } from '@/components/modules/doorbell/DoorbellConfig';
 
 // Module displays for preview
 import { WifiDisplay } from '@/components/modules/wifi/WifiDisplay';
 import { LinkDisplay } from '@/components/modules/link/LinkDisplay';
 import { InfoDisplay } from '@/components/modules/info/InfoDisplay';
+import { DoorbellDisplay } from '@/components/modules/doorbell/DoorbellDisplay';
 
 interface QrCodeItem {
   id: string;
@@ -38,12 +40,14 @@ const MODULE_ICON_MAP: Record<string, React.ReactNode> = {
   wifi: <Wifi className="h-4 w-4" />,
   external_link: <Link2 className="h-4 w-4" />,
   home_manual: <FileText className="h-4 w-4" />,
+  doorbell: <Bell className="h-4 w-4" />,
 };
 
 const PLACEHOLDER_CONTENT: Record<string, Record<string, unknown>> = {
   wifi: { ssid: 'MonWiFi', password: 'monmotdepasse', security: 'WPA', hidden: false },
   external_link: { url: 'https://qrdomotik.com', title: 'QR Domotik', description: 'Plateforme de QR codes domotiques' },
   home_manual: { title: 'Bienvenue !', body: '# Guide de la maison\n\nVoici les informations utiles.\n\n## Wi-Fi\n- **SSID** : MonWiFi\n- **Mot de passe** : disponible au scan\n\n## Consignes\n> Merci de respecter les lieux' },
+  doorbell: { mode: 'present', instructions: ['Chez le gardien', 'Dans la boîte à colis'], allowMessages: true, allowDoorbell: true, presentMessage: 'Je suis là, merci de sonner !', absentMessage: 'Je suis absent pour le moment.' },
 };
 
 export function ModuleConfigPage() {
@@ -106,6 +110,8 @@ export function ModuleConfigPage() {
         return <LinkConfig qrCodeId={selectedQr.id} initialContent={contentData as Partial<LinkContent> || undefined} onSave={() => fetchQrCodes()} />;
       case 'home_manual':
         return <InfoConfig qrCodeId={selectedQr.id} initialContent={contentData as Partial<InfoContent> || undefined} onSave={() => fetchQrCodes()} />;
+      case 'doorbell':
+        return <DoorbellConfig qrCodeId={selectedQr.id} initialContent={contentData as Partial<DoorbellContent> || undefined} onSave={() => fetchQrCodes()} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -129,6 +135,8 @@ export function ModuleConfigPage() {
         return <LinkDisplay content={data as LinkContent} qrName={selectedQr.name} />;
       case 'home_manual':
         return <InfoDisplay content={data as InfoContent} qrName={selectedQr.name} />;
+      case 'doorbell':
+        return <DoorbellDisplay content={data as DoorbellContent} qrName={selectedQr.name} />;
       default:
         return null;
     }
@@ -236,7 +244,7 @@ export function ModuleConfigPage() {
                   <span className="text-xs text-muted-foreground">Aperçu mobile — {selectedQr.name}</span>
                 </div>
               </div>
-              <div className="mx-auto max-w-[390px] max-h-[calc(100vh-18rem)] overflow-y-auto border-x">
+              <div className="mx-auto max-w-[390px] h-[500px] overflow-y-auto overflow-x-hidden border-x relative">
                 {renderPreview()}
               </div>
             </div>
