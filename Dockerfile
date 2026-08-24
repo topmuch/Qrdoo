@@ -7,7 +7,7 @@ RUN npm install -g bun
 WORKDIR /app
 
 # Clone the repository
-RUN git clone https://github.com/topmuch/qrdomotik.git .
+RUN git clone https://github.com/topmuch/Qrdoo.git .
 
 # Install dependencies
 RUN bun install
