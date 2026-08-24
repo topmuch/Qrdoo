@@ -1,0 +1,1446 @@
+     1→-- ==============================================================
+     2→-- QR DOMOTIK - SCHEMA SQL SUPABASE COMPLET (V1 + V2 + V3)
+     3→-- Version: 1.0.0
+     4→-- Description: Schéma complet pour la plateforme SaaS QR Domotik
+     5→-- Base: PostgreSQL 15+ avec PostGIS, Supabase Auth
+     6→-- ==============================================================
+     7→
+     8→-- ==============================================================
+     9→-- EXTENSIONS
+    10→-- ==============================================================
+    11→CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    12→CREATE EXTENSION IF NOT EXISTS "postgis";
+    13→
+    14→-- ==============================================================
+    15→-- FONCTIONS UTILITAIRES
+    16→-- ==============================================================
+    17→
+    18→-- Trigger: mise à jour automatique de updated_at
+    19→CREATE OR REPLACE FUNCTION update_updated_at_column()
+    20→RETURNS TRIGGER AS $$
+    21→BEGIN
+    22→    NEW.updated_at = NOW();
+    23→    RETURN NEW;
+    24→END;
+    25→$$ LANGUAGE plpgsql;
+    26→
+    27→-- Trigger: mise à jour automatique de timestamps
+    28→CREATE OR REPLACE FUNCTION set_created_at()
+    29→RETURNS TRIGGER AS $$
+    30→BEGIN
+    31→    IF NEW.created_at IS NULL THEN
+    32→        NEW.created_at = NOW();
+    33→    END IF;
+    34→    RETURN NEW;
+    35→END;
+    36→$$ LANGUAGE plpgsql;
+    37→
+    38→-- ==============================================================
+    39→-- TABLE 1: users
+    40→-- Remarque: Supabase gère l'auth via auth.users, cette table étend les métadonnées
+    41→-- ==============================================================
+    42→CREATE TABLE public.users (
+    43→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    44→    email           VARCHAR(255) NOT NULL UNIQUE,
+    45→    full_name       VARCHAR(255),
+    46→    role            VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'superadmin')),
+    47→    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    48→    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    49→);
+    50→
+    51→CREATE TRIGGER users_updated_at
+    52→    BEFORE UPDATE ON public.users
+    53→    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    54→
+    55→CREATE INDEX idx_users_email ON public.users(email);
+    56→CREATE INDEX idx_users_role ON public.users(role);
+    57→
+    58→COMMENT ON TABLE public.users IS 'Utilisateurs de la plateforme QR Domotik';
+    59→COMMENT ON COLUMN public.users.role IS 'Rôle: user ou superadmin';
+    60→
+    61→-- ==============================================================
+    62→-- TABLE 2: profiles
+    63→-- ==============================================================
+    64→CREATE TABLE public.profiles (
+    65→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    66→    user_id         UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    67→    avatar_url      TEXT,
+    68→    phone           VARCHAR(30),
+    69→    address         TEXT,
+    70→    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    71→    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    72→
+    73→    CONSTRAINT uq_profiles_user_id UNIQUE (user_id)
+    74→);
+    75→
+    76→CREATE TRIGGER profiles_updated_at
+    77→    BEFORE UPDATE ON public.profiles
+    78→    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    79→
+    80→CREATE INDEX idx_profiles_user_id ON public.profiles(user_id);
+    81→
+    82→COMMENT ON TABLE public.profiles IS 'Profils détaillés des utilisateurs';
+    83→
+    84→-- ==============================================================
+    85→-- TABLE 3: homes
+    86→-- ==============================================================
+    87→CREATE TABLE public.homes (
+    88→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    89→    owner_id        UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    90→    name            VARCHAR(255) NOT NULL,
+    91→    address         TEXT,
+    92→    is_active       BOOLEAN NOT NULL DEFAULT true,
+    93→    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    94→    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    95→);
+    96→
+    97→CREATE TRIGGER homes_updated_at
+    98→    BEFORE UPDATE ON public.homes
+    99→    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   100→
+   101→CREATE INDEX idx_homes_owner_id ON public.homes(owner_id);
+   102→CREATE INDEX idx_homes_is_active ON public.homes(is_active);
+   103→
+   104→COMMENT ON TABLE public.homes IS 'Maisons / foyers gérés par les utilisateurs';
+   105→
+   106→-- ==============================================================
+   107→-- TABLE 4: home_members
+   108→-- ==============================================================
+   109→CREATE TABLE public.home_members (
+   110→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   111→    home_id         UUID NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
+   112→    user_id         UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+   113→    role            VARCHAR(20) NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member', 'child')),
+   114→    nickname        VARCHAR(100),
+   115→    points          INTEGER NOT NULL DEFAULT 0,
+   116→    joined_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   117→
+   118→    CONSTRAINT uq_home_members UNIQUE (home_id, user_id)
+   119→);
+   120→
+   121→CREATE INDEX idx_home_members_home_id ON public.home_members(home_id);
+   122→CREATE INDEX idx_home_members_user_id ON public.home_members(user_id);
+   123→CREATE INDEX idx_home_members_role ON public.home_members(role);
+   124→
+   125→COMMENT ON TABLE public.home_members IS 'Membres d\'un foyer avec rôles et système de points';
+   126→COMMENT ON COLUMN public.home_members.points IS 'Points gagnés par les enfants via les corvées';
+   127→
+   128→-- ==============================================================
+   129→-- TABLE 5: rooms
+   130→-- ==============================================================
+   131→CREATE TABLE public.rooms (
+   132→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   133→    home_id         UUID NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
+   134→    name            VARCHAR(255) NOT NULL,
+   135→    icon            VARCHAR(100),
+   136→    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   137→);
+   138→
+   139→CREATE INDEX idx_rooms_home_id ON public.rooms(home_id);
+   140→
+   141→COMMENT ON TABLE public.rooms IS 'Pièces d\'une maison';
+   142→
+   143→-- ==============================================================
+   144→-- TABLE 6: qr_codes (Dynamiques - V1)
+   145→-- ==============================================================
+   146→CREATE TABLE public.qr_codes (
+   147→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   148→    home_id         UUID NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
+   149→    room_id         UUID REFERENCES public.rooms(id) ON DELETE SET NULL,
+   150→    name            VARCHAR(255) NOT NULL,
+   151→    type            VARCHAR(100) NOT NULL,
+   152→    public_slug     VARCHAR(255) UNIQUE,
+   153→    is_active       BOOLEAN NOT NULL DEFAULT true,
+   154→    is_private      BOOLEAN NOT NULL DEFAULT false,
+   155→    pin_code        VARCHAR(10),
+   156→    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   157→    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   158→);
+   159→
+   160→CREATE TRIGGER qr_codes_updated_at
+   161→    BEFORE UPDATE ON public.qr_codes
+   162→    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   163→
+   164→CREATE INDEX idx_qr_codes_home_id ON public.qr_codes(home_id);
+   165→CREATE INDEX idx_qr_codes_room_id ON public.qr_codes(room_id);
+   166→CREATE INDEX idx_qr_codes_public_slug ON public.qr_codes(public_slug);
+   167→CREATE INDEX idx_qr_codes_type ON public.qr_codes(type);
+   168→CREATE INDEX idx_qr_codes_is_active ON public.qr_codes(is_active);
+   169→
+   170→COMMENT ON TABLE public.qr_codes IS 'QR codes dynamiques liés à une maison et un module';
+   171→COMMENT ON COLUMN public.qr_codes.public_slug IS 'Slug public unique pour l\'accès via URL /r/[slug]';
+   172→COMMENT ON COLUMN public.qr_codes.type IS 'Type de module: wifi, guestbook, doorbell, shopping_list, etc.';
+   173→
+   174→-- ==============================================================
+   175→-- TABLE 7: qr_contents
+   176→-- ==============================================================
+   177→CREATE TABLE public.qr_contents (
+   178→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   179→    qr_code_id      UUID NOT NULL REFERENCES public.qr_codes(id) ON DELETE CASCADE,
+   180→    content_json    JSONB NOT NULL DEFAULT '{}',
+   181→    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   182→
+   183→    CONSTRAINT uq_qr_contents_qr_code_id UNIQUE (qr_code_id)
+   184→);
+   185→
+   186→CREATE TRIGGER qr_contents_updated_at
+   187→    BEFORE UPDATE ON public.qr_contents
+   188→    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   189→
+   190→COMMENT ON TABLE public.qr_contents IS 'Contenu dynamique de chaque QR code (JSONB flexible)';
+   191→
+   192→-- ==============================================================
+   193→-- TABLE 8: qr_batches
+   194→-- ==============================================================
+   195→CREATE TABLE public.qr_batches (
+   196→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   197→    quantity        INTEGER NOT NULL CHECK (quantity IN (10, 15, 20)),
+   198→    design_config   JSONB NOT NULL DEFAULT '{}',
+   199→    created_by      UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+   200→    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   201→);
+   202→
+   203→CREATE INDEX idx_qr_batches_created_by ON public.qr_batches(created_by);
+   204→
+   205→COMMENT ON TABLE public.qr_batches IS 'Lots de QR codes physiques générés par les admins';
+   206→COMMENT ON COLUMN public.qr_batches.quantity IS 'Nombre de QR codes dans le lot (10, 15 ou 20)';
+   207→
+   208→-- ==============================================================
+   209→-- TABLE 9: physical_qr_codes
+   210→-- ==============================================================
+   211→CREATE TABLE public.physical_qr_codes (
+   212→    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   213→    batch_id                UUID NOT NULL REFERENCES public.qr_batches(id) ON DELETE CASCADE,
+   214→    activation_code         VARCHAR(11) NOT NULL UNIQUE,
+   215→    status                  VARCHAR(20) NOT NULL DEFAULT 'inactive' 
+   216→                            CHECK (status IN ('inactive', 'active', 'lost', 'cancelled')),
+   217→    activated_by_user_id    UUID REFERENCES public.users(id) ON DELETE SET NULL,
+   218→    activated_at            TIMESTAMPTZ,
+   219→    dynamic_qr_code_id      UUID REFERENCES public.qr_codes(id) ON DELETE SET NULL,
+   220→    design_config           JSONB NOT NULL DEFAULT '{}'
+   221→);
+   222→
+   223→CREATE INDEX idx_physical_qr_codes_batch_id ON public.physical_qr_codes(batch_id);
+   224→CREATE INDEX idx_physical_qr_codes_activation_code ON public.physical_qr_codes(activation_code);
+   225→CREATE INDEX idx_physical_qr_codes_status ON public.physical_qr_codes(status);
+   226→CREATE INDEX idx_physical_qr_codes_activated_by ON public.physical_qr_codes(activated_by_user_id);
+   227→CREATE INDEX idx_physical_qr_codes_dynamic_qr_code_id ON public.physical_qr_codes(dynamic_qr_code_id);
+   228→
+   229→COMMENT ON TABLE public.physical_qr_codes IS 'QR codes physiques avec code d\'activation à 11 caractères';
+   230→COMMENT ON COLUMN public.physical_qr_codes.activation_code IS 'Code unique imprimé sur le QR physique (ex: QRD-A1B2C3D4E5)';
+   231→
+   232→-- ==============================================================
+   233→-- TABLE 10: activation_logs
+   234→-- ==============================================================
+   235→CREATE TABLE public.activation_logs (
+   236→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   237→    physical_qr_code_id UUID NOT NULL REFERENCES public.physical_qr_codes(id) ON DELETE CASCADE,
+   238→    user_id             UUID REFERENCES public.users(id) ON DELETE SET NULL,
+   239→    action              VARCHAR(20) NOT NULL CHECK (action IN ('activated', 'deactivated', 'marked_lost')),
+   240→    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   241→);
+   242→
+   243→CREATE INDEX idx_activation_logs_physical_qr_code_id ON public.activation_logs(physical_qr_code_id);
+   244→CREATE INDEX idx_activation_logs_user_id ON public.activation_logs(user_id);
+   245→CREATE INDEX idx_activation_logs_action ON public.activation_logs(action);
+   246→
+   247→COMMENT ON TABLE public.activation_logs IS 'Journal de toutes les activations/désactivations de QR physiques';
+   248→
+   249→-- ==============================================================
+   250→-- TABLE 11: guestbook_entries (Module V1)
+   251→-- ==============================================================
+   252→CREATE TABLE public.guestbook_entries (
+   253→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   254→    qr_code_id      UUID NOT NULL REFERENCES public.qr_codes(id) ON DELETE CASCADE,
+   255→    guest_name      VARCHAR(255) NOT NULL,
+   256→    message         TEXT NOT NULL,
+   257→    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   258→);
+   259→
+   260→CREATE INDEX idx_guestbook_entries_qr_code_id ON public.guestbook_entries(qr_code_id);
+   261→CREATE INDEX idx_guestbook_entries_created_at ON public.guestbook_entries(created_at);
+   262→
+   263→COMMENT ON TABLE public.guestbook_entries IS 'Module Livre d\'or - entrées des visiteurs';
+   264→
+   265→-- ==============================================================
+   266→-- TABLE 12: activity_logs (Module V2)
+   267→-- ==============================================================
+   268→CREATE TABLE public.activity_logs (
+   269→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   270→    home_id         UUID NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
+   271→    qr_code_id      UUID REFERENCES public.qr_codes(id) ON DELETE SET NULL,
+   272→    user_id         UUID REFERENCES public.users(id) ON DELETE SET NULL,
+   273→    action_type     VARCHAR(100) NOT NULL,
+   274→    details_json    JSONB NOT NULL DEFAULT '{}',
+   275→    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   276→);
+   277→
+   278→CREATE INDEX idx_activity_logs_home_id ON public.activity_logs(home_id);
+   279→CREATE INDEX idx_activity_logs_qr_code_id ON public.activity_logs(qr_code_id);
+   280→CREATE INDEX idx_activity_logs_user_id ON public.activity_logs(user_id);
+   281→CREATE INDEX idx_activity_logs_action_type ON public.activity_logs(action_type);
+   282→CREATE INDEX idx_activity_logs_created_at ON public.activity_logs(created_at);
+   283→
+   284→COMMENT ON TABLE public.activity_logs IS 'Journal d\'activité global pour le dashboard';
+   285→
+   286→-- ==============================================================
+   287→-- TABLE 13: products (Module V2 - Gestion de stock)
+   288→-- ==============================================================
+   289→CREATE TABLE public.products (
+   290→    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   291→    home_id                 UUID NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
+   292→    name                    VARCHAR(255) NOT NULL,
+   293→    category                VARCHAR(100),
+   294→    min_stock_threshold     INTEGER NOT NULL DEFAULT 1,
+   295→    current_stock           INTEGER NOT NULL DEFAULT 0,
+   296→    is_on_shopping_list     BOOLEAN NOT NULL DEFAULT false,
+   297→    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   298→    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   299→);
+   300→
+   301→CREATE TRIGGER products_updated_at
+   302→    BEFORE UPDATE ON public.products
+   303→    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   304→
+   305→CREATE INDEX idx_products_home_id ON public.products(home_id);
+   306→CREATE INDEX idx_products_category ON public.products(category);
+   307→CREATE INDEX idx_products_is_on_shopping_list ON public.products(is_on_shopping_list);
+   308→
+   309→COMMENT ON TABLE public.products IS 'Produits du foyer avec gestion de stock';
+   310→
+   311→-- ==============================================================
+   312→-- TABLE 14: product_instances
+   313→-- ==============================================================
+   314→CREATE TABLE public.product_instances (
+   315→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   316→    product_id      UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+   317→    home_id         UUID NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
+   318→    purchase_date   DATE,
+   319→    expiry_date     DATE,
+   320→    status          VARCHAR(20) NOT NULL DEFAULT 'fresh' 
+   321→                    CHECK (status IN ('fresh', 'warning', 'critical', 'expired', 'consumed')),
+   322→    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   323→);
+   324→
+   325→CREATE INDEX idx_product_instances_product_id ON public.product_instances(product_id);
+   326→CREATE INDEX idx_product_instances_home_id ON public.product_instances(home_id);
+   327→CREATE INDEX idx_product_instances_status ON public.product_instances(status);
+   328→CREATE INDEX idx_product_instances_expiry_date ON public.product_instances(expiry_date);
+   329→
+   330→COMMENT ON TABLE public.product_instances IS 'Instances individuelles de produits avec dates de péremption';
+   331→
+   332→-- ==============================================================
+   333→-- TABLE 15: chores (Module V2 - Corvées)
+   334→-- ==============================================================
+   335→CREATE TABLE public.chores (
+   336→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   337→    home_id             UUID NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
+   338→    title               VARCHAR(255) NOT NULL,
+   339→    description         TEXT,
+   340→    points_value        INTEGER NOT NULL DEFAULT 10,
+   341→    frequency           VARCHAR(20) NOT NULL DEFAULT 'once' CHECK (frequency IN ('daily', 'weekly', 'once')),
+   342→    assigned_to_user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+   343→    is_active           BOOLEAN NOT NULL DEFAULT true,
+   344→    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   345→);
+   346→
+   347→CREATE INDEX idx_chores_home_id ON public.chores(home_id);
+   348→CREATE INDEX idx_chores_assigned_to ON public.chores(assigned_to_user_id);
+   349→CREATE INDEX idx_chores_frequency ON public.chores(frequency);
+   350→CREATE INDEX idx_chores_is_active ON public.chores(is_active);
+   351→
+   352→COMMENT ON TABLE public.chores IS 'Corvées avec système de points pour enfants';
+   353→
+   354→-- ==============================================================
+   355→-- TABLE 16: chore_completions
+   356→-- ==============================================================
+   357→CREATE TABLE public.chore_completions (
+   358→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   359→    chore_id            UUID NOT NULL REFERENCES public.chores(id) ON DELETE CASCADE,
+   360→    child_user_id       UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+   361→    validated_by_user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+   362→    points_earned       INTEGER NOT NULL DEFAULT 0,
+   363→    completed_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   364→    validated_at        TIMESTAMPTZ,
+   365→    status              VARCHAR(30) NOT NULL DEFAULT 'pending_validation' 
+   366→                        CHECK (status IN ('pending_validation', 'validated', 'rejected'))
+   367→);
+   368→
+   369→CREATE INDEX idx_chore_completions_chore_id ON public.chore_completions(chore_id);
+   370→CREATE INDEX idx_chore_completions_child_user_id ON public.chore_completions(child_user_id);
+   371→CREATE INDEX idx_chore_completions_validated_by ON public.chore_completions(validated_by_user_id);
+   372→CREATE INDEX idx_chore_completions_status ON public.chore_completions(status);
+   373→CREATE INDEX idx_chore_completions_completed_at ON public.chore_completions(completed_at);
+   374→
+   375→COMMENT ON TABLE public.chore_completions IS 'Complétions de corvées avec validation parentale';
+   376→
+   377→-- ==============================================================
+   378→-- TABLE 17: push_subscriptions (Module V2 - Notifications)
+   379→-- ==============================================================
+   380→CREATE TABLE public.push_subscriptions (
+   381→    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   382→    user_id         UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+   383→    endpoint        TEXT NOT NULL,
+   384→    p256dh_key      TEXT NOT NULL,
+   385→    auth_key        TEXT NOT NULL,
+   386→    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   387→);
+   388→
+   389→CREATE INDEX idx_push_subscriptions_user_id ON public.push_subscriptions(user_id);
+   390→
+   391→COMMENT ON TABLE public.push_subscriptions IS 'Abonnements push (Web Push API) pour notifications';
+   392→
+   393→-- ==============================================================
+   394→-- TABLE 18: merchants (Module V3 - Marketplace)
+   395→-- ==============================================================
+   396→CREATE TABLE public.merchants (
+   397→    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   398→    user_id                     UUID REFERENCES public.users(id) ON DELETE SET NULL,
+   399→    home_id                     UUID REFERENCES public.homes(id) ON DELETE SET NULL,
+   400→    name                        VARCHAR(255) NOT NULL,
+   401→    category                    VARCHAR(100),
+   402→    description                 TEXT,
+   403→    address                     TEXT,
+   404→    location                    GEOGRAPHY(POINT, 4326),
+   405→    phone                       VARCHAR(30),
+   406→    website                     TEXT,
+   407→    opening_hours               JSONB NOT NULL DEFAULT '{}',
+   408→    logo_url                    TEXT,
+   409→    subscription_tier           VARCHAR(20) NOT NULL DEFAULT 'free' 
+   410→                                CHECK (subscription_tier IN ('free', 'premium', 'featured')),
+   411→    subscription_expires_at     TIMESTAMPTZ,
+   412→    stripe_customer_id          VARCHAR(255),
+   413→    is_verified                 BOOLEAN NOT NULL DEFAULT false,
+   414→    rating_avg                  DECIMAL(3,2) NOT NULL DEFAULT 0.00,
+   415→    total_reviews               INTEGER NOT NULL DEFAULT 0,
+   416→    is_active                   BOOLEAN NOT NULL DEFAULT true,
+   417→    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   418→    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   419→);
+   420→
+   421→CREATE TRIGGER merchants_updated_at
+   422→    BEFORE UPDATE ON public.merchants
+   423→    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   424→
+   425→CREATE INDEX idx_merchants_user_id ON public.merchants(user_id);
+   426→CREATE INDEX idx_merchants_home_id ON public.merchants(home_id);
+   427→CREATE INDEX idx_merchants_category ON public.merchants(category);
+   428→CREATE INDEX idx_merchants_subscription_tier ON public.merchants(subscription_tier);
+   429→CREATE INDEX idx_merchants_is_verified ON public.merchants(is_verified);
+   430→CREATE INDEX idx_merchants_is_active ON public.merchants(is_active);
+   431→CREATE INDEX idx_merchants_location ON public.merchants USING GIST (location);
+   432→CREATE INDEX idx_merchants_rating ON public.merchants(rating_avg DESC);
+   433→
+   434→COMMENT ON TABLE public.merchants IS 'Commerçants locaux du quartier (Marketplace V3)';
+   435→COMMENT ON COLUMN public.merchants.location IS 'Coordonnées GPS PostGIS (SRID 4326)';
+   436→
+   437→-- ==============================================================
+   438→-- TABLE 19: promos
+   439→-- ==============================================================
+   440→CREATE TABLE public.promos (
+   441→    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   442→    merchant_id                 UUID REFERENCES public.merchants(id) ON DELETE SET NULL,
+   443→    source                      VARCHAR(20) NOT NULL DEFAULT 'local' CHECK (source IN ('local', 'scraped')),
+   444→    title                       VARCHAR(500) NOT NULL,
+   445→    description                 TEXT,
+   446→    image_url                   TEXT,
+   447→    original_price              DECIMAL(10,2),
+   448→    promo_price                 DECIMAL(10,2),
+   449→    valid_from                  TIMESTAMPTZ,
+   450→    valid_until                 TIMESTAMPTZ,
+   451→    keywords                    TEXT[],
+   452→    category                    VARCHAR(100),
+   453→    is_flash_sale               BOOLEAN NOT NULL DEFAULT false,
+   454→    flash_sale_triggered_at     TIMESTAMPTZ,
+   455→    flash_sale_cost             DECIMAL(10,2),
+   456→    views_count                 INTEGER NOT NULL DEFAULT 0,
+   457→    redemptions_count           INTEGER NOT NULL DEFAULT 0,
+   458→    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   459→);
+   460→
+   461→CREATE INDEX idx_promos_merchant_id ON public.promos(merchant_id);
+   462→CREATE INDEX idx_promos_category ON public.promos(category);
+   463→CREATE INDEX idx_promos_source ON public.promos(source);
+   464→CREATE INDEX idx_promos_valid_from ON public.promos(valid_from);
+   465→CREATE INDEX idx_promos_valid_until ON public.promos(valid_until);
+   466→CREATE INDEX idx_promos_is_flash_sale ON public.promos(is_flash_sale);
+   467→CREATE INDEX idx_promos_keywords ON public.promos USING GIN (keywords);
+   468→
+   469→COMMENT ON TABLE public.promos IS 'Promotions et offres des commerçants';
+   470→COMMENT ON COLUMN public.promos.keywords IS 'Mots-clés pour recherche textuelle (index GIN)';
+   471→
+   472→-- ==============================================================
+   473→-- TABLE 20: promo_redemptions
+   474→-- ==============================================================
+   475→CREATE TABLE public.promo_redemptions (
+   476→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   477→    promo_id            UUID NOT NULL REFERENCES public.promos(id) ON DELETE CASCADE,
+   478→    user_id             UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+   479→    redeemed_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   480→    commission_amount   DECIMAL(10,2) NOT NULL DEFAULT 0.00
+   481→);
+   482→
+   483→CREATE INDEX idx_promo_redemptions_promo_id ON public.promo_redemptions(promo_id);
+   484→CREATE INDEX idx_promo_redemptions_user_id ON public.promo_redemptions(user_id);
+   485→CREATE INDEX idx_promo_redemptions_redeemed_at ON public.promo_redemptions(redeemed_at);
+   486→
+   487→COMMENT ON TABLE public.promo_redemptions IS 'Utilisations de promotions avec commission';
+   488→
+   489→-- ==============================================================
+   490→-- TABLE 21: scraping_jobs
+   491→-- ==============================================================
+   492→CREATE TABLE public.scraping_jobs (
+   493→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   494→    source              VARCHAR(255) NOT NULL,
+   495→    store_location      TEXT,
+   496→    status              VARCHAR(20) NOT NULL DEFAULT 'running' 
+   497→                        CHECK (status IN ('running', 'success', 'failed')),
+   498→    products_scraped    INTEGER NOT NULL DEFAULT 0,
+   499→    error_message       TEXT,
+   500→    started_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   501→    finished_at         TIMESTAMPTZ
+   502→);
+   503→
+   504→CREATE INDEX idx_scraping_jobs_status ON public.scraping_jobs(status);
+   505→CREATE INDEX idx_scraping_jobs_started_at ON public.scraping_jobs(started_at);
+   506→
+   507→COMMENT ON TABLE public.scraping_jobs IS 'Jobs de scraping automatique des promotions';
+   508→
+   509→-- ==============================================================
+   510→-- TABLE 22: professionals (Module V3 - Artisans)
+   511→-- ==============================================================
+   512→CREATE TABLE public.professionals (
+   513→    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   514→    user_id                     UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+   515→    business_name               VARCHAR(255) NOT NULL,
+   516→    category                    VARCHAR(100) NOT NULL,
+   517→    subcategory                 VARCHAR(100),
+   518→    description                 TEXT,
+   519→    location                    GEOGRAPHY(POINT, 4326),
+   520→    service_radius_km           INTEGER NOT NULL DEFAULT 10,
+   521→    hourly_rate                 DECIMAL(10,2),
+   522→    is_urgent_available         BOOLEAN NOT NULL DEFAULT false,
+   523→    is_verified                 BOOLEAN NOT NULL DEFAULT false,
+   524→    verification_documents      JSONB NOT NULL DEFAULT '[]',
+   525→    portfolio_images            TEXT[] NOT NULL DEFAULT '{}',
+   526→    subscription_status         VARCHAR(20) NOT NULL DEFAULT 'free' 
+   527→                                CHECK (subscription_status IN ('free', 'premium', 'featured')),
+   528→    subscription_expires_at     TIMESTAMPTZ,
+   529→    stripe_customer_id          VARCHAR(255),
+   530→    rating_avg                  DECIMAL(3,2) NOT NULL DEFAULT 0.00,
+   531→    total_reviews               INTEGER NOT NULL DEFAULT 0,
+   532→    response_time_minutes       INTEGER,
+   533→    total_jobs_completed        INTEGER NOT NULL DEFAULT 0,
+   534→    is_active                   BOOLEAN NOT NULL DEFAULT true,
+   535→    created_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   536→    updated_at                  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   537→);
+   538→
+   539→CREATE TRIGGER professionals_updated_at
+   540→    BEFORE UPDATE ON public.professionals
+   541→    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   542→
+   543→CREATE INDEX idx_professionals_user_id ON public.professionals(user_id);
+   544→CREATE INDEX idx_professionals_category ON public.professionals(category);
+   545→CREATE INDEX idx_professionals_subcategory ON public.professionals(subcategory);
+   546→CREATE INDEX idx_professionals_subscription_status ON public.professionals(subscription_status);
+   547→CREATE INDEX idx_professionals_is_verified ON public.professionals(is_verified);
+   548→CREATE INDEX idx_professionals_is_active ON public.professionals(is_active);
+   549→CREATE INDEX idx_professionals_location ON public.professionals USING GIST (location);
+   550→CREATE INDEX idx_professionals_rating ON public.professionals(rating_avg DESC);
+   551→CREATE INDEX idx_professionals_is_urgent_available ON public.professionals(is_urgent_available);
+   552→
+   553→COMMENT ON TABLE public.professionals IS 'Artisans et professionnels de services';
+   554→COMMENT ON COLUMN public.professionals.location IS 'Coordonnées GPS PostGIS (SRID 4326)';
+   555→
+   556→-- ==============================================================
+   557→-- TABLE 23: services
+   558→-- ==============================================================
+   559→CREATE TABLE public.services (
+   560→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   561→    professional_id     UUID NOT NULL REFERENCES public.professionals(id) ON DELETE CASCADE,
+   562→    name                VARCHAR(255) NOT NULL,
+   563→    description         TEXT,
+   564→    base_price          DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+   565→    price_unit          VARCHAR(20) NOT NULL DEFAULT 'flat_rate' 
+   566→                        CHECK (price_unit IN ('hour', 'flat_rate', 'estimate')),
+   567→    duration_minutes    INTEGER,
+   568→    is_urgent           BOOLEAN NOT NULL DEFAULT false,
+   569→    is_active           BOOLEAN NOT NULL DEFAULT true
+   570→);
+   571→
+   572→CREATE INDEX idx_services_professional_id ON public.services(professional_id);
+   573→CREATE INDEX idx_services_is_active ON public.services(is_active);
+   574→CREATE INDEX idx_services_is_urgent ON public.services(is_urgent);
+   575→
+   576→COMMENT ON TABLE public.services IS 'Services proposés par les professionnels';
+   577→
+   578→-- ==============================================================
+   579→-- TABLE 24: service_requests
+   580→-- ==============================================================
+   581→CREATE TABLE public.service_requests (
+   582→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   583→    home_id             UUID NOT NULL REFERENCES public.homes(id) ON DELETE CASCADE,
+   584→    professional_id     UUID NOT NULL REFERENCES public.professionals(id) ON DELETE CASCADE,
+   585→    service_id          UUID REFERENCES public.services(id) ON DELETE SET NULL,
+   586→    qr_code_id          UUID REFERENCES public.qr_codes(id) ON DELETE SET NULL,
+   587→    status              VARCHAR(20) NOT NULL DEFAULT 'pending' 
+   588→                        CHECK (status IN ('pending', 'accepted', 'in_progress', 'completed', 'cancelled', 'disputed')),
+   589→    description         TEXT,
+   590→    photos              TEXT[] NOT NULL DEFAULT '{}',
+   591→    preferred_date      TIMESTAMPTZ,
+   592→    urgency_level       VARCHAR(20) NOT NULL DEFAULT 'normal' 
+   593→                        CHECK (urgency_level IN ('normal', 'urgent', 'emergency')),
+   594→    address             TEXT,
+   595→    final_price         DECIMAL(10,2),
+   596→    commission_amount   DECIMAL(10,2),
+   597→    paid_at             TIMESTAMPTZ,
+   598→    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   599→);
+   600→
+   601→CREATE INDEX idx_service_requests_home_id ON public.service_requests(home_id);
+   602→CREATE INDEX idx_service_requests_professional_id ON public.service_requests(professional_id);
+   603→CREATE INDEX idx_service_requests_service_id ON public.service_requests(service_id);
+   604→CREATE INDEX idx_service_requests_qr_code_id ON public.service_requests(qr_code_id);
+   605→CREATE INDEX idx_service_requests_status ON public.service_requests(status);
+   606→CREATE INDEX idx_service_requests_urgency_level ON public.service_requests(urgency_level);
+   607→CREATE INDEX idx_service_requests_created_at ON public.service_requests(created_at);
+   608→
+   609→COMMENT ON TABLE public.service_requests IS 'Demandes de services entre foyers et professionnels';
+   610→
+   611→-- ==============================================================
+   612→-- TABLE 25: reviews
+   613→-- ==============================================================
+   614→CREATE TABLE public.reviews (
+   615→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   616→    service_request_id  UUID NOT NULL REFERENCES public.service_requests(id) ON DELETE CASCADE,
+   617→    professional_id     UUID NOT NULL REFERENCES public.professionals(id) ON DELETE CASCADE,
+   618→    user_id             UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+   619→    rating              INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+   620→    comment             TEXT,
+   621→    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   622→);
+   623→
+   624→CREATE INDEX idx_reviews_service_request_id ON public.reviews(service_request_id);
+   625→CREATE INDEX idx_reviews_professional_id ON public.reviews(professional_id);
+   626→CREATE INDEX idx_reviews_user_id ON public.reviews(user_id);
+   627→CREATE INDEX idx_reviews_rating ON public.reviews(rating);
+   628→
+   629→COMMENT ON TABLE public.reviews IS 'Avis sur les professionnels';
+   630→
+   631→-- ==============================================================
+   632→-- TABLE 26: emergency_qr_codes
+   633→-- ==============================================================
+   634→CREATE TABLE public.emergency_qr_codes (
+   635→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   636→    qr_code_id          UUID NOT NULL REFERENCES public.qr_codes(id) ON DELETE CASCADE,
+   637→    emergency_category  VARCHAR(100) NOT NULL,
+   638→    equipment_info      JSONB NOT NULL DEFAULT '{}',
+   639→    is_active           BOOLEAN NOT NULL DEFAULT true
+   640→);
+   641→
+   642→CREATE INDEX idx_emergency_qr_codes_qr_code_id ON public.emergency_qr_codes(qr_code_id);
+   643→CREATE INDEX idx_emergency_qr_codes_emergency_category ON public.emergency_qr_codes(emergency_category);
+   644→CREATE INDEX idx_emergency_qr_codes_is_active ON public.emergency_qr_codes(is_active);
+   645→
+   646→COMMENT ON TABLE public.emergency_qr_codes IS 'QR codes d\'urgence avec infos équipements';
+   647→
+   648→-- ==============================================================
+   649→-- TABLE 27: subscriptions (Monétisation)
+   650→-- ==============================================================
+   651→CREATE TABLE public.subscriptions (
+   652→    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   653→    subscriber_id           UUID NOT NULL,
+   654→    subscriber_type         VARCHAR(20) NOT NULL CHECK (subscriber_type IN ('merchant', 'professional')),
+   655→    plan                    VARCHAR(50) NOT NULL,
+   656→    amount                  DECIMAL(10,2) NOT NULL,
+   657→    currency                VARCHAR(3) NOT NULL DEFAULT 'EUR',
+   658→    stripe_subscription_id  VARCHAR(255),
+   659→    status                  VARCHAR(20) NOT NULL DEFAULT 'active' 
+   660→                            CHECK (status IN ('active', 'cancelled', 'past_due')),
+   661→    current_period_start    TIMESTAMPTZ,
+   662→    current_period_end      TIMESTAMPTZ,
+   663→    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   664→);
+   665→
+   666→CREATE INDEX idx_subscriptions_subscriber_id ON public.subscriptions(subscriber_id);
+   667→CREATE INDEX idx_subscriptions_subscriber_type ON public.subscriptions(subscriber_type);
+   668→CREATE INDEX idx_subscriptions_status ON public.subscriptions(status);
+   669→CREATE INDEX idx_subscriptions_stripe_subscription_id ON public.subscriptions(stripe_subscription_id);
+   670→
+   671→COMMENT ON TABLE public.subscriptions IS 'Abonnements payants (Stripe) des commerçants et artisans';
+   672→
+   673→-- ==============================================================
+   674→-- TABLE 28: transactions (Monétisation)
+   675→-- ==============================================================
+   676→CREATE TABLE public.transactions (
+   677→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   678→    type                VARCHAR(20) NOT NULL CHECK (type IN ('flash_sale', 'commission', 'subscription', 'redemption')),
+   679→    payer_id            UUID,
+   680→    receiver_id         UUID,
+   681→    amount              DECIMAL(10,2) NOT NULL,
+   682→    currency            VARCHAR(3) NOT NULL DEFAULT 'EUR',
+   683→    stripe_payment_id   VARCHAR(255),
+   684→    status              VARCHAR(20) NOT NULL DEFAULT 'pending' 
+   685→                        CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
+   686→    reference_id        UUID,
+   687→    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   688→);
+   689→
+   690→CREATE INDEX idx_transactions_type ON public.transactions(type);
+   691→CREATE INDEX idx_transactions_payer_id ON public.transactions(payer_id);
+   692→CREATE INDEX idx_transactions_receiver_id ON public.transactions(receiver_id);
+   693→CREATE INDEX idx_transactions_status ON public.transactions(status);
+   694→CREATE INDEX idx_transactions_stripe_payment_id ON public.transactions(stripe_payment_id);
+   695→CREATE INDEX idx_transactions_created_at ON public.transactions(created_at);
+   696→
+   697→COMMENT ON TABLE public.transactions IS 'Transactions financières de la plateforme';
+   698→
+   699→
+   700→-- ==============================================================
+   701→-- ==============================================================
+   702→-- POLITIQUES RLS (ROW LEVEL SECURITY)
+   703→-- ==============================================================
+   704→-- ==============================================================
+   705→
+   706→-- ==============================================================
+   707→-- HELPER: Fonctions pour RLS
+   708→-- ==============================================================
+   709→
+   710→-- Vérifie si l'utilisateur courant est superadmin
+   711→CREATE OR REPLACE FUNCTION is_superadmin()
+   712→RETURNS BOOLEAN AS $$
+   713→BEGIN
+   714→    RETURN EXISTS (
+   715→        SELECT 1 FROM public.users 
+   716→        WHERE id = auth.uid() AND role = 'superadmin'
+   717→    );
+   718→END;
+   719→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   720→
+   721→-- Retourne les IDs des homes dont l'utilisateur est membre
+   722→CREATE OR REPLACE FUNCTION user_home_ids()
+   723→RETURNS UUID[] AS $$
+   724→BEGIN
+   725→    RETURN ARRAY(
+   726→        SELECT home_id FROM public.home_members 
+   727→        WHERE user_id = auth.uid()
+   728→    );
+   729→END;
+   730→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   731→
+   732→-- Vérifie si l'utilisateur est membre d'un home donné
+   733→CREATE OR REPLACE FUNCTION is_home_member(p_home_id UUID)
+   734→RETURNS BOOLEAN AS $$
+   735→BEGIN
+   736→    RETURN EXISTS (
+   737→        SELECT 1 FROM public.home_members 
+   738→        WHERE home_id = p_home_id AND user_id = auth.uid()
+   739→    );
+   740→END;
+   741→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   742→
+   743→-- Vérifie si l'utilisateur est owner/admin d'un home donné
+   744→CREATE OR REPLACE FUNCTION is_home_admin(p_home_id UUID)
+   745→RETURNS BOOLEAN AS $$
+   746→BEGIN
+   747→    RETURN EXISTS (
+   748→        SELECT 1 FROM public.home_members 
+   749→        WHERE home_id = p_home_id AND user_id = auth.uid() 
+   750→        AND role IN ('owner', 'admin')
+   751→    );
+   752→END;
+   753→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   754→
+   755→-- ==============================================================
+   756→-- ENABLE RLS SUR TOUTES LES TABLES
+   757→-- ==============================================================
+   758→ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+   759→ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+   760→ALTER TABLE public.homes ENABLE ROW LEVEL SECURITY;
+   761→ALTER TABLE public.home_members ENABLE ROW LEVEL SECURITY;
+   762→ALTER TABLE public.rooms ENABLE ROW LEVEL SECURITY;
+   763→ALTER TABLE public.qr_codes ENABLE ROW LEVEL SECURITY;
+   764→ALTER TABLE public.qr_contents ENABLE ROW LEVEL SECURITY;
+   765→ALTER TABLE public.qr_batches ENABLE ROW LEVEL SECURITY;
+   766→ALTER TABLE public.physical_qr_codes ENABLE ROW LEVEL SECURITY;
+   767→ALTER TABLE public.activation_logs ENABLE ROW LEVEL SECURITY;
+   768→ALTER TABLE public.guestbook_entries ENABLE ROW LEVEL SECURITY;
+   769→ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+   770→ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+   771→ALTER TABLE public.product_instances ENABLE ROW LEVEL SECURITY;
+   772→ALTER TABLE public.chores ENABLE ROW LEVEL SECURITY;
+   773→ALTER TABLE public.chore_completions ENABLE ROW LEVEL SECURITY;
+   774→ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+   775→ALTER TABLE public.merchants ENABLE ROW LEVEL SECURITY;
+   776→ALTER TABLE public.promos ENABLE ROW LEVEL SECURITY;
+   777→ALTER TABLE public.promo_redemptions ENABLE ROW LEVEL SECURITY;
+   778→ALTER TABLE public.scraping_jobs ENABLE ROW LEVEL SECURITY;
+   779→ALTER TABLE public.professionals ENABLE ROW LEVEL SECURITY;
+   780→ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+   781→ALTER TABLE public.service_requests ENABLE ROW LEVEL SECURITY;
+   782→ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+   783→ALTER TABLE public.emergency_qr_codes ENABLE ROW LEVEL SECURITY;
+   784→ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+   785→ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+   786→
+   787→-- ==============================================================
+   788→-- RLS: users - Un user voit son profil, superadmin voit tout
+   789→-- ==============================================================
+   790→CREATE POLICY "users_self_read" ON public.users
+   791→    FOR SELECT USING (id = auth.uid());
+   792→
+   793→CREATE POLICY "users_self_update" ON public.users
+   794→    FOR UPDATE USING (id = auth.uid());
+   795→
+   796→CREATE POLICY "users_superadmin_all" ON public.users
+   797→    FOR ALL USING (is_superadmin());
+   798→
+   799→CREATE POLICY "users_self_insert" ON public.users
+   800→    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+   801→
+   802→-- ==============================================================
+   803→-- RLS: profiles - User voit son profil, superadmin voit tout
+   804→-- ==============================================================
+   805→CREATE POLICY "profiles_self_read" ON public.profiles
+   806→    FOR SELECT USING (user_id = auth.uid());
+   807→
+   808→CREATE POLICY "profiles_self_update" ON public.profiles
+   809→    FOR UPDATE USING (user_id = auth.uid());
+   810→
+   811→CREATE POLICY "profiles_self_insert" ON public.profiles
+   812→    FOR INSERT WITH CHECK (user_id = auth.uid());
+   813→
+   814→CREATE POLICY "profiles_superadmin_all" ON public.profiles
+   815→    FOR ALL USING (is_superadmin());
+   816→
+   817→-- ==============================================================
+   818→-- RLS: homes - Owner et membres voient leurs homes
+   819→-- ==============================================================
+   820→CREATE POLICY "homes_members_read" ON public.homes
+   821→    FOR SELECT USING (
+   822→        owner_id = auth.uid() 
+   823→        OR is_home_member(id)
+   824→        OR is_superadmin()
+   825→    );
+   826→
+   827→CREATE POLICY "homes_owner_insert" ON public.homes
+   828→    FOR INSERT WITH CHECK (owner_id = auth.uid());
+   829→
+   830→CREATE POLICY "homes_admin_update" ON public.homes
+   831→    FOR UPDATE USING (
+   832→        owner_id = auth.uid() 
+   833→        OR is_home_admin(id)
+   834→        OR is_superadmin()
+   835→    );
+   836→
+   837→CREATE POLICY "homes_owner_delete" ON public.homes
+   838→    FOR DELETE USING (owner_id = auth.uid() OR is_superadmin());
+   839→
+   840→-- ==============================================================
+   841→-- RLS: home_members - Membres voient les membres de leurs homes
+   842→-- ==============================================================
+   843→CREATE POLICY "home_members_read" ON public.home_members
+   844→    FOR SELECT USING (
+   845→        user_id = auth.uid()
+   846→        OR is_home_member(home_id)
+   847→        OR is_superadmin()
+   848→    );
+   849→
+   850→CREATE POLICY "home_members_admin_insert" ON public.home_members
+   851→    FOR INSERT WITH CHECK (is_home_admin(home_id) OR is_superadmin());
+   852→
+   853→CREATE POLICY "home_members_admin_update" ON public.home_members
+   854→    FOR UPDATE USING (is_home_admin(home_id) OR is_superadmin());
+   855→
+   856→CREATE POLICY "home_members_admin_delete" ON public.home_members
+   857→    FOR DELETE USING (is_home_admin(home_id) OR is_superadmin());
+   858→
+   859→-- ==============================================================
+   860→-- RLS: rooms - Membres du home voient les pièces
+   861→-- ==============================================================
+   862→CREATE POLICY "rooms_members_read" ON public.rooms
+   863→    FOR SELECT USING (is_home_member(home_id) OR is_superadmin());
+   864→
+   865→CREATE POLICY "rooms_admin_insert" ON public.rooms
+   866→    FOR INSERT WITH CHECK (is_home_admin(home_id) OR is_superadmin());
+   867→
+   868→CREATE POLICY "rooms_admin_update" ON public.rooms
+   869→    FOR UPDATE USING (is_home_admin(home_id) OR is_superadmin());
+   870→
+   871→CREATE POLICY "rooms_admin_delete" ON public.rooms
+   872→    FOR DELETE USING (is_home_admin(home_id) OR is_superadmin());
+   873→
+   874→-- ==============================================================
+   875→-- RLS: qr_codes - Membres voient les QR de leurs homes
+   876→-- (Les pages publiques /r/[slug] utilisent un service key côté serveur)
+   877→-- ==============================================================
+   878→CREATE POLICY "qr_codes_members_read" ON public.qr_codes
+   879→    FOR SELECT USING (
+   880→        is_home_member(home_id) 
+   881→        OR is_superadmin()
+   882→        OR (NOT is_private AND is_active)  -- QR publics actifs visibles par tous
+   883→    );
+   884→
+   885→CREATE POLICY "qr_codes_admin_insert" ON public.qr_codes
+   886→    FOR INSERT WITH CHECK (is_home_admin(home_id) OR is_superadmin());
+   887→
+   888→CREATE POLICY "qr_codes_admin_update" ON public.qr_codes
+   889→    FOR UPDATE USING (is_home_admin(home_id) OR is_superadmin());
+   890→
+   891→CREATE POLICY "qr_codes_admin_delete" ON public.qr_codes
+   892→    FOR DELETE USING (is_home_admin(home_id) OR is_superadmin());
+   893→
+   894→-- ==============================================================
+   895→-- RLS: qr_contents - Lié aux qr_codes
+   896→-- ==============================================================
+   897→CREATE POLICY "qr_contents_members_read" ON public.qr_contents
+   898→    FOR SELECT USING (
+   899→        EXISTS (
+   900→            SELECT 1 FROM public.qr_codes qc
+   901→            WHERE qc.id = qr_contents.qr_code_id
+   902→            AND (is_home_member(qc.home_id) OR is_superadmin() OR (NOT qc.is_private AND qc.is_active))
+   903→        )
+   904→    );
+   905→
+   906→CREATE POLICY "qr_contents_admin_insert" ON public.qr_contents
+   907→    FOR INSERT WITH CHECK (
+   908→        EXISTS (
+   909→            SELECT 1 FROM public.qr_codes qc
+   910→            WHERE qc.id = qr_contents.qr_code_id
+   911→            AND (is_home_admin(qc.home_id) OR is_superadmin())
+   912→        )
+   913→    );
+   914→
+   915→CREATE POLICY "qr_contents_admin_update" ON public.qr_contents
+   916→    FOR UPDATE USING (
+   917→        EXISTS (
+   918→            SELECT 1 FROM public.qr_codes qc
+   919→            WHERE qc.id = qr_contents.qr_code_id
+   920→            AND (is_home_admin(qc.home_id) OR is_superadmin())
+   921→        )
+   922→    );
+   923→
+   924→CREATE POLICY "qr_contents_admin_delete" ON public.qr_contents
+   925→    FOR DELETE USING (is_superadmin());
+   926→
+   927→-- ==============================================================
+   928→-- RLS: qr_batches - Superadmin uniquement (génération de lots)
+   929→-- ==============================================================
+   930→CREATE POLICY "qr_batches_superadmin_all" ON public.qr_batches
+   931→    FOR ALL USING (is_superadmin());
+   932→
+   933→-- ==============================================================
+   934→-- RLS: physical_qr_codes - Superadmin gère, user voit les siens
+   935→-- ==============================================================
+   936→CREATE POLICY "physical_qr_superadmin_all" ON public.physical_qr_codes
+   937→    FOR ALL USING (is_superadmin());
+   938→
+   939→CREATE POLICY "physical_qr_user_read" ON public.physical_qr_codes
+   940→    FOR SELECT USING (activated_by_user_id = auth.uid());
+   941→
+   942→CREATE POLICY "physical_qr_user_update" ON public.physical_qr_codes
+   943→    FOR UPDATE USING (activated_by_user_id = auth.uid());
+   944→
+   945→-- ==============================================================
+   946→-- RLS: activation_logs - User voit ses propres activations
+   947→-- ==============================================================
+   948→CREATE POLICY "activation_logs_superadmin_all" ON public.activation_logs
+   949→    FOR ALL USING (is_superadmin());
+   950→
+   951→CREATE POLICY "activation_logs_user_read" ON public.activation_logs
+   952→    FOR SELECT USING (user_id = auth.uid());
+   953→
+   954→CREATE POLICY "activation_logs_user_insert" ON public.activation_logs
+   955→    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+   956→
+   957→-- ==============================================================
+   958→-- RLS: guestbook_entries - Membres du home + invités (public)
+   959→-- ==============================================================
+   960→CREATE POLICY "guestbook_members_read" ON public.guestbook_entries
+   961→    FOR SELECT USING (
+   962→        EXISTS (
+   963→            SELECT 1 FROM public.qr_codes qc
+   964→            WHERE qc.id = guestbook_entries.qr_code_id
+   965→            AND (is_home_member(qc.home_id) OR is_superadmin() OR (NOT qc.is_private AND qc.is_active))
+   966→        )
+   967→    );
+   968→
+   969→CREATE POLICY "guestbook_public_insert" ON public.guestbook_entries
+   970→    FOR INSERT WITH CHECK (
+   971→        EXISTS (
+   972→            SELECT 1 FROM public.qr_codes qc
+   973→            WHERE qc.id = guestbook_entries.qr_code_id
+   974→            AND (NOT qc.is_private AND qc.is_active)
+   975→        )
+   976→    );
+   977→
+   978→CREATE POLICY "guestbook_admin_delete" ON public.guestbook_entries
+   979→    FOR DELETE USING (
+   980→        EXISTS (
+   981→            SELECT 1 FROM public.qr_codes qc
+   982→            WHERE qc.id = guestbook_entries.qr_code_id
+   983→            AND (is_home_admin(qc.home_id) OR is_superadmin())
+   984→        )
+   985→    );
+   986→
+   987→-- ==============================================================
+   988→-- RLS: activity_logs - Membres du home
+   989→-- ==============================================================
+   990→CREATE POLICY "activity_logs_members_read" ON public.activity_logs
+   991→    FOR SELECT USING (
+   992→        is_home_member(home_id) OR is_superadmin()
+   993→    );
+   994→
+   995→CREATE POLICY "activity_logs_members_insert" ON public.activity_logs
+   996→    FOR INSERT WITH CHECK (
+   997→        is_home_member(home_id) OR is_superadmin()
+   998→    );
+   999→
+  1000→-- ==============================================================
+  1001→-- RLS: products - Membres du home
+  1002→-- ==============================================================
+  1003→CREATE POLICY "products_members_all" ON public.products
+  1004→    FOR ALL USING (
+  1005→        is_home_member(home_id) OR is_superadmin()
+  1006→    );
+  1007→
+  1008→-- ==============================================================
+  1009→-- RLS: product_instances - Membres du home
+  1010→-- ==============================================================
+  1011→CREATE POLICY "product_instances_members_all" ON public.product_instances
+  1012→    FOR ALL USING (
+  1013→        is_home_member(home_id) OR is_superadmin()
+  1014→    );
+  1015→
+  1016→-- ==============================================================
+  1017→-- RLS: chores - Admin/parent voient toutes les corvées du home
+  1018→-- ENFANTS: ne voient que les corvées qui leur sont assignées
+  1019→-- ==============================================================
+  1020→CREATE POLICY "chores_admin_read" ON public.chores
+  1021→    FOR SELECT USING (
+  1022→        is_home_admin(home_id) 
+  1023→        OR is_superadmin()
+  1024→        OR assigned_to_user_id = auth.uid()  -- enfants voient les leurs
+  1025→    );
+  1026→
+  1027→CREATE POLICY "chores_admin_insert" ON public.chores
+  1028→    FOR INSERT WITH CHECK (is_home_admin(home_id) OR is_superadmin());
+  1029→
+  1030→CREATE POLICY "chores_admin_update" ON public.chores
+  1031→    FOR UPDATE USING (is_home_admin(home_id) OR is_superadmin());
+  1032→
+  1033→CREATE POLICY "chores_admin_delete" ON public.chores
+  1034→    FOR DELETE USING (is_home_admin(home_id) OR is_superadmin());
+  1035→
+  1036→-- ==============================================================
+  1037→-- RLS: chore_completions - Enfants voient les leurs, parents/admins valident
+  1038→-- ==============================================================
+  1039→CREATE POLICY "chore_completions_child_read" ON public.chore_completions
+  1040→    FOR SELECT USING (
+  1041→        child_user_id = auth.uid()  -- l'enfant voit ses complétions
+  1042→        OR is_superadmin()
+  1043→        OR EXISTS (
+  1044→            SELECT 1 FROM public.chores c
+  1045→            WHERE c.id = chore_completions.chore_id
+  1046→            AND is_home_admin(c.home_id)
+  1047→        )
+  1048→    );
+  1049→
+  1050→CREATE POLICY "chore_completions_child_insert" ON public.chore_completions
+  1051→    FOR INSERT WITH CHECK (child_user_id = auth.uid());
+  1052→
+  1053→CREATE POLICY "chore_completions_parent_update" ON public.chore_completions
+  1054→    FOR UPDATE USING (
+  1055→        EXISTS (
+  1056→            SELECT 1 FROM public.chores c
+  1057→            WHERE c.id = chore_completions.chore_id
+  1058→            AND (is_home_admin(c.home_id) OR is_superadmin())
+  1059→        )
+  1060→    );
+  1061→
+  1062→-- ==============================================================
+  1063→-- RLS: push_subscriptions - User gère ses propres abonnements
+  1064→-- ==============================================================
+  1065→CREATE POLICY "push_subscriptions_user_all" ON public.push_subscriptions
+  1066→    FOR ALL USING (user_id = auth.uid());
+  1067→
+  1068→-- ==============================================================
+  1069→-- RLS: merchants - Public read, merchant gère le sien
+  1070→-- ==============================================================
+  1071→CREATE POLICY "merchants_public_read" ON public.merchants
+  1072→    FOR SELECT USING (is_active OR is_superadmin());
+  1073→
+  1074→CREATE POLICY "merchants_own_insert" ON public.merchants
+  1075→    FOR INSERT WITH CHECK (user_id = auth.uid());
+  1076→
+  1077→CREATE POLICY "merchants_own_update" ON public.merchants
+  1078→    FOR UPDATE USING (user_id = auth.uid() OR is_superadmin());
+  1079→
+  1080→CREATE POLICY "merchants_superadmin_all" ON public.merchants
+  1081→    FOR ALL USING (is_superadmin());
+  1082→
+  1083→-- ==============================================================
+  1084→-- RLS: promos - Public read, merchant gère les siennes
+  1085→-- ==============================================================
+  1086→CREATE POLICY "promos_public_read" ON public.promos
+  1087→    FOR SELECT USING (true);  -- Tout le monde voit les promos actives
+  1088→
+  1089→CREATE POLICY "promos_merchant_insert" ON public.promos
+  1090→    FOR INSERT WITH CHECK (
+  1091→        merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+  1092→        OR is_superadmin()
+  1093→    );
+  1094→
+  1095→CREATE POLICY "promos_merchant_update" ON public.promos
+  1096→    FOR UPDATE USING (
+  1097→        merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+  1098→        OR is_superadmin()
+  1099→    );
+  1100→
+  1101→CREATE POLICY "promos_merchant_delete" ON public.promos
+  1102→    FOR DELETE USING (
+  1103→        merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+  1104→        OR is_superadmin()
+  1105→    );
+  1106→
+  1107→-- ==============================================================
+  1108→-- RLS: promo_redemptions - User voit les siennes, admin voit tout
+  1109→-- ==============================================================
+  1110→CREATE POLICY "promo_redemptions_user_read" ON public.promo_redemptions
+  1111→    FOR SELECT USING (user_id = auth.uid() OR is_superadmin());
+  1112→
+  1113→CREATE POLICY "promo_redemptions_user_insert" ON public.promo_redemptions
+  1114→    FOR INSERT WITH CHECK (user_id = auth.uid());
+  1115→
+  1116→-- ==============================================================
+  1117→-- RLS: scraping_jobs - Superadmin uniquement
+  1118→-- ==============================================================
+  1119→CREATE POLICY "scraping_jobs_superadmin_all" ON public.scraping_jobs
+  1120→    FOR ALL USING (is_superadmin());
+  1121→
+  1122→-- ==============================================================
+  1123→-- RLS: professionals - Public read, pro gère le sien
+  1124→-- ==============================================================
+  1125→CREATE POLICY "professionals_public_read" ON public.professionals
+  1126→    FOR SELECT USING (is_active OR is_superadmin());
+  1127→
+  1128→CREATE POLICY "professionals_own_insert" ON public.professionals
+  1129→    FOR INSERT WITH CHECK (user_id = auth.uid());
+  1130→
+  1131→CREATE POLICY "professionals_own_update" ON public.professionals
+  1132→    FOR UPDATE USING (user_id = auth.uid() OR is_superadmin());
+  1133→
+  1134→CREATE POLICY "professionals_superadmin_all" ON public.professionals
+  1135→    FOR ALL USING (is_superadmin());
+  1136→
+  1137→-- ==============================================================
+  1138→-- RLS: services - Lié aux professionnels
+  1139→-- ==============================================================
+  1140→CREATE POLICY "services_public_read" ON public.services
+  1141→    FOR SELECT USING (is_active);
+  1142→
+  1143→CREATE POLICY "services_pro_insert" ON public.services
+  1144→    FOR INSERT WITH CHECK (
+  1145→        professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+  1146→        OR is_superadmin()
+  1147→    );
+  1148→
+  1149→CREATE POLICY "services_pro_update" ON public.services
+  1150→    FOR UPDATE USING (
+  1151→        professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+  1152→        OR is_superadmin()
+  1153→    );
+  1154→
+  1155→CREATE POLICY "services_pro_delete" ON public.services
+  1156→    FOR DELETE USING (
+  1157→        professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+  1158→        OR is_superadmin()
+  1159→    );
+  1160→
+  1161→-- ==============================================================
+  1162→-- RLS: service_requests - Home member + professional voient les leurs
+  1163→-- ==============================================================
+  1164→CREATE POLICY "service_requests_member_read" ON public.service_requests
+  1165→    FOR SELECT USING (
+  1166→        is_home_member(home_id)
+  1167→        OR professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+  1168→        OR is_superadmin()
+  1169→    );
+  1170→
+  1171→CREATE POLICY "service_requests_member_insert" ON public.service_requests
+  1172→    FOR INSERT WITH CHECK (is_home_member(home_id));
+  1173→
+  1174→CREATE POLICY "service_requests_member_update" ON public.service_requests
+  1175→    FOR UPDATE USING (
+  1176→        is_home_member(home_id)
+  1177→        OR professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+  1178→        OR is_superadmin()
+  1179→    );
+  1180→
+  1181→-- ==============================================================
+  1182→-- RLS: reviews - Public read, auteur et pro voient les leurs
+  1183→-- ==============================================================
+  1184→CREATE POLICY "reviews_public_read" ON public.reviews
+  1185→    FOR SELECT USING (true);
+  1186→
+  1187→CREATE POLICY "reviews_user_insert" ON public.reviews
+  1188→    FOR INSERT WITH CHECK (user_id = auth.uid());
+  1189→
+  1190→CREATE POLICY "reviews_user_update" ON public.reviews
+  1191→    FOR UPDATE USING (user_id = auth.uid() OR is_superadmin());
+  1192→
+  1193→-- ==============================================================
+  1194→-- RLS: emergency_qr_codes - Membres du home
+  1195→-- ==============================================================
+  1196→CREATE POLICY "emergency_qr_members_read" ON public.emergency_qr_codes
+  1197→    FOR SELECT USING (
+  1198→        EXISTS (
+  1199→            SELECT 1 FROM public.qr_codes qc
+  1200→            WHERE qc.id = emergency_qr_codes.qr_code_id
+  1201→            AND (is_home_member(qc.home_id) OR is_superadmin())
+  1202→        )
+  1203→    );
+  1204→
+  1205→CREATE POLICY "emergency_qr_admin_insert" ON public.emergency_qr_codes
+  1206→    FOR INSERT WITH CHECK (
+  1207→        EXISTS (
+  1208→            SELECT 1 FROM public.qr_codes qc
+  1209→            WHERE qc.id = emergency_qr_codes.qr_code_id
+  1210→            AND (is_home_admin(qc.home_id) OR is_superadmin())
+  1211→        )
+  1212→    );
+  1213→
+  1214→CREATE POLICY "emergency_qr_admin_update" ON public.emergency_qr_codes
+  1215→    FOR UPDATE USING (is_superadmin());
+  1216→
+  1217→CREATE POLICY "emergency_qr_admin_delete" ON public.emergency_qr_codes
+  1218→    FOR DELETE USING (is_superadmin());
+  1219→
+  1220→-- ==============================================================
+  1221→-- RLS: subscriptions - Subscriber + superadmin
+  1222→-- ==============================================================
+  1223→CREATE POLICY "subscriptions_subscriber_read" ON public.subscriptions
+  1224→    FOR SELECT USING (
+  1225→        subscriber_id = auth.uid() OR is_superadmin()
+  1226→    );
+  1227→
+  1228→CREATE POLICY "subscriptions_subscriber_insert" ON public.subscriptions
+  1229→    FOR INSERT WITH CHECK (subscriber_id = auth.uid() OR is_superadmin());
+  1230→
+  1231→CREATE POLICY "subscriptions_superadmin_all" ON public.subscriptions
+  1232→    FOR ALL USING (is_superadmin());
+  1233→
+  1234→-- ==============================================================
+  1235→-- RLS: transactions - Superadmin uniquement
+  1236→-- ==============================================================
+  1237→CREATE POLICY "transactions_superadmin_all" ON public.transactions
+  1238→    FOR ALL USING (is_superadmin());
+  1239→
+  1240→-- ==============================================================
+  1241→-- POLITIQUES SPÉCIALES: Pages publiques (/r/[slug])
+  1242→-- Ces politiques utilisent l'anon key côté client, mais les données
+  1243→-- sensibles restent protégées par is_private
+  1244→-- ==============================================================
+  1245→
+  1246→-- Les QR codes publics et actifs sont lisibles par tout le monde (anonymes inclus)
+  1247→CREATE POLICY "qr_codes_public_read" ON public.qr_codes
+  1248→    FOR SELECT USING (NOT is_private AND is_active);
+  1249→
+  1250→-- Les contenus des QR publics sont lisibles par tout le monde
+  1251→CREATE POLICY "qr_contents_public_read" ON public.qr_contents
+  1252→    FOR SELECT USING (
+  1253→        EXISTS (
+  1254→            SELECT 1 FROM public.qr_codes qc
+  1255→            WHERE qc.id = qr_contents.qr_code_id
+  1256→            AND NOT qc.is_private AND qc.is_active
+  1257→        )
+  1258→    );
+  1259→
+  1260→-- ==============================================================
+  1261→-- TRIGGERS SUPPLÉMENTAIRES
+  1262→-- ==============================================================
+  1263→
+  1264→-- Met à jour rating_avg et total_reviews sur les merchants quand un avis est ajouté
+  1265→CREATE OR REPLACE FUNCTION update_merchant_rating()
+  1266→RETURNS TRIGGER AS $$
+  1267→BEGIN
+  1268→    IF TG_OP = 'INSERT' THEN
+  1269→        UPDATE public.merchants 
+  1270→        SET rating_avg = (
+  1271→            SELECT AVG(r.rating) FROM public.reviews r WHERE r.professional_id = NEW.professional_id
+  1272→        ),
+  1273→        total_reviews = (
+  1274→            SELECT COUNT(*) FROM public.reviews r WHERE r.professional_id = NEW.professional_id
+  1275→        )
+  1276→        WHERE id = NEW.professional_id;
+  1277→        RETURN NEW;
+  1278→    ELSIF TG_OP = 'UPDATE' THEN
+  1279→        UPDATE public.merchants 
+  1280→        SET rating_avg = (
+  1281→            SELECT AVG(r.rating) FROM public.reviews r WHERE r.professional_id = NEW.professional_id
+  1282→        ),
+  1283→        total_reviews = (
+  1284→            SELECT COUNT(*) FROM public.reviews r WHERE r.professional_id = NEW.professional_id
+  1285→        )
+  1286→        WHERE id = NEW.professional_id;
+  1287→        RETURN NEW;
+  1288→    ELSIF TG_OP = 'DELETE' THEN
+  1289→        UPDATE public.merchants 
+  1290→        SET rating_avg = (
+  1291→            SELECT AVG(r.rating) FROM public.reviews r WHERE r.professional_id = OLD.professional_id
+  1292→        ),
+  1293→        total_reviews = (
+  1294→            SELECT COUNT(*) FROM public.reviews r WHERE r.professional_id = OLD.professional_id
+  1295→        )
+  1296→        WHERE id = OLD.professional_id;
+  1297→        RETURN OLD;
+  1298→    END IF;
+  1299→    RETURN NULL;
+  1300→END;
+  1301→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1302→
+  1303→CREATE TRIGGER trigger_update_professional_rating
+  1304→    AFTER INSERT OR UPDATE OR DELETE ON public.reviews
+  1305→    FOR EACH ROW EXECUTE FUNCTION update_merchant_rating();
+  1306→
+  1307→-- Met à jour les points du membre quand une corvée est validée
+  1308→CREATE OR REPLACE FUNCTION update_child_points()
+  1309→RETURNS TRIGGER AS $$
+  1310→BEGIN
+  1311→    IF NEW.status = 'validated' AND (OLD.status IS NULL OR OLD.status != 'validated') THEN
+  1312→        UPDATE public.home_members 
+  1313→        SET points = points + NEW.points_earned
+  1314→        WHERE user_id = NEW.child_user_id
+  1315→        AND home_id = (SELECT home_id FROM public.chores WHERE id = NEW.chore_id);
+  1316→    ELSIF NEW.status = 'rejected' AND OLD.status = 'validated' THEN
+  1317→        UPDATE public.home_members 
+  1318→        SET points = points - NEW.points_earned
+  1319→        WHERE user_id = NEW.child_user_id
+  1320→        AND home_id = (SELECT home_id FROM public.chores WHERE id = NEW.chore_id);
+  1321→    END IF;
+  1322→    RETURN NEW;
+  1323→END;
+  1324→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1325→
+  1326→CREATE TRIGGER trigger_update_child_points
+  1327→    AFTER UPDATE ON public.chore_completions
+  1328→    FOR EACH ROW EXECUTE FUNCTION update_child_points();
+  1329→
+  1330→-- Met à jour le stock du produit quand une instance est ajoutée
+  1331→CREATE OR REPLACE FUNCTION update_product_stock()
+  1332→RETURNS TRIGGER AS $$
+  1333→BEGIN
+  1334→    IF TG_OP = 'INSERT' AND NEW.status NOT IN ('expired', 'consumed') THEN
+  1335→        UPDATE public.products 
+  1336→        SET current_stock = current_stock + 1
+  1337→        WHERE id = NEW.product_id;
+  1338→    ELSIF TG_OP = 'UPDATE' THEN
+  1339→        IF (OLD.status NOT IN ('expired', 'consumed')) AND (NEW.status IN ('expired', 'consumed')) THEN
+  1340→            UPDATE public.products SET current_stock = current_stock - 1 WHERE id = NEW.product_id;
+  1341→        ELSIF (OLD.status IN ('expired', 'consumed')) AND (NEW.status NOT IN ('expired', 'consumed')) THEN
+  1342→            UPDATE public.products SET current_stock = current_stock + 1 WHERE id = NEW.product_id;
+  1343→        END IF;
+  1344→    END IF;
+  1345→    RETURN NEW;
+  1346→END;
+  1347→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1348→
+  1349→CREATE TRIGGER trigger_update_product_stock
+  1350→    AFTER INSERT OR UPDATE ON public.product_instances
+  1351→    FOR EACH ROW EXECUTE FUNCTION update_product_stock();
+  1352→
+  1353→-- Incrémente views_count quand une promo est consultée
+  1354→CREATE OR REPLACE FUNCTION increment_promo_views()
+  1355→RETURNS TRIGGER AS $$
+  1356→BEGIN
+  1357→    UPDATE public.promos SET views_count = views_count + 1 WHERE id = NEW.promo_id;
+  1358→    RETURN NEW;
+  1359→END;
+  1360→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1361→
+  1362→CREATE TRIGGER trigger_increment_promo_views
+  1363→    AFTER INSERT ON public.promo_redemptions
+  1364→    FOR EACH ROW EXECUTE FUNCTION increment_promo_views();
+  1365→
+  1366→
+  1367→-- ==============================================================
+  1368→-- DONNÉES DE RÉFÉRENCE (SEED DATA)
+  1369→-- ==============================================================
+  1370→
+  1371→-- Types de QR codes disponibles (référence pour l'application)
+  1372→-- Ceci est un commentaire de référence, les types sont gérés côté applicatif
+  1373→/*
+  1374→Types de modules QR Domotik:
+  1375→
+  1376→V1 - Modules de base:
+  1377→- wifi: Partage Wi-Fi
+  1378→- guestbook: Livre d'or
+  1379→- doorbell: Portier virtuel
+  1380→- emergency: Urgences
+  1381→- note: Notes rapides
+  1382→- contact: Carte de contact
+  1383→
+  1384→V2 - Modules avancés:
+  1385→- shopping_list: Liste de courses
+  1386→- inventory: Inventaire produits
+  1387→- chore: Corvées
+  1388→- checklist: Checklists
+  1389→- timer: Minuterie
+  1390→- recipe: Recettes
+  1391→- medication: Médicaments
+  1392→- pet_info: Info animaux
+  1393→- plant_care: Soins plantes
+  1394→- home_manual: Manuel maison
+  1395→- visitor_info: Info visiteurs
+  1396→- delivery: Instructions livraison
+  1397→- baby_sitter: Info babysitter
+  1398→- house_rules: Règles maison
+  1399→- wifi_reset: Réinitialisation Wi-Fi
+  1400→- appliance_manual: Manuel appareil
+  1401→- energy_monitor: Monitoring énergie
+  1402→- cleaning_schedule: Planning ménage
+  1403→- meal_planner: Planificateur repas
+  1404→- shared_calendar: Calendrier partagé
+  1405→- key_location: Localisation clés
+  1406→- garage_instructions: Instructions garage
+  1407→- laundry_guide: Guide lavage
+  1408→- recycling_info: Info recyclage
+  1409→- utility_shutoff: Coupure utilités
+  1410→- first_aid: Premiers secours
+  1411→- pet_sitter: Info pet-sitter
+  1412→- rental_guest: Info locataire
+  1413→- airbnb_guest: Info Airbnb
+  1414→- emergency_contacts: Contacts d'urgence
+  1415→- package_tracking: Suivi colis
+  1416→- home_network: Réseau maison
+  1417→- entertainment: Divertissement
+  1418→- music_room: Chambre musique
+  1419→- game_room: Salle de jeux
+  1420→- library: Bibliothèque
+  1421→- photo_gallery: Galerie photos
+  1422→- family_board: Tableau famille
+  1423→- announcement: Annonces
+  1424→- mood_tracker: Suivi humeur
+  1425→- habit_tracker: Suivi habitudes
+  1426→- weather_station: Station météo
+  1427→- smart_home_control: Contrôle domotique
+  1428→- voice_assistant: Assistant vocal
+  1429→
+  1430→V3 - Marketplace:
+  1431→- merchant: Fiche commerçant
+  1432→- service_request: Demande de service
+  1433→- promo: Promotion
+  1434→*/
+  1435→
+  1436→-- ==============================================================
+  1437→-- FIN DU SCHÉMA
+  1438→-- ==============================================================
+  1439→-- Résumé:
+  1440→-- 28 tables créées
+  1441→-- 60+ index (dont GIN pour keywords, GiST pour location)
+  1442→-- 50+ politiques RLS
+  1443→-- 4 triggers métier
+  1444→-- 4 fonctions utilitaires RLS
+  1445→-- 1 trigger updated_at sur les tables avec timestamp
+  1446→-- ==============================================================

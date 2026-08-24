@@ -40,6 +40,10 @@ model User {
   promoRedemptions              PromoRedemption[]
   reviews                       Review[]
   activationLogs                ActivationLog[] @relation("ActivationLogUser")
+  coupons                        Coupon[]             @relation("UserCoupons")
+  couponScans                    CouponScan[]          @relation("CouponScanUser")
+  chatMessages                   ChatMessage[]         @relation("ChatMessageSender")
+  notifications                  Notification[]        @relation("UserNotifications")
 
   @@map("users")
 }
@@ -69,6 +73,7 @@ model Home {
   ownerId   String   @map("owner_id")
   name      String
   address   String?
+  location  String?  // JSON string: {"lat": 48.8566, "lng": 2.3522} for SQLite (PostGIS GEOGRAPHY in Supabase)
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -419,6 +424,10 @@ model Merchant {
   home          Home?          @relation("HomeMerchant", fields: [homeId], references: [id], onDelete: SetNull)
   promos        Promo[]
   subscriptions Subscription[] @relation("MerchantSubscriptions")
+  flashSales                     FlashSale[]
+  coupons                        Coupon[]
+  couponScans                    CouponScan[]
+  merchantPhotos                 MerchantPhoto[]
 
   @@index([category])
   @@index([subscriptionTier])
@@ -452,6 +461,8 @@ model Promo {
 
   merchant    Merchant?          @relation(fields: [merchantId], references: [id], onDelete: SetNull)
   redemptions PromoRedemption[]
+  flashSales                     FlashSale[]
+  couponList                     Coupon[]              @relation("CouponPromo")
 
   @@index([merchantId])
   @@index([category])
@@ -590,6 +601,7 @@ model ServiceRequest {
   service      Service?      @relation(fields: [serviceId], references: [id], onDelete: SetNull)
   qrCode       QrCode?       @relation(fields: [qrCodeId], references: [id], onDelete: SetNull)
   reviews      Review[]
+  chatMessages                   ChatMessage[]
 
   @@index([homeId])
   @@index([professionalId])
@@ -682,6 +694,9 @@ model Transaction {
   referenceId     String?  @map("reference_id")
   createdAt       DateTime @default(now()) @map("created_at")
 
+  flashSales                     FlashSale[]           @relation("FlashSaleTransaction")
+  couponScans                    CouponScan[]          @relation("CouponScanTransaction")
+
   @@index([type])
   @@index([payerId])
   @@index([receiverId])
@@ -689,4 +704,167 @@ model Transaction {
   @@index([stripePaymentId])
   @@index([createdAt])
   @@map("transactions")
+}
+
+// ==============================================================
+// TABLE 29: flash_sales (V3 - Ventes Flash)
+// ==============================================================
+model FlashSale {
+  id                    String    @id @default(cuid())
+  promoId               String    @map("promo_id")
+  merchantId            String    @map("merchant_id")
+  title                 String
+  description           String?
+  imageUrl              String?   @map("image_url")
+  originalPrice         Float?    @map("original_price")
+  flashPrice            Float     @map("flash_price")
+  geofenceRadiusMeters  Int       @default(500) @map("geofence_radius_meters")
+  startsAt              DateTime  @map("starts_at")
+  endsAt                DateTime  @map("ends_at")
+  maxRedemptions        Int?      @map("max_redemptions")
+  currentRedemptions    Int       @default(0) @map("current_redemptions")
+  status                String    @default("scheduled") // scheduled, active, expired, cancelled
+  costEuros             Float     @default(0.5) @map("cost_euros")
+  transactionId         String?   @map("transaction_id")
+  pushSent              Boolean   @default(false) @map("push_sent")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  promo      Promo        @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  merchant   Merchant     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation("FlashSaleTransaction", fields: [transactionId], references: [id], onDelete: SetNull)
+  coupons    Coupon[]
+
+  @@index([promoId])
+  @@index([merchantId])
+  @@index([status])
+  @@index([startsAt])
+  @@index([endsAt])
+  @@map("flash_sales")
+}
+
+// ==============================================================
+// TABLE 30: coupons (V3 - Coupons numériques)
+// ==============================================================
+model Coupon {
+  id              String    @id @default(cuid())
+  merchantId      String    @map("merchant_id")
+  promoId         String?   @map("promo_id")
+  flashSaleId     String?   @map("flash_sale_id")
+  userId          String    @map("user_id")
+  code            String    @unique
+  qrCodeData      String    @map("qr_code_data")
+  discountType    String    @default("percentage") @map("discount_type") // percentage, fixed, bogof
+  discountValue   Float     @map("discount_value")
+  maxUses         Int       @default(1) @map("max_uses")
+  currentUses     Int       @default(0) @map("current_uses")
+  validFrom       DateTime? @map("valid_from")
+  validUntil      DateTime? @map("valid_until")
+  status          String    @default("active") // active, used, expired, cancelled
+  commissionRate  Float     @default(5.0) @map("commission_rate")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  merchant    Merchant?    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  promo       Promo?       @relation("CouponPromo", fields: [promoId], references: [id], onDelete: SetNull)
+  flashSale   FlashSale?   @relation(fields: [flashSaleId], references: [id], onDelete: SetNull)
+  user        User         @relation("UserCoupons", fields: [userId], references: [id], onDelete: Cascade)
+  scans       CouponScan[]
+
+  @@index([merchantId])
+  @@index([userId])
+  @@index([promoId])
+  @@index([flashSaleId])
+  @@index([code])
+  @@index([status])
+  @@map("coupons")
+}
+
+// ==============================================================
+// TABLE 31: coupon_scans (V3 - Validation coupons)
+// ==============================================================
+model CouponScan {
+  id                String   @id @default(cuid())
+  couponId          String   @map("coupon_id")
+  merchantId        String   @map("merchant_id")
+  scannedByUserId   String?  @map("scanned_by_user_id")
+  commissionAmount  Float    @default(0) @map("commission_amount")
+  transactionId     String?  @map("transaction_id")
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  coupon     Coupon      @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  merchant  Merchant    @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  scannedBy  User?       @relation("CouponScanUser", fields: [scannedByUserId], references: [id], onDelete: SetNull)
+  transaction Transaction? @relation("CouponScanTransaction", fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([couponId])
+  @@index([merchantId])
+  @@index([scannedByUserId])
+  @@index([createdAt])
+  @@map("coupon_scans")
+}
+
+// ==============================================================
+// TABLE 32: chat_messages (V3 - Chat demandes de service)
+// ==============================================================
+model ChatMessage {
+  id                String   @id @default(cuid())
+  serviceRequestId  String   @map("service_request_id")
+  senderId          String   @map("sender_id")
+  senderType        String   @map("sender_type") // homeowner, professional
+  content           String
+  messageType       String   @default("text") @map("message_type") // text, image, document, system
+  attachmentUrl     String?  @map("attachment_url")
+  isRead            Boolean  @default(false) @map("is_read")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  sender         User          @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([serviceRequestId])
+  @@index([senderId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
+// ==============================================================
+// TABLE 33: notifications (V3 - Notifications)
+// ==============================================================
+model Notification {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  type         String
+  title        String
+  body         String?
+  dataJson     String   @default("{}") @map("data_json")
+  isRead       Boolean  @default(false) @map("is_read")
+  sentViaPush  Boolean  @default(false) @map("sent_via_push")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ==============================================================
+// TABLE 34: merchant_photos (V3 - Photos commerçant)
+// ==============================================================
+model MerchantPhoto {
+  id         String   @id @default(cuid())
+  merchantId String   @map("merchant_id")
+  url        String
+  altText    String?  @map("alt_text")
+  sortOrder  Int      @default(0) @map("sort_order")
+  isCover    Boolean  @default(false) @map("is_cover")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("merchant_photos")
 }

@@ -89,6 +89,7 @@ CREATE TABLE public.homes (
     owner_id        UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     name            VARCHAR(255) NOT NULL,
     address         TEXT,
+    location        GEOGRAPHY(POINT, 4326),
     is_active       BOOLEAN NOT NULL DEFAULT true,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -100,6 +101,7 @@ CREATE TRIGGER homes_updated_at
 
 CREATE INDEX idx_homes_owner_id ON public.homes(owner_id);
 CREATE INDEX idx_homes_is_active ON public.homes(is_active);
+CREATE INDEX idx_homes_location ON public.homes USING GIST(location);
 
 COMMENT ON TABLE public.homes IS 'Maisons / foyers gérés par les utilisateurs';
 
@@ -696,6 +698,188 @@ CREATE INDEX idx_transactions_created_at ON public.transactions(created_at);
 
 COMMENT ON TABLE public.transactions IS 'Transactions financières de la plateforme';
 
+-- ==============================================================
+-- FONCTIONS V3: Auto-expiration des ventes flash
+-- ==============================================================
+CREATE OR REPLACE FUNCTION expire_flash_sales()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.ends_at <= NOW() AND NEW.status = 'active' THEN
+        NEW.status := 'expired';
+    END IF;
+    IF NEW.starts_at <= NOW() AND NEW.status = 'scheduled' THEN
+        NEW.status := 'active';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER flash_sales_auto_expire
+    BEFORE UPDATE ON public.flash_sales
+    FOR EACH ROW EXECUTE FUNCTION expire_flash_sales();
+
+-- Trigger on insert too
+CREATE TRIGGER flash_sales_auto_expire_insert
+    BEFORE INSERT ON public.flash_sales
+    FOR EACH ROW EXECUTE FUNCTION expire_flash_sales();
+
+-- ==============================================================
+-- TABLE 29: flash_sales (V3 - Ventes Flash)
+-- ==============================================================
+CREATE TABLE public.flash_sales (
+    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    promo_id                UUID NOT NULL REFERENCES public.promos(id) ON DELETE CASCADE,
+    merchant_id             UUID NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
+    title                   VARCHAR(255) NOT NULL,
+    description             TEXT,
+    image_url               TEXT,
+    original_price          DECIMAL(10,2),
+    flash_price             DECIMAL(10,2) NOT NULL,
+    geofence_radius_meters  INTEGER NOT NULL DEFAULT 500,
+    starts_at               TIMESTAMPTZ NOT NULL,
+    ends_at                 TIMESTAMPTZ NOT NULL,
+    max_redemptions         INTEGER,
+    current_redemptions     INTEGER NOT NULL DEFAULT 0,
+    status                  VARCHAR(20) NOT NULL DEFAULT 'scheduled' 
+                            CHECK (status IN ('scheduled', 'active', 'expired', 'cancelled')),
+    cost_euros              DECIMAL(3,2) NOT NULL DEFAULT 0.50,
+    transaction_id          UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
+    push_sent               BOOLEAN NOT NULL DEFAULT false,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TRIGGER flash_sales_updated_at
+    BEFORE UPDATE ON public.flash_sales
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE INDEX idx_flash_sales_promo_id ON public.flash_sales(promo_id);
+CREATE INDEX idx_flash_sales_merchant_id ON public.flash_sales(merchant_id);
+CREATE INDEX idx_flash_sales_status ON public.flash_sales(status);
+CREATE INDEX idx_flash_sales_starts_at ON public.flash_sales(starts_at);
+CREATE INDEX idx_flash_sales_ends_at ON public.flash_sales(ends_at);
+CREATE INDEX idx_flash_sales_location ON public.flash_sales USING GIST(
+    (SELECT location FROM public.merchants WHERE merchants.id = flash_sales.merchant_id)
+);
+
+COMMENT ON TABLE public.flash_sales IS 'Ventes flash déclenchées par les commerçants avec géorepérage';
+
+-- ==============================================================
+-- TABLE 30: coupons (V3 - Coupons numériques)
+-- ==============================================================
+CREATE TABLE public.coupons (
+    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    merchant_id             UUID NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
+    promo_id                UUID REFERENCES public.promos(id) ON DELETE SET NULL,
+    flash_sale_id           UUID REFERENCES public.flash_sales(id) ON DELETE SET NULL,
+    user_id                 UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    code                    VARCHAR(16) NOT NULL UNIQUE,
+    qr_code_data            TEXT NOT NULL,
+    discount_type           VARCHAR(20) NOT NULL DEFAULT 'percentage' 
+                            CHECK (discount_type IN ('percentage', 'fixed', 'bogof')),
+    discount_value          DECIMAL(10,2) NOT NULL,
+    max_uses                INTEGER NOT NULL DEFAULT 1,
+    current_uses            INTEGER NOT NULL DEFAULT 0,
+    valid_from              TIMESTAMPTZ,
+    valid_until             TIMESTAMPTZ,
+    status                  VARCHAR(20) NOT NULL DEFAULT 'active' 
+                            CHECK (status IN ('active', 'used', 'expired', 'cancelled')),
+    commission_rate         DECIMAL(5,2) NOT NULL DEFAULT 5.00,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_coupons_merchant_id ON public.coupons(merchant_id);
+CREATE INDEX idx_coupons_user_id ON public.coupons(user_id);
+CREATE INDEX idx_coupons_promo_id ON public.coupons(promo_id);
+CREATE INDEX idx_coupons_flash_sale_id ON public.coupons(flash_sale_id);
+CREATE INDEX idx_coupons_code ON public.coupons(code);
+CREATE INDEX idx_coupons_status ON public.coupons(status);
+
+COMMENT ON TABLE public.coupons IS 'Coupons numériques avec QR code unique pour validation commerçant';
+
+-- ==============================================================
+-- TABLE 31: coupon_scans (V3 - Validation coupons)
+-- ==============================================================
+CREATE TABLE public.coupon_scans (
+    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    coupon_id               UUID NOT NULL REFERENCES public.coupons(id) ON DELETE CASCADE,
+    merchant_id             UUID NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
+    scanned_by_user_id      UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    commission_amount       DECIMAL(10,2) NOT NULL DEFAULT 0,
+    transaction_id          UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
+    notes                   TEXT,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_coupon_scans_coupon_id ON public.coupon_scans(coupon_id);
+CREATE INDEX idx_coupon_scans_merchant_id ON public.coupon_scans(merchant_id);
+CREATE INDEX idx_coupon_scans_scanned_by ON public.coupon_scans(scanned_by_user_id);
+CREATE INDEX idx_coupon_scans_created_at ON public.coupon_scans(created_at);
+
+COMMENT ON TABLE public.coupon_scans IS 'Scans et validations de coupons par les commerçants';
+
+-- ==============================================================
+-- TABLE 32: chat_messages (V3 - Chat service requests)
+-- ==============================================================
+CREATE TABLE public.chat_messages (
+    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    service_request_id      UUID NOT NULL REFERENCES public.service_requests(id) ON DELETE CASCADE,
+    sender_id               UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    sender_type             VARCHAR(20) NOT NULL CHECK (sender_type IN ('homeowner', 'professional')),
+    content                 TEXT NOT NULL,
+    message_type            VARCHAR(20) NOT NULL DEFAULT 'text' CHECK (message_type IN ('text', 'image', 'document', 'system')),
+    attachment_url          TEXT,
+    is_read                 BOOLEAN NOT NULL DEFAULT false,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_chat_messages_service_request_id ON public.chat_messages(service_request_id);
+CREATE INDEX idx_chat_messages_sender_id ON public.chat_messages(sender_id);
+CREATE INDEX idx_chat_messages_is_read ON public.chat_messages(is_read);
+CREATE INDEX idx_chat_messages_created_at ON public.chat_messages(created_at);
+
+COMMENT ON TABLE public.chat_messages IS 'Messages du chat intégré aux demandes de service';
+
+-- ==============================================================
+-- TABLE 33: notifications (V3 - Notifications push)
+-- ==============================================================
+CREATE TABLE public.notifications (
+    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id                 UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    type                    VARCHAR(50) NOT NULL,
+    title                   VARCHAR(255) NOT NULL,
+    body                    TEXT,
+    data_json               JSONB NOT NULL DEFAULT '{}',
+    is_read                 BOOLEAN NOT NULL DEFAULT false,
+    sent_via_push           BOOLEAN NOT NULL DEFAULT false,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_notifications_user_id ON public.notifications(user_id);
+CREATE INDEX idx_notifications_type ON public.notifications(type);
+CREATE INDEX idx_notifications_is_read ON public.notifications(is_read);
+CREATE INDEX idx_notifications_created_at ON public.notifications(created_at);
+
+COMMENT ON TABLE public.notifications IS 'File de notifications push et in-app';
+
+-- ==============================================================
+-- TABLE 34: merchant_photos (V3 - Galerie photos commerçant)
+-- ==============================================================
+CREATE TABLE public.merchant_photos (
+    id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    merchant_id             UUID NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
+    url                     TEXT NOT NULL,
+    alt_text                VARCHAR(255),
+    sort_order              INTEGER NOT NULL DEFAULT 0,
+    is_cover                BOOLEAN NOT NULL DEFAULT false,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_merchant_photos_merchant_id ON public.merchant_photos(merchant_id);
+CREATE INDEX idx_merchant_photos_sort_order ON public.merchant_photos(merchant_id, sort_order);
+
+COMMENT ON TABLE public.merchant_photos IS 'Photos de la galerie commerçant (boutique, produits, vitrine)';
+
 
 -- ==============================================================
 -- ==============================================================
@@ -783,6 +967,12 @@ ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.emergency_qr_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.flash_sales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coupon_scans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.merchant_photos ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================
 -- RLS: users - Un user voit son profil, superadmin voit tout
@@ -1237,6 +1427,100 @@ CREATE POLICY "subscriptions_superadmin_all" ON public.subscriptions
 CREATE POLICY "transactions_superadmin_all" ON public.transactions
     FOR ALL USING (is_superadmin());
 
+-- RLS: flash_sales - Public read, merchant gère les siennes
+CREATE POLICY "flash_sales_public_read" ON public.flash_sales
+    FOR SELECT USING (true);
+
+CREATE POLICY "flash_sales_merchant_insert" ON public.flash_sales
+    FOR INSERT WITH CHECK (
+        merchant_id = (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+    );
+
+CREATE POLICY "flash_sales_merchant_update" ON public.flash_sales
+    FOR UPDATE USING (
+        merchant_id = (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+    );
+
+CREATE POLICY "flash_sales_superadmin_all" ON public.flash_sales
+    FOR ALL USING (is_superadmin());
+
+-- RLS: coupons - User voit ses coupons, merchant voit ceux de sa boutique
+CREATE POLICY "coupons_user_read" ON public.coupons
+    FOR SELECT USING (user_id = auth.uid() OR is_superadmin());
+
+CREATE POLICY "coupons_auto_insert" ON public.coupons
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "coupons_user_update" ON public.coupons
+    FOR UPDATE USING (user_id = auth.uid() OR is_superadmin());
+
+CREATE POLICY "coupons_merchant_read" ON public.coupons
+    FOR SELECT USING (
+        merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+    );
+
+-- RLS: coupon_scans - Merchant et user voient les leurs
+CREATE POLICY "coupon_scans_merchant_read" ON public.coupon_scans
+    FOR SELECT USING (
+        merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+        OR is_superadmin()
+    );
+
+CREATE POLICY "coupon_scans_auto_insert" ON public.coupon_scans
+    FOR INSERT WITH CHECK (true);
+
+-- RLS: chat_messages - Participants de la demande de service
+CREATE POLICY "chat_messages_participant_read" ON public.chat_messages
+    FOR SELECT USING (
+        service_request_id IN (
+            SELECT id FROM public.service_requests sr
+            WHERE sr.home_id IN (SELECT home_id FROM public.home_members WHERE user_id = auth.uid())
+            OR sr.professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+        )
+        OR is_superadmin()
+    );
+
+CREATE POLICY "chat_messages_participant_insert" ON public.chat_messages
+    FOR INSERT WITH CHECK (
+        service_request_id IN (
+            SELECT id FROM public.service_requests sr
+            WHERE sr.home_id IN (SELECT home_id FROM public.home_members WHERE user_id = auth.uid())
+            OR sr.professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+        )
+    );
+
+CREATE POLICY "chat_messages_participant_update" ON public.chat_messages
+    FOR UPDATE USING (
+        sender_id = auth.uid()
+    );
+
+-- RLS: notifications - User voit ses propres notifications
+CREATE POLICY "notifications_user_read" ON public.notifications
+    FOR SELECT USING (user_id = auth.uid());
+
+CREATE POLICY "notifications_user_update" ON public.notifications
+    FOR UPDATE USING (user_id = auth.uid());
+
+CREATE POLICY "notifications_auto_insert" ON public.notifications
+    FOR INSERT WITH CHECK (true);
+
+-- RLS: merchant_photos - Public read, merchant gère les siennes
+CREATE POLICY "merchant_photos_public_read" ON public.merchant_photos
+    FOR SELECT USING (true);
+
+CREATE POLICY "merchant_photos_merchant_insert" ON public.merchant_photos
+    FOR INSERT WITH CHECK (
+        merchant_id = (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+    );
+
+CREATE POLICY "merchant_photos_merchant_delete" ON public.merchant_photos
+    FOR DELETE USING (
+        merchant_id = (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+    );
+
+CREATE POLICY "merchant_photos_superadmin_all" ON public.merchant_photos
+    FOR ALL USING (is_superadmin());
+
 -- ==============================================================
 -- POLITIQUES SPÉCIALES: Pages publiques (/r/[slug])
 -- Ces politiques utilisent l'anon key côté client, mais les données
@@ -1431,16 +1715,19 @@ V3 - Marketplace:
 - merchant: Fiche commerçant
 - service_request: Demande de service
 - promo: Promotion
+- flash_sale: Vente flash
+- coupon: Coupon numérique
+- emergency_service: Service d'urgence (QR)
+- artisan_directory: Annuaire artisans
 */
 
 -- ==============================================================
 -- FIN DU SCHÉMA
 -- ==============================================================
 -- Résumé:
--- 28 tables créées
--- 60+ index (dont GIN pour keywords, GiST pour location)
--- 50+ politiques RLS
--- 4 triggers métier
--- 4 fonctions utilitaires RLS
--- 1 trigger updated_at sur les tables avec timestamp
+-- 34 tables créées
+-- 70+ index (dont GIN pour keywords, GiST pour location PostGIS)
+-- 60+ politiques RLS
+-- 6 triggers métier (updated_at, rating, points, stock, flash_sales auto)
+-- 5 fonctions utilitaires RLS
 -- ==============================================================

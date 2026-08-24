@@ -176,3 +176,36 @@ Stage Summary:
 - 5 vues publiques : Home, Consignes, Message, Succès Sonner, Succès Message
 - Registry étendu à 4 modules (wifi, external_link, home_manual, doorbell)
 - Fix layout critique : tabs z-index + phone frame height containment
+
+---
+Task ID: 6
+Agent: Main Architect + Subagents
+Task: PROMPT 6 Étape 1 — PostGIS + Tables V3 Marketplace
+
+Work Log:
+- Analysé les 28 tables existantes (V1+V2+V3 de base)
+- Identifié 6 tables manquantes pour le marketplace complet
+- Ajouté `location GEOGRAPHY(POINT, 4326)` sur la table homes (Supabase + Prisma)
+- Ajouté 4 index GiST PostGIS (homes, merchants, professionals, flash_sales)
+- Créé 6 nouvelles tables Supabase :
+  - TABLE 29: flash_sales (ventes flash géorepérées, timer, auto-expiration)
+  - TABLE 30: coupons (coupons numériques avec QR unique, 3 types de remise)
+  - TABLE 31: coupon_scans (validation de coupons par commerçants)
+  - TABLE 32: chat_messages (chat intégré aux demandes de service)
+  - TABLE 33: notifications (file push + in-app, 9 types)
+  - TABLE 34: merchant_photos (galerie photos commerçant)
+- Créé la fonction trigger `expire_flash_sales()` + 2 triggers (insert + update)
+- Ajouté 17 nouvelles politiques RLS (total: 105)
+- Miroir Prisma SQLite: 34 modèles, 869 lignes, `prisma validate` ✅
+- Ajouté 7 nouveaux types TypeScript + 6 const arrays dans database.ts
+- Ajouté 4 types de modules V3 (flash_sale, coupon, emergency_service, artisan_directory)
+- Prisma db push ✅, lint 0 erreurs, compilation GET / 200 OK
+
+Stage Summary:
+- 34 tables (28 existantes + 6 nouvelles)
+- 105 politiques RLS (88 existantes + 17 nouvelles)
+- 4 index GiST PostGIS (recherche géolocalisée)
+- 6 triggers métier (updated_at, rating, points, stock, flash_sales x2)
+- 7 nouveaux types TS: FlashSaleStatus, CouponDiscountType, CouponStatus, ChatSenderType, ChatMessageType, NotificationType
+- 9 types de notifications: flash_sale_nearby, coupon_expiring, service_request_update, service_chat, promo_match, chore_reminder, stock_alert, membership_invite, system
+- Fichiers modifiés: supabase/schema.sql (1446→1732 lignes), prisma/schema.prisma (692→869 lignes), src/types/database.ts (495→573 lignes)

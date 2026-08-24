@@ -85,6 +85,33 @@ export type TransactionStatus =
 /** Kind of subscriber on the marketplace. */
 export type SubscriberType = 'merchant' | 'professional';
 
+/** Flash sale lifecycle statuses. */
+export type FlashSaleStatus = 'scheduled' | 'active' | 'expired' | 'cancelled';
+
+/** Coupon discount calculation method. */
+export type CouponDiscountType = 'percentage' | 'fixed' | 'bogof';
+
+/** Coupon lifecycle statuses. */
+export type CouponStatus = 'active' | 'used' | 'expired' | 'cancelled';
+
+/** Who sent a chat message. */
+export type ChatSenderType = 'homeowner' | 'professional';
+
+/** Type of chat message content. */
+export type ChatMessageType = 'text' | 'image' | 'document' | 'system';
+
+/** Notification delivery type. */
+export type NotificationType =
+  | 'flash_sale_nearby'
+  | 'coupon_expiring'
+  | 'service_request_update'
+  | 'service_chat'
+  | 'promo_match'
+  | 'chore_reminder'
+  | 'stock_alert'
+  | 'membership_invite'
+  | 'system';
+
 // ---------------------------------------------------------------------------
 //  Const arrays (handy for <select> dropdowns, Zod enums, validation, …)
 // ---------------------------------------------------------------------------
@@ -197,6 +224,50 @@ export const SUBSCRIBER_TYPES: readonly SubscriberType[] = [
   'professional',
 ] as const;
 
+export const FLASH_SALE_STATUSES: readonly FlashSaleStatus[] = [
+  'scheduled',
+  'active',
+  'expired',
+  'cancelled',
+] as const;
+
+export const COUPON_DISCOUNT_TYPES: readonly CouponDiscountType[] = [
+  'percentage',
+  'fixed',
+  'bogof',
+] as const;
+
+export const COUPON_STATUSES: readonly CouponStatus[] = [
+  'active',
+  'used',
+  'expired',
+  'cancelled',
+] as const;
+
+export const CHAT_SENDER_TYPES: readonly ChatSenderType[] = [
+  'homeowner',
+  'professional',
+] as const;
+
+export const CHAT_MESSAGE_TYPES: readonly ChatMessageType[] = [
+  'text',
+  'image',
+  'document',
+  'system',
+] as const;
+
+export const NOTIFICATION_TYPES: readonly NotificationType[] = [
+  'flash_sale_nearby',
+  'coupon_expiring',
+  'service_request_update',
+  'service_chat',
+  'promo_match',
+  'chore_reminder',
+  'stock_alert',
+  'membership_invite',
+  'system',
+] as const;
+
 // ---------------------------------------------------------------------------
 //  QR Code Module Types
 // ---------------------------------------------------------------------------
@@ -270,6 +341,10 @@ export const QR_MODULE_TYPES = {
     'merchant',
     'service_request',
     'promo',
+    'flash_sale',
+    'coupon',
+    'emergency_service',
+    'artisan_directory',
   ] as const,
 } as const;
 
@@ -354,6 +429,10 @@ export const QR_MODULE_LABELS: Record<QrModuleType, string> = {
   merchant: 'Commerçant',
   service_request: 'Demande de service',
   promo: 'Promotion',
+  flash_sale: 'Vente flash',
+  coupon: 'Coupon numérique',
+  emergency_service: 'Service d\'urgence',
+  artisan_directory: 'Annuaire artisans',
 };
 
 // ---------------------------------------------------------------------------
