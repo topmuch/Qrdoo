@@ -221,7 +221,7 @@ function GeneratedQrGrid({ codes, design }: { codes: string[]; design: DesignCon
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[500px] overflow-y-auto">
           {codes.map((code) => (
             <div key={code} className="flex flex-col items-center gap-2 rounded-lg border bg-white p-3" style={{ backgroundColor: design.backgroundColor }}>
-              <QRCodeSVG value={"https://qrdomotik.com/activate/" + code} size={120} bgColor={design.backgroundColor} fgColor={design.dotsColor} level={qrLevel} />
+              <QRCodeSVG value={"https://qrdomotik.roomscan.pro/activate/" + code} size={120} bgColor={design.backgroundColor} fgColor={design.dotsColor} level={qrLevel} />
               <span className="font-mono text-[10px] font-semibold text-center break-all leading-tight">{code}</span>
               <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => { navigator.clipboard.writeText(code); toast.success("Code " + code + " copié !"); }}>Copier</Button>
             </div>
@@ -261,7 +261,7 @@ export function GenerateBatch() {
         width: 280,
         height: 280,
         type: 'svg',
-        data: 'https://qrdomotik.com/activate/QR-XXXXXXXX',
+        data: 'https://qrdomotik.roomscan.pro/activate/QR-XXXXXXXX',
         dotsOptions: {
           color: design.dotsColor,
           type: design.dotsType,
@@ -373,7 +373,7 @@ export function GenerateBatch() {
       const qrCodes: QrCodeForPdf[] = [];
 
       for (const code of generatedCodes) {
-        const data = `https://qrdomotik.com/activate/${code}`;
+        const data = `https://qrdomotik.roomscan.pro/activate/${code}`;
         const imageUrl = await generateFallbackQrPng(
           data, 400, design.dotsColor, design.backgroundColor, design.errorCorrectionLevel,
         );
@@ -755,7 +755,7 @@ export function GenerateBatch() {
                   >
                     {showFallback && (
                       <QRCodeSVG
-                        value="https://qrdomotik.com/activate/QR-XXXXXXXX"
+                        value="https://qrdomotik.roomscan.pro/activate/QR-XXXXXXXX"
                         size={280}
                         bgColor={design.backgroundColor}
                         fgColor={design.dotsColor}

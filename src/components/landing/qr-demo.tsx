@@ -73,7 +73,7 @@ export function QrDemo({ size = 200, showLabel = true, showScanner = true }: { s
       {/* QR Code with scan line */}
       <div className="relative p-3 bg-white rounded-2xl shadow-lg">
         <QRCodeSVG
-          value={`https://qrdomotik.com/demo/${current.id}`}
+          value={`https://qrdomotik.roomscan.pro/demo/${current.id}`}
           size={size}
           level="H"
           bgColor="#FFFFFF"
@@ -189,7 +189,7 @@ export function QrDemoMini() {
       {/* QR Code */}
       <div className="relative p-2 bg-white rounded-xl">
         <QRCodeSVG
-          value={`https://qrdomotik.com/demo/${current.id}`}
+          value={`https://qrdomotik.roomscan.pro/demo/${current.id}`}
           size={140}
           level="H"
           bgColor="#FFFFFF"

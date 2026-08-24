@@ -18,7 +18,7 @@ const DEMO_CONTENT: Record<string, unknown> = {
     hidden: false,
   } satisfies WifiContent,
   external_link: {
-    url: 'https://qrdomotik.com',
+    url: 'https://qrdomotik.roomscan.pro',
     title: 'QR Domotik',
     description: 'Découvrez la plateforme qui rend votre maison phygitale. Gérez vos QR codes, configurez vos modules et bien plus encore.',
   } satisfies LinkContent,

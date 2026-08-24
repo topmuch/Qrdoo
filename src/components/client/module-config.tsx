@@ -45,7 +45,7 @@ const MODULE_ICON_MAP: Record<string, React.ReactNode> = {
 
 const PLACEHOLDER_CONTENT: Record<string, Record<string, unknown>> = {
   wifi: { ssid: 'MonWiFi', password: 'monmotdepasse', security: 'WPA', hidden: false },
-  external_link: { url: 'https://qrdomotik.com', title: 'QR Domotik', description: 'Plateforme de QR codes domotiques' },
+  external_link: { url: 'https://qrdomotik.roomscan.pro', title: 'QR Domotik', description: 'Plateforme de QR codes domotiques' },
   home_manual: { title: 'Bienvenue !', body: '# Guide de la maison\n\nVoici les informations utiles.\n\n## Wi-Fi\n- **SSID** : MonWiFi\n- **Mot de passe** : disponible au scan\n\n## Consignes\n> Merci de respecter les lieux' },
   doorbell: { mode: 'present', instructions: ['Chez le gardien', 'Dans la boîte à colis'], allowMessages: true, allowDoorbell: true, presentMessage: 'Je suis là, merci de sonner !', absentMessage: 'Je suis absent pour le moment.' },
 };
