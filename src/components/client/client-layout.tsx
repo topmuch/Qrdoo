@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import {
   QrCode,
@@ -44,6 +45,7 @@ interface ClientLayoutProps {
   activePage: ClientPage;
   onPageChange: (page: ClientPage) => void;
   onSwitchToAdmin: () => void;
+  onLogout: () => void;
   children: React.ReactNode;
 }
 
@@ -67,8 +69,9 @@ const MODULE_ITEMS_V3: { key: ClientPage; label: string; icon: React.ReactNode; 
   { key: 'modules', label: 'Services Pro', icon: <Briefcase className="h-5 w-5" />, badge: 'V3' },
 ];
 
-export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, children }: ClientLayoutProps) {
+export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogout, children }: ClientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const handleLogout = () => { signOut({ redirect: false }); onLogout(); };
 
   const allItems = [
     ...DASHBOARD_ITEMS,
@@ -225,7 +228,10 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, childr
             <ArrowLeftRight className="h-5 w-5" />
             Passer en admin
           </button>
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all">
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+          >
             <LogOut className="h-5 w-5" />
             Déconnexion
           </button>

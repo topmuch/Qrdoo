@@ -8,6 +8,8 @@ import { AuthForm } from '@/components/auth/login-form';
 import { SuperAdminLayout, type SuperAdminPage } from '@/components/admin/super-admin-layout';
 import { ClientLayout, type ClientPage } from '@/components/client/client-layout';
 
+import { ErrorBoundary } from '@/components/error-boundary';
+
 // Superadmin pages
 import { StatsOverview } from '@/components/admin/stats-overview';
 import { GenerateBatch } from '@/components/admin/generate-batch';
@@ -47,6 +49,10 @@ function AppContent() {
 
   const handleAuthSuccess = useCallback((role: string) => {
     setView(role === 'superadmin' ? 'superadmin' : 'client');
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    setView('landing');
   }, []);
 
   // Determine effective view
@@ -107,8 +113,9 @@ function AppContent() {
         activePage={adminPage}
         onPageChange={setAdminPage}
         onSwitchToClient={() => setView('client')}
+        onLogout={handleLogout}
       >
-        {renderAdminPage()}
+        <ErrorBoundary>{renderAdminPage()}</ErrorBoundary>
       </SuperAdminLayout>
     );
   }
@@ -136,8 +143,9 @@ function AppContent() {
       activePage={clientPage}
       onPageChange={setClientPage}
       onSwitchToAdmin={() => setView('superadmin')}
+      onLogout={handleLogout}
     >
-      {renderClientPage()}
+      <ErrorBoundary>{renderClientPage()}</ErrorBoundary>
     </ClientLayout>
   );
 }

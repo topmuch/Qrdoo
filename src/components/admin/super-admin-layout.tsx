@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -32,6 +33,7 @@ interface SuperAdminLayoutProps {
   activePage: SuperAdminPage;
   onPageChange: (page: SuperAdminPage) => void;
   onSwitchToClient: () => void;
+  onLogout: () => void;
   children: React.ReactNode;
 }
 
@@ -44,9 +46,10 @@ const SUPER_ADMIN_ITEMS: { key: SuperAdminPage; label: string; icon: React.React
   { key: 'stats', label: 'Statistiques', icon: <BarChart3 className="h-5 w-5" /> },
 ];
 
-export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, children }: SuperAdminLayoutProps) {
+export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, onLogout, children }: SuperAdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const current = SUPER_ADMIN_ITEMS.find((n) => n.key === activePage);
+  const handleLogout = () => { signOut({ redirect: false }); onLogout(); };
 
   return (
     <div className="min-h-screen flex bg-muted/30">
@@ -125,7 +128,10 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, c
             <ArrowLeftRight className="h-5 w-5" />
             Passer au client
           </button>
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all">
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all"
+          >
             <LogOut className="h-5 w-5" />
             Déconnexion
           </button>
