@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { FileDown, Eye, PackageOpen, Loader2 } from 'lucide-react';
+import { FileDown, Eye, PackageOpen } from 'lucide-react';
 
 import {
   Card,
@@ -29,10 +29,13 @@ interface Batch {
   quantity: number;
   designConfig: string | null;
   createdAt: string;
-  physicalQrCodes: {
-    id: string;
-    status: string;
-  }[];
+  _count?: {
+    physicalQrCodes: number;
+    active: number;
+    inactive: number;
+    lost: number;
+    cancelled: number;
+  };
 }
 
 function parseColorFromDesignConfig(designConfig: string | null): string | null {
@@ -45,18 +48,11 @@ function parseColorFromDesignConfig(designConfig: string | null): string | null 
   }
 }
 
-function getBatchStats(batch: Batch) {
-  const total = batch.physicalQrCodes.length;
-  const activated = batch.physicalQrCodes.filter(
-    (qr) => qr.status === 'ACTIVE'
-  ).length;
-  return { total, activated };
-}
-
-function StatusBadge({ activated, total }: { activated: number; total: number }) {
+function StatusBadge({ _count, quantity }: { _count?: Batch['_count']; quantity: number }) {
+  const activated = _count?.active ?? 0;
+  const total = quantity;
   const allActivated = activated === total && total > 0;
   const noneActivated = activated === 0;
-  const inProgress = !allActivated && !noneActivated;
 
   if (noneActivated) {
     return (
@@ -108,7 +104,9 @@ export function ManageBatches() {
         const res = await fetch('/api/admin/batches');
         if (!res.ok) throw new Error('Erreur lors du chargement des lots');
         const data = await res.json();
-        setBatches(data);
+        // API returns { batches: [...] }
+        const list = Array.isArray(data) ? data : data.batches ?? [];
+        setBatches(list);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erreur inconnue');
       } finally {
@@ -160,7 +158,6 @@ export function ManageBatches() {
               </TableHeader>
               <TableBody>
                 {batches.map((batch) => {
-                  const { total, activated } = getBatchStats(batch);
                   const color = parseColorFromDesignConfig(batch.designConfig);
                   return (
                     <TableRow key={batch.id}>
@@ -191,7 +188,7 @@ export function ManageBatches() {
                         })}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge activated={activated} total={total} />
+                        <StatusBadge _count={batch._count} quantity={batch.quantity} />
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">

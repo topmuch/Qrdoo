@@ -42,14 +42,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-type QrStatus = 'INACTIVE' | 'ACTIVE' | 'LOST' | 'CANCELLED';
+type QrStatus = 'inactive' | 'active' | 'lost' | 'cancelled';
 
 type FilterStatus = 'ALL' | QrStatus;
 
 interface PhysicalQr {
   id: string;
   activationCode: string;
-  status: QrStatus;
+  status: string;
   activatedByUserId: string | null;
   activatedAt: string | null;
   batchId: string;
@@ -58,6 +58,7 @@ interface PhysicalQr {
     quantity: number;
     createdAt: string;
   };
+  activatedBy?: { id: string; email: string; fullName: string | null } | null;
 }
 
 interface PaginationMeta {
@@ -67,19 +68,19 @@ interface PaginationMeta {
   totalPages: number;
 }
 
-const STATUS_MAP: Record<QrStatus, { label: string; variant: 'secondary' | 'default' | 'destructive' | 'outline'; className?: string }> = {
-  INACTIVE: { label: 'Inactif', variant: 'secondary' },
-  ACTIVE: { label: 'Actif', variant: 'default', className: 'bg-emerald-600 hover:bg-emerald-700' },
-  LOST: { label: 'Perdu', variant: 'destructive' },
-  CANCELLED: { label: 'Annulé', variant: 'outline' },
+const STATUS_MAP: Record<string, { label: string; variant: 'secondary' | 'default' | 'destructive' | 'outline'; className?: string }> = {
+  inactive: { label: 'Inactif', variant: 'secondary' },
+  active: { label: 'Actif', variant: 'default', className: 'bg-emerald-600 hover:bg-emerald-700' },
+  lost: { label: 'Perdu', variant: 'destructive' },
+  cancelled: { label: 'Annulé', variant: 'outline' },
 };
 
 const FILTER_OPTIONS: { value: FilterStatus; label: string }[] = [
   { value: 'ALL', label: 'Tous' },
-  { value: 'INACTIVE', label: 'Inactif' },
-  { value: 'ACTIVE', label: 'Actif' },
-  { value: 'LOST', label: 'Perdu' },
-  { value: 'CANCELLED', label: 'Annulé' },
+  { value: 'inactive', label: 'Inactif' },
+  { value: 'active', label: 'Actif' },
+  { value: 'lost', label: 'Perdu' },
+  { value: 'cancelled', label: 'Annulé' },
 ];
 
 type PendingAction = {
@@ -152,7 +153,6 @@ export function ManagePhysicalQr() {
     fetchQrs();
   }, [fetchQrs]);
 
-  // Reset to page 1 when filters change
   const handleStatusChange = (value: string) => {
     setStatusFilter(value as FilterStatus);
     setPage(1);
@@ -165,16 +165,16 @@ export function ManagePhysicalQr() {
 
   const handleStatusAction = (qr: PhysicalQr, newStatus: QrStatus) => {
     const labels: Record<QrStatus, string> = {
-      LOST: 'Marquer comme perdu',
-      INACTIVE: 'Réinitialiser',
-      CANCELLED: 'Annuler',
-      ACTIVE: 'Activer',
+      lost: 'Marquer comme perdu',
+      inactive: 'Réinitialiser',
+      cancelled: 'Annuler',
+      active: 'Activer',
     };
     const descriptions: Record<QrStatus, string> = {
-      LOST: `Voulez-vous vraiment marquer le code ${qr.activationCode} comme perdu ?`,
-      INACTIVE: `Voulez-vous vraiment réinitialiser le code ${qr.activationCode} ? Il redeviendra inactif.`,
-      CANCELLED: `Voulez-vous vraiment annuler le code ${qr.activationCode} ? Cette action est irréversible.`,
-      ACTIVE: `Voulez-vous vraiment activer le code ${qr.activationCode} ?`,
+      lost: `Voulez-vous vraiment marquer le code ${qr.activationCode} comme perdu ?`,
+      inactive: `Voulez-vous vraiment réinitialiser le code ${qr.activationCode} ? Il redeviendra inactif.`,
+      cancelled: `Voulez-vous vraiment annuler le code ${qr.activationCode} ? Cette action est irréversible.`,
+      active: `Voulez-vous vraiment activer le code ${qr.activationCode} ?`,
     };
     setPendingAction({
       id: qr.id,
@@ -204,6 +204,10 @@ export function ManagePhysicalQr() {
     } finally {
       setUpdating(false);
     }
+  };
+
+  const getStatusInfo = (status: string) => {
+    return STATUS_MAP[status] || { label: status, variant: 'outline' as const };
   };
 
   return (
@@ -282,7 +286,7 @@ export function ManagePhysicalQr() {
                 </TableHeader>
                 <TableBody>
                   {qrs.map((qr) => {
-                    const statusInfo = STATUS_MAP[qr.status];
+                    const statusInfo = getStatusInfo(qr.status);
                     return (
                       <TableRow key={qr.id}>
                         <TableCell className="font-mono text-sm font-medium">
@@ -300,7 +304,9 @@ export function ManagePhysicalQr() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
-                          {qr.activatedByUserId ? (
+                          {qr.activatedBy?.email ? (
+                            <span className="text-xs">{qr.activatedBy.email}</span>
+                          ) : qr.activatedByUserId ? (
                             <span className="font-mono text-xs">
                               {qr.activatedByUserId.slice(0, 8)}…
                             </span>
@@ -319,33 +325,33 @@ export function ManagePhysicalQr() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {qr.status === 'ACTIVE' && (
+                            {qr.status === 'active' && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleStatusAction(qr, 'LOST')}
+                                onClick={() => handleStatusAction(qr, 'lost')}
                                 title="Marquer perdu"
                               >
                                 <AlertTriangle className="h-4 w-4 text-destructive" />
                                 <span className="sr-only">Marquer perdu</span>
                               </Button>
                             )}
-                            {(qr.status === 'LOST' || qr.status === 'CANCELLED') && (
+                            {(qr.status === 'lost' || qr.status === 'cancelled') && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleStatusAction(qr, 'INACTIVE')}
+                                onClick={() => handleStatusAction(qr, 'inactive')}
                                 title="Réinitialiser"
                               >
                                 <RotateCcw className="h-4 w-4" />
                                 <span className="sr-only">Réinitialiser</span>
                               </Button>
                             )}
-                            {(qr.status === 'ACTIVE' || qr.status === 'INACTIVE') && (
+                            {(qr.status === 'active' || qr.status === 'inactive') && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleStatusAction(qr, 'CANCELLED')}
+                                onClick={() => handleStatusAction(qr, 'cancelled')}
                                 title="Annuler"
                               >
                                 <Ban className="h-4 w-4" />
