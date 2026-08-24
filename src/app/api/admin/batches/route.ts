@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     // Fetch the freshly-created codes for the response
     const physicalQrCodes = await db.physicalQrCode.findMany({
       where: { batchId: batch.batch.id },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { id: 'asc' },
     });
 
     return NextResponse.json(
