@@ -116,32 +116,24 @@ const DEFAULT_DESIGN: DesignConfig = {
 /*  SVG → PNG conversion utility (browser-only, zero native deps)       */
 /* ------------------------------------------------------------------ */
 
-/** Convert an SVG Blob to a PNG data-URL using the browser Canvas API */
-function svgBlobToPngDataUrl(svgBlob: Blob, size: number): Promise<string> {
+/** Convert an inline SVG element to a PNG data-URL */
+function svgElementToPngDataUrl(svgEl: SVGSVGElement, size: number): Promise<string> {
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(svgBlob);
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    // Use data URL instead of blob — more reliable for Image loading
+    const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgData)}`;
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext('2d');
-      if (!ctx) { URL.revokeObjectURL(url); reject(new Error('No 2d context')); return; }
+      if (!ctx) { reject(new Error('No 2d context')); return; }
       ctx.drawImage(img, 0, 0, size, size);
-      URL.revokeObjectURL(url);
       resolve(canvas.toDataURL('image/png'));
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG image load failed')); };
-    img.src = url;
-  });
-}
-
-/** Convert an inline SVG element to a PNG data-URL */
-function svgElementToPngDataUrl(svgEl: SVGSVGElement, size: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    svgBlobToPngDataUrl(svgBlob, size).then(resolve).catch(reject);
+    img.onerror = () => reject(new Error('SVG image load failed'));
+    img.src = svgUrl;
   });
 }
 
@@ -172,13 +164,18 @@ async function generateFallbackQrPng(
   );
 
   // Wait for React to commit the render
-  await new Promise((r) => setTimeout(r, 60));
+  await new Promise((r) => setTimeout(r, 150));
 
   const svgEl = container.querySelector('svg');
   if (!svgEl) {
     root.unmount();
     document.body.removeChild(container);
     throw new Error('Fallback: SVG element not rendered');
+  }
+
+  // Ensure the SVG has xmlns for proper PNG conversion
+  if (!svgEl.getAttribute('xmlns')) {
+    svgEl.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   }
 
   const pngUrl = await svgElementToPngDataUrl(svgEl, size);
@@ -207,6 +204,33 @@ function getPresetLogoDataUrl(preset: string): string {
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
+function GeneratedQrGrid({ codes, design }: { codes: string[]; design: DesignConfig }) {
+  const qrLevel = (['L','M','Q','H'] as const).includes(design.errorCorrectionLevel as any)
+    ? (design.errorCorrectionLevel as 'L' | 'M' | 'Q' | 'H')
+    : 'M';
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Package className="h-4 w-4" />
+          QR codes générés ({codes.length})
+        </CardTitle>
+        <CardDescription>Scannez ou téléchargez vos QR codes en PDF.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 max-h-[500px] overflow-y-auto">
+          {codes.map((code) => (
+            <div key={code} className="flex flex-col items-center gap-2 rounded-lg border bg-white p-3" style={{ backgroundColor: design.backgroundColor }}>
+              <QRCodeSVG value={"https://qrdomotik.com/activate/" + code} size={120} bgColor={design.backgroundColor} fgColor={design.dotsColor} level={qrLevel} />
+              <span className="font-mono text-[10px] font-semibold text-center break-all leading-tight">{code}</span>
+              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => { navigator.clipboard.writeText(code); toast.success("Code " + code + " copié !"); }}>Copier</Button>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function GenerateBatch() {
   /* ---- state ---- */
@@ -332,7 +356,7 @@ export function GenerateBatch() {
 
       const data = await res.json();
       setGeneratedCodes(codes);
-      setBatchId(data.batch?.id || null);
+      setBatchId(data.id || null);
       toast.success(`${quantity} QR codes générés avec succès !`);
     } catch (err: any) {
       toast.error(err.message || 'Erreur lors de la génération');
@@ -348,57 +372,11 @@ export function GenerateBatch() {
     try {
       const qrCodes: QrCodeForPdf[] = [];
 
-      // Try loading qr-code-styling once; if it fails, use fallback for all codes
-      let QRCodeStyling: any = null;
-      if (!fallbackRef.current) {
-        try {
-          QRCodeStyling = (await import('qr-code-styling')).default;
-        } catch {
-          fallbackRef.current = true;
-          setShowFallback(true);
-        }
-      }
-
       for (const code of generatedCodes) {
         const data = `https://qrdomotik.com/activate/${code}`;
-        let imageUrl: string;
-
-        if (QRCodeStyling) {
-          // Preferred path: qr-code-styling → SVG → PNG
-          const opts: any = {
-            width: 400,
-            height: 400,
-            type: 'svg',
-            data,
-            dotsOptions: { color: design.dotsColor, type: design.dotsType },
-            backgroundOptions: { color: design.backgroundColor },
-            cornersSquareOptions: { color: design.dotsColor, type: design.cornersSquareType },
-            cornersDotOptions: { color: design.dotsColor, type: design.cornersDotType },
-            qrOptions: { errorCorrectionLevel: design.errorCorrectionLevel },
-            imageOptions: { crossOrigin: 'anonymous', margin: 8, imageSize: 0.35 },
-          };
-          if (design.logoPreset) {
-            opts.image = getPresetLogoDataUrl(design.logoPreset);
-          }
-          try {
-            const qr = new QRCodeStyling(opts);
-            const svgBlob: Blob = await qr.getRawData('svg');
-            imageUrl = await svgBlobToPngDataUrl(svgBlob, 400);
-          } catch {
-            // qr-code-styling loaded but getRawData failed — switch to fallback
-            fallbackRef.current = true;
-            setShowFallback(true);
-            imageUrl = await generateFallbackQrPng(
-              data, 400, design.dotsColor, design.backgroundColor, design.errorCorrectionLevel,
-            );
-          }
-        } else {
-          // Fallback path: qrcode.react → SVG → PNG
-          imageUrl = await generateFallbackQrPng(
-            data, 400, design.dotsColor, design.backgroundColor, design.errorCorrectionLevel,
-          );
-        }
-
+        const imageUrl = await generateFallbackQrPng(
+          data, 400, design.dotsColor, design.backgroundColor, design.errorCorrectionLevel,
+        );
         qrCodes.push({ code, imageUrl });
       }
 
@@ -748,43 +726,7 @@ export function GenerateBatch() {
             )}
           </div>
 
-          {/* Generated Codes List */}
-          {generatedCodes.length > 0 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Package className="h-4 w-4" />
-                  Codes générés ({generatedCodes.length})
-                </CardTitle>
-                <CardDescription>
-                  Ces codes d'activation sont prêts à être imprimés et distribués.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-72 overflow-y-auto">
-                  {generatedCodes.map((code, i) => (
-                    <div
-                      key={code}
-                      className="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2"
-                    >
-                      <span className="font-mono text-xs font-semibold">{code}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => {
-                          navigator.clipboard.writeText(code);
-                          toast.success(`Code ${code} copié !`);
-                        }}
-                      >
-                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {generatedCodes.length > 0 && <GeneratedQrGrid codes={generatedCodes} design={design} />}
         </div>
 
         {/* ====== RIGHT: QR PREVIEW ====== */}
