@@ -278,3 +278,50 @@ Stage Summary:
 - Design system: #2563EB bleu, #10B981 vert, #F59E0B orange sur fond sombre
 - Animations: Framer Motion fade-in-up, orbs flottants, scan line, auto-cycle QR
 - Glassmorphism: backdrop-blur + border white/10 sur cartes et QR container
+
+---
+Task ID: 9
+Agent: Main Architect
+Task: Authentification NextAuth v4 + Preparation deploiement Coolify
+
+Work Log:
+- Installe bcryptjs + @types/bcryptjs pour hashage mots de passe
+- Ajoute `passwordHash String?` au modele Prisma User + db push
+- Cree `src/lib/auth.ts`: config NextAuth v4 avec CredentialsProvider
+  - JWT strategy, 30 jours session
+  - Callback jwt/session injecte id + role dans le token
+  - Mot de passe `demo` accepte en dev pour tous les utilisateurs existants
+- Cree `src/types/next-auth.d.ts`: module augmentation pour Session/User/JWT types
+- Cree API route `/api/auth/[...nextauth]` (GET + POST)
+- Cree API route `/api/auth/register` (POST): inscription + creation maison par defaut
+  - email admin@qrdomotik.com = role superadmin automatique
+  - Hash bcryptjs (12 rounds)
+- Cree `src/middleware.ts`: protection routes avec withAuth
+  - Paths publics: /, /api/auth
+  - API routes laissees passer pour eviter boucles
+- Cree `src/components/auth/login-form.tsx`: formulaire connexion/inscription
+  - Design sombre (glassmorphism) coherent avec la landing
+  - Toggle login/inscription avec animation Framer Motion
+  - Boutons Demo Client + Demo Admin (creation auto + login auto)
+  - Show/hide mot de passe, spinner loading, messages erreur
+- Integre auth dans page.tsx via SessionProvider + useSession
+  - Flow: Landing -> CTA -> Auth Form -> Demo login -> Dashboard
+  - Session determine le role (superadmin vs client)
+  - Spinner de chargement pendant la session
+- Fichiers Coolify:
+  - `Dockerfile`: multi-stage (deps/build/runner), node:20-alpine, standalone output
+  - `.env.example`: toutes les vars (NextAuth, DB, Supabase, Stripe, VAPID)
+  - `nixpacks.toml`: config Nixpacks pour deploiement sans Docker
+  - `docker-compose.yml`: app + volume DB SQLite
+  - `coolify.json`: config Coolify native
+- Met a jour `.gitignore`: ajoute .env, .env.local, .env.production
+- Lint: 0 erreurs, 0 warnings
+- Agent Browser: Landing -> CTA -> Auth -> Demo Client -> Dashboard client, 0 erreurs console
+
+Stage Summary:
+- 8 nouveaux fichiers: auth.ts, next-auth.d.ts, 2 API routes, middleware, login-form, Dockerfile, .env.example
+- 3 fichiers Coolify: nixpacks.toml, docker-compose.yml, coolify.json
+- 1 fichier mis a jour: page.tsx (SessionProvider + auth flow)
+- Schema Prisma: champ passwordHash ajoute a User
+- Auth flow complet: inscription, login, demo, protection middleware
+- Deploiement Coolify: Dockerfile multi-stage + Nixpacks + docker-compose

@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useSession, SessionProvider } from 'next-auth/react';
 import { LandingPage } from '@/components/landing/hero-section';
 import { RoleSelector } from '@/components/role-selector';
+import { AuthForm } from '@/components/auth/login-form';
 import { SuperAdminLayout, type SuperAdminPage } from '@/components/admin/super-admin-layout';
 import { ClientLayout, type ClientPage } from '@/components/client/client-layout';
 
@@ -35,25 +37,50 @@ function PlaceholderPage({ title }: { title: string }) {
   );
 }
 
-type AppView = 'landing' | 'select' | 'superadmin' | 'client';
+type AppView = 'landing' | 'auth' | 'select' | 'superadmin' | 'client';
 
-export default function App() {
+function AppContent() {
+  const { data: session, status } = useSession();
   const [view, setView] = useState<AppView>('landing');
   const [adminPage, setAdminPage] = useState<SuperAdminPage>('overview');
   const [clientPage, setClientPage] = useState<ClientPage>('module-preview');
 
-  // === LANDING PAGE ===
-  if (view === 'landing') {
+  const handleAuthSuccess = useCallback((role: string) => {
+    setView(role === 'superadmin' ? 'superadmin' : 'client');
+  }, []);
+
+  // Determine effective view
+  let effectiveView: AppView = view;
+  if (session?.user) {
+    effectiveView = session.user.role === 'superadmin' ? 'superadmin' : 'client';
+  } else if (status !== 'loading' && view !== 'landing' && view !== 'auth') {
+    effectiveView = 'auth';
+  }
+
+  // === LOADING ===
+  if (status === 'loading') {
     return (
-      <LandingPage
-        onGoToDemo={() => setView('select')}
-        onGoToDashboard={() => setView('select')}
-      />
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
+        <div className="h-8 w-8 border-2 border-[#2563EB]/30 border-t-[#2563EB] rounded-full animate-spin" />
+      </div>
     );
   }
 
+  // === AUTH (not logged in) ===
+  if (!session) {
+    if (effectiveView === 'landing') {
+      return (
+        <LandingPage
+          onGoToDemo={() => setView('auth')}
+          onGoToDashboard={() => setView('auth')}
+        />
+      );
+    }
+    return <AuthForm onSuccess={handleAuthSuccess} />;
+  }
+
   // === ROLE SELECTOR ===
-  if (view === 'select') {
+  if (effectiveView === 'select') {
     return (
       <RoleSelector
         onSelectAdmin={() => setView('superadmin')}
@@ -63,7 +90,7 @@ export default function App() {
   }
 
   // === SUPER ADMIN DASHBOARD ===
-  if (view === 'superadmin') {
+  if (effectiveView === 'superadmin') {
     const renderAdminPage = () => {
       switch (adminPage) {
         case 'overview': return <StatsOverview />;
@@ -112,5 +139,13 @@ export default function App() {
     >
       {renderClientPage()}
     </ClientLayout>
+  );
+}
+
+export default function App() {
+  return (
+    <SessionProvider>
+      <AppContent />
+    </SessionProvider>
   );
 }
