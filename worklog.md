@@ -241,3 +241,40 @@ Stage Summary:
 - Navigation bidirectionnelle entre les 2 dashboards via boutons footer
 - Page d'accueil redesignée comme sélecteur de rôle
 - Identité visuelle distincte: Super Admin (rouge), Client (primaire)
+
+---
+Task ID: 8
+Agent: Main Architect + Subagents
+Task: Landing page QR Domotik avec effets Wahou et demo QR interactive
+
+Work Log:
+- Installe qrcode.react v4.2.0
+- Cree la landing page complete en 1 fichier (hero-section.tsx, 860+ lignes):
+  - Hero: gradient sombre, texte gradient anime, orbs flottants, phone mockup avec QR demo
+  - Comment ca marche: 3 etapes (Creez/Imprimez/Scannez) avec numeros et icones
+  - Modules populaires: 6 modules en grille 2x3 avec icones colorees et hover
+  - Demo en direct: QR code scannable avec ligne de scan animee + description
+  - Avantages: Bento grid 6 items (col-span-2/1) avec icones et descriptions
+  - Temoignages: 3 cartes avec etoiles, citations, avatars initiales
+  - Pricing: Gratuit (0 EUR) vs Pro (9,90 EUR) avec badge "Populaire"
+  - FAQ: 6 questions avec Accordion shadcn/ui
+  - CTA final: gradient bleu-vert avec 2 boutons
+  - Footer: 4 colonnes (Logo, Produit, Support, Legal)
+- Cree le composant QR Demo interactif (qr-demo.tsx):
+  - QrDemoMini: version pour le phone mockup du hero (auto-cycle 4s)
+  - QrDemo: version grande avec scan line animee + bouton "Changer de demo"
+  - 5 modules de demo: Wi-Fi, Portier, Shopping, Guide, Urgence
+  - QR code SVG genere dynamiquement avec qrcode.react
+  - Ligne de scan verte animee + coins bleus decore
+- Mis a jour page.tsx: 4 vues (landing -> select -> superadmin/client)
+  - Landing page = vue par defaut
+  - CTA navigue vers le selecteur de role
+- Lint: 0 erreurs, 0 warnings
+- Agent Browser: 10 sections visibles, CTA fonctionnel, 0 erreurs console, mobile responsive
+
+Stage Summary:
+- 2 nouveaux fichiers: hero-section.tsx (860+ lignes), qr-demo.tsx (180 lignes)
+- 1 fichier mis a jour: page.tsx (ajout vue landing)
+- Design system: #2563EB bleu, #10B981 vert, #F59E0B orange sur fond sombre
+- Animations: Framer Motion fade-in-up, orbs flottants, scan line, auto-cycle QR
+- Glassmorphism: backdrop-blur + border white/10 sur cartes et QR container

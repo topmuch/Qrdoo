@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { LandingPage } from '@/components/landing/hero-section';
 import { RoleSelector } from '@/components/role-selector';
 import { SuperAdminLayout, type SuperAdminPage } from '@/components/admin/super-admin-layout';
 import { ClientLayout, type ClientPage } from '@/components/client/client-layout';
@@ -23,109 +24,91 @@ import { ActivationPage } from '@/components/client/activation-page';
 import { ModuleConfigPage } from '@/components/client/module-config';
 import { ModulePreviewPage } from '@/components/client/module-preview';
 
-// Placeholder pour les pages V3
 function PlaceholderPage({ title }: { title: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="rounded-2xl border-2 border-dashed border-muted-foreground/25 p-12 max-w-md">
         <p className="text-lg font-semibold">{title}</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Cette fonctionnalité sera disponible dans les prochaines étapes.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground">Cette fonctionnalite sera disponible prochainement.</p>
       </div>
     </div>
   );
 }
 
-type AppRole = 'select' | 'superadmin' | 'client';
+type AppView = 'landing' | 'select' | 'superadmin' | 'client';
 
 export default function App() {
-  const [role, setRole] = useState<AppRole>('select');
+  const [view, setView] = useState<AppView>('landing');
   const [adminPage, setAdminPage] = useState<SuperAdminPage>('overview');
   const [clientPage, setClientPage] = useState<ClientPage>('module-preview');
 
-  // === Role selector ===
-  if (role === 'select') {
+  // === LANDING PAGE ===
+  if (view === 'landing') {
     return (
-      <RoleSelector
-        onSelectAdmin={() => setRole('superadmin')}
-        onSelectClient={() => setRole('client')}
+      <LandingPage
+        onGoToDemo={() => setView('select')}
+        onGoToDashboard={() => setView('select')}
       />
     );
   }
 
-  // === Super Admin Dashboard ===
-  if (role === 'superadmin') {
+  // === ROLE SELECTOR ===
+  if (view === 'select') {
+    return (
+      <RoleSelector
+        onSelectAdmin={() => setView('superadmin')}
+        onSelectClient={() => setView('client')}
+      />
+    );
+  }
+
+  // === SUPER ADMIN DASHBOARD ===
+  if (view === 'superadmin') {
     const renderAdminPage = () => {
       switch (adminPage) {
-        case 'overview':
-          return <StatsOverview />;
-        case 'generate':
-          return <GenerateBatch />;
-        case 'batches':
-          return <ManageBatches />;
-        case 'physical-qr':
-          return <ManagePhysicalQr />;
-        case 'users':
-          return <AdminUsers />;
-        case 'stats':
-          return <AdminStats />;
-        default:
-          return <StatsOverview />;
+        case 'overview': return <StatsOverview />;
+        case 'generate': return <GenerateBatch />;
+        case 'batches': return <ManageBatches />;
+        case 'physical-qr': return <ManagePhysicalQr />;
+        case 'users': return <AdminUsers />;
+        case 'stats': return <AdminStats />;
+        default: return <StatsOverview />;
       }
     };
-
     return (
       <SuperAdminLayout
         activePage={adminPage}
         onPageChange={setAdminPage}
-        onSwitchToClient={() => {
-          setRole('client');
-        }}
+        onSwitchToClient={() => setView('client')}
       >
         {renderAdminPage()}
       </SuperAdminLayout>
     );
   }
 
-  // === Client Dashboard ===
+  // === CLIENT DASHBOARD ===
   const renderClientPage = () => {
     switch (clientPage) {
-      case 'client-home':
-        return <ClientDashboard />;
+      case 'client-home': return <ClientDashboard />;
       case 'client-activate':
-      case 'client-qr-codes':
-        return <PhysicalQrCodes />;
-      case 'client-homes':
-        return <HomesManager />;
-      case 'client-rooms':
-        return <RoomsManager />;
-      case 'client-activity':
-        return <ActivityLogViewer />;
-      case 'client-notifications':
-        return <PlaceholderPage title="Notifications" />;
-      case 'activation-public':
-        return <ActivationPage />;
-      case 'module-config':
-        return <ModuleConfigPage />;
-      case 'module-preview':
-        return <ModulePreviewPage />;
-      case 'modules':
-        return <ModulePreviewPage />;
-      case 'client-settings':
-        return <PlaceholderPage title="Paramètres" />;
-      default:
-        return <ModulePreviewPage />;
+      case 'client-qr-codes': return <PhysicalQrCodes />;
+      case 'client-homes': return <HomesManager />;
+      case 'client-rooms': return <RoomsManager />;
+      case 'client-activity': return <ActivityLogViewer />;
+      case 'client-notifications': return <PlaceholderPage title="Notifications" />;
+      case 'activation-public': return <ActivationPage />;
+      case 'module-config': return <ModuleConfigPage />;
+      case 'module-preview': return <ModulePreviewPage />;
+      case 'modules': return <ModulePreviewPage />;
+      case 'client-settings': return <PlaceholderPage title="Parametres" />;
+      default: return <ModulePreviewPage />;
     }
   };
-
   return (
     <ClientLayout
       activePage={clientPage}
       onPageChange={setClientPage}
-      onSwitchToAdmin={() => {
-        setRole('superadmin');
-      }}
+      onSwitchToAdmin={() => setView('superadmin')}
     >
       {renderClientPage()}
     </ClientLayout>
