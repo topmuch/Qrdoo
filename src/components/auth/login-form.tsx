@@ -7,6 +7,7 @@ import { QrCode, Mail, Lock, User, ArrowRight, Eye, EyeOff, Shield, Users, Copy,
 
 interface AuthFormProps {
   onSuccess: (role: string) => void;
+  initialRegister?: boolean;
 }
 
 // Identifiants de deploiement
@@ -29,8 +30,8 @@ const DEPLOY_CREDENTIALS = [
   },
 ];
 
-export function AuthForm({ onSuccess }: AuthFormProps) {
-  const [isLogin, setIsLogin] = useState(true);
+export function AuthForm({ onSuccess, initialRegister }: AuthFormProps) {
+  const [isLogin, setIsLogin] = useState(!initialRegister);
   const [email, setEmail] = useState('admin@qrdomotik.com');
   const [password, setPassword] = useState('QrDomotik2024!');
   const [fullName, setFullName] = useState('');

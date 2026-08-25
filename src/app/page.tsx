@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSession, SessionProvider } from 'next-auth/react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { LandingPage } from '@/components/landing/hero-section';
 import { RoleSelector } from '@/components/role-selector';
 import { AuthForm } from '@/components/auth/login-form';
@@ -43,11 +44,31 @@ type AppView = 'landing' | 'auth' | 'select' | 'superadmin' | 'client';
 
 function AppContent() {
   const { data: session, status } = useSession();
-  const [view, setView] = useState<AppView>('landing');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const isActivateFlow = searchParams.get('action') === 'activate';
+  const [view, setView] = useState<AppView>(isActivateFlow ? 'auth' : 'landing');
   const [adminPage, setAdminPage] = useState<SuperAdminPage>('overview');
   const [clientPage, setClientPage] = useState<ClientPage>('module-preview');
+  const initialRegister = isActivateFlow;
+
+  // Redirect to activate page after auth if coming from QR scan
+  useEffect(() => {
+    if (session && sessionStorage.getItem('pendingActivationCode')) {
+      const code = sessionStorage.getItem('pendingActivationCode');
+      sessionStorage.removeItem('pendingActivationCode');
+      window.location.href = `/activate/${code}`;
+    }
+  }, [session]);
 
   const handleAuthSuccess = useCallback((role: string) => {
+    // If coming from QR activation flow, redirect back to the activate page
+    const pendingCode = sessionStorage.getItem('pendingActivationCode');
+    if (pendingCode) {
+      sessionStorage.removeItem('pendingActivationCode');
+      window.location.href = `/activate/${pendingCode}`;
+      return;
+    }
     setView(role === 'superadmin' ? 'superadmin' : 'client');
   }, []);
 
@@ -81,7 +102,7 @@ function AppContent() {
         />
       );
     }
-    return <AuthForm onSuccess={handleAuthSuccess} />;
+    return <AuthForm onSuccess={handleAuthSuccess} initialRegister={initialRegister} />;
   }
 
   // === ROLE SELECTOR ===

@@ -27,7 +27,7 @@ export function ActivationPage() {
   const [success, setSuccess] = useState(false);
 
   const checkCode = async (codeToCheck: string) => {
-    if (!codeToCheck.match(/^QR-[A-Z0-9]{8}$/)) return;
+    if (codeToCheck.length < 3) return;
     setStatus('loading');
     try {
       const res = await fetch(`/api/client/check-code?code=${codeToCheck}`);
@@ -50,14 +50,16 @@ export function ActivationPage() {
   };
 
   useEffect(() => {
-    if (code.length === 11) checkCode(code);
-    else if (code.length < 11) { setStatus('loading'); setStep('input'); }
+    // Debounce check after 500ms of no typing
+    const timer = setTimeout(() => {
+      if (code.length >= 6) checkCode(code);
+      else { setStatus('loading'); setStep('input'); }
+    }, 500);
+    return () => clearTimeout(timer);
   }, [code]);
 
   const formatCode = (val: string) => {
-    const clean = val.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
-    if (clean.length <= 3) return clean;
-    return clean.slice(0, 3) + clean.slice(3, 11);
+    return val.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
   };
 
   const handleActivate = async () => {
@@ -111,11 +113,11 @@ export function ActivationPage() {
                 placeholder='QR-XXXXXXXX'
                 value={code}
                 onChange={(e) => setCode(formatCode(e.target.value))}
-                maxLength={11}
+                maxLength={30}
                 disabled={step !== 'input'}
               />
-              {status === 'loading' && code.length >= 3 && code.length < 11 && (
-                <p className='text-xs text-muted-foreground text-center mt-1'>Format : QR- suivi de 8 caractères</p>
+              {status === 'loading' && code.length >= 3 && (
+                <p className='text-xs text-muted-foreground text-center mt-1'>Entrez le code impré sur votre QR code</p>
               )}
             </div>
             {/* Status feedback */}
