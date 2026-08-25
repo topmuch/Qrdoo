@@ -44,3 +44,22 @@ Stage Summary:
 - Activation flow: scan QR → signup page → back to activate page with code pre-filled → choose module → activate
 - Activate API no longer requires hardcoded homeId/roomId, resolves from user session
 - All 5 files modified, committed and pushed to main
+---
+Task ID: 2
+Agent: General-purpose
+Task: Fix code format bug + simplify dashboard activation wizard
+
+Work Log:
+- Fixed `formatCodeInput` regex: changed `/[^a-zA-Z0-9]/g` to `/[^a-zA-Z0-9-]/g` so dashes (e.g. `QR-BV994ZDA`) are preserved
+- Removed `roomId: selectedRoomId` from `handleSingleActivate` POST body (API auto-resolves room)
+- Removed `!selectedRoomId` guard from `handleSingleActivate` early return
+- Made room selector optional in wizard Step 2: changed "no rooms" block from a blocking message to a note "Aucune pièce — le QR sera associé à votre maison"
+- Removed `!selectedRoomId` from Step 2 "Suivant" button disabled condition
+- Made Step 3 confirmation conditionally hide the room row when no room is selected
+- Note: no `moduleContent` state exists in the component, so that field was not added
+
+Stage Summary:
+- Code input now preserves dashes, matching DB format (e.g. `QR-BV994ZDA`)
+- Activation wizard no longer blocks users without rooms
+- Room selection is optional; API handles auto-resolution
+- Confirmation step hides room row when none selected
