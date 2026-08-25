@@ -7,76 +7,107 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { QrCode, CheckCircle2, XCircle, AlertCircle, Loader2, ArrowRight, ArrowLeft, Zap, Home, Tag } from 'lucide-react';
+import { QrCode, CheckCircle2, XCircle, AlertCircle, Loader2, ArrowRight, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { QR_MODULE_LABELS } from '@/types/database';
+import {
+  ModuleContentFields,
+  moduleHasContentFields,
+  validateModuleContent,
+  MODULE_ACTIVATION_CONFIG,
+} from '@/components/client/module-content-fields';
 
-const POPULAR_MODULES = ['wifi', 'guestbook', 'doorbell', 'emergency', 'note', 'contact', 'shopping_list', 'inventory', 'chore', 'checklist', 'timer', 'recipe'];
+const POPULAR_MODULES = [
+  'wifi', 'external_link', 'home_manual', 'note', 'meal_planner',
+  'guestbook', 'doorbell', 'emergency', 'contact', 'shopping_list',
+  'checklist', 'medication', 'energy_monitor', 'key_location', 'cleaning_schedule',
+  'inventory', 'chore', 'timer', 'recipe',
+] as const;
 
 export function ActivationPage() {
   const [code, setCode] = useState('');
-  const [step, setStep] = useState<'input' | 'check' | 'configure'>('input');
-  const [status, setStatus] = useState<'loading' | 'not_found' | 'inactive' | 'active' | 'lost' | 'cancelled'>('loading');
+  const [codeStatus, setCodeStatus] = useState<'loading' | 'not_found' | 'inactive' | 'active' | 'lost' | 'cancelled'>('loading');
   const [physicalQrId, setPhysicalQrId] = useState('');
   const [moduleType, setModuleType] = useState('');
-  const [roomName, setRoomName] = useState('');
   const [qrName, setQrName] = useState('');
-  const [rooms, setRooms] = useState<{ id: string; name: string }[]>([]);
   const [homeId, setHomeId] = useState('');
+  const [moduleContent, setModuleContent] = useState<Record<string, string>>({});
+  const [contentErrors, setContentErrors] = useState<string[]>([]);
   const [activating, setActivating] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successSlug, setSuccessSlug] = useState('');
 
+  // Check code API — isolated try/catch so homes fetch failure doesn't overwrite status
   const checkCode = async (codeToCheck: string) => {
     if (codeToCheck.length < 3) return;
-    setStatus('loading');
+    setCodeStatus('loading');
     try {
       const res = await fetch(`/api/client/check-code?code=${codeToCheck}`);
       const data = await res.json();
-      setStatus(data.status);
+      setCodeStatus(data.status);
       if (data.status === 'inactive' && data.physicalQr) {
         setPhysicalQrId(data.physicalQr.id);
-        // Fetch homes and rooms
-        const homesRes = await fetch('/api/client/homes');
-        const homesData = await homesRes.json();
-        const home = homesData.homes?.[0];
-        if (home) {
-          setHomeId(home.id);
-          const roomsRes = await fetch(`/api/client/rooms?homeId=${home.id}`);
-          const roomsData = await roomsRes.json();
-          setRooms(roomsData.rooms || []);
+        // Fetch homes in a SEPARATE try/catch so it doesn't affect code status
+        try {
+          const homesRes = await fetch('/api/client/homes');
+          const homesData = await homesRes.json();
+          const home = homesData.homes?.[0];
+          if (home) setHomeId(home.id);
+        } catch {
+          // Homes fetch failed — code is still valid, will auto-resolve on activation
+          console.warn('Failed to fetch homes, will auto-resolve on activation');
         }
       }
-    } catch { setStatus('not_found'); }
+    } catch {
+      setCodeStatus('not_found');
+    }
   };
 
   useEffect(() => {
-    // Debounce check after 500ms of no typing
     const timer = setTimeout(() => {
       if (code.length >= 6) checkCode(code);
-      else { setStatus('loading'); setStep('input'); }
+      else setCodeStatus('loading');
     }, 500);
     return () => clearTimeout(timer);
   }, [code]);
 
-  const formatCode = (val: string) => {
-    return val.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
-  };
+  const formatCode = (val: string) => val.replace(/[^A-Z0-9-]/gi, '').toUpperCase();
 
   const handleActivate = async () => {
     if (!physicalQrId || !moduleType || !qrName) return;
+
+    // Validate content fields
+    const errors = validateModuleContent(moduleType, moduleContent);
+    if (errors.length > 0) {
+      setContentErrors(errors);
+      toast.error(`Champs requis : ${errors.join(', ')}`);
+      return;
+    }
+
     setActivating(true);
     try {
+      const hasContent = moduleHasContentFields(moduleType) && Object.keys(moduleContent).length > 0;
       const res = await fetch('/api/client/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, moduleType, roomId: rooms[0]?.id || '', name: qrName, homeId }),
+        body: JSON.stringify({
+          code,
+          moduleType,
+          name: qrName,
+          homeId: homeId || undefined,
+          content: hasContent ? moduleContent : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur');
       setSuccess(true);
+      setSuccessSlug(data.qrCode?.publicSlug || '');
       toast.success('QR code activé avec succès !');
-    } catch (e: any) { toast.error(e.message); }
-    finally { setActivating(false); }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setActivating(false);
+    }
   };
 
   // Success state
@@ -88,7 +119,23 @@ export function ActivationPage() {
             <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100'><CheckCircle2 className='h-8 w-8 text-emerald-600' /></div>
             <h2 className='text-xl font-bold mb-2'>QR Code activé !</h2>
             <p className='text-muted-foreground mb-2'>Votre QR code <span className='font-mono font-semibold'>{code}</span> est maintenant actif.</p>
-            <p className='text-sm text-muted-foreground'>Connectez-vous à votre dashboard pour le configurer.</p>
+            <p className='text-sm text-muted-foreground mb-6'>
+              {successSlug
+                ? `Scannez-le à nouveau pour voir le module « ${(QR_MODULE_LABELS as Record<string, string>)[moduleType] || moduleType} » en action.`
+                : 'Votre QR code est prêt à être utilisé.'}
+            </p>
+            <Button variant='outline' onClick={() => {
+              setSuccess(false);
+              setCode('');
+              setCodeStatus('loading');
+              setModuleType('');
+              setQrName('');
+              setModuleContent({});
+              setContentErrors([]);
+              setPhysicalQrId('');
+            }}>
+              Activer un autre QR code
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -104,72 +151,82 @@ export function ActivationPage() {
           <CardDescription>Entrez le code imprimé sur votre QR code physique.</CardDescription>
         </CardHeader>
         <CardContent className='space-y-6'>
-          {/* Step 1: Code input */}
+          {/* Code input */}
           <div className='space-y-2'>
             <Label>Code d'activation</Label>
-            <div className='relative'>
-              <Input
-                className='text-center font-mono text-xl tracking-widest h-14'
-                placeholder='QR-XXXXXXXX'
-                value={code}
-                onChange={(e) => setCode(formatCode(e.target.value))}
-                maxLength={30}
-                disabled={step !== 'input'}
-              />
-              {status === 'loading' && code.length >= 3 && (
-                <p className='text-xs text-muted-foreground text-center mt-1'>Entrez le code impré sur votre QR code</p>
-              )}
-            </div>
-            {/* Status feedback */}
-            {status === 'not_found' && (
+            <Input
+              className='text-center font-mono text-xl tracking-widest h-14'
+              placeholder='QR-XXXXXXXX'
+              value={code}
+              onChange={(e) => setCode(formatCode(e.target.value))}
+              maxLength={30}
+            />
+            {codeStatus === 'loading' && code.length >= 3 && (
+              <p className='text-xs text-muted-foreground text-center mt-1'>Vérification en cours...</p>
+            )}
+            {codeStatus === 'not_found' && (
               <div className='flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive'><XCircle className='h-4 w-4 shrink-0' /><span>Code introuvable. Vérifiez et réessayez.</span></div>
             )}
-            {status === 'active' && (
-              <div className='flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/5 p-3 text-sm text-amber-700'><AlertCircle className='h-4 w-4 shrink-0' /><span>Ce code est déjà activé. Connectez-vous pour le gérer.</span></div>
+            {codeStatus === 'active' && (
+              <div className='flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/5 p-3 text-sm text-amber-700'><AlertCircle className='h-4 w-4 shrink-0' /><span>Ce code est déjà activé.</span></div>
             )}
-            {(status === 'lost' || status === 'cancelled') && (
-              <div className='flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive'><XCircle className='h-4 w-4 shrink-0' /><span>Ce code n'est plus valable. Contactez le support.</span></div>
+            {(codeStatus === 'lost' || codeStatus === 'cancelled') && (
+              <div className='flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm text-destructive'><XCircle className='h-4 w-4 shrink-0' /><span>Ce code n'est plus valable.</span></div>
             )}
-            {status === 'inactive' && (
+            {codeStatus === 'inactive' && (
               <div className='flex items-center gap-2 rounded-lg border border-emerald-500/50 bg-emerald-500/5 p-3 text-sm text-emerald-700'><CheckCircle2 className='h-4 w-4 shrink-0' /><span>Code valide et prêt à être activé !</span></div>
             )}
           </div>
 
-          {status === 'inactive' && (
+          {codeStatus === 'inactive' && (
             <>
               <Separator />
-              {/* Step 2: Module type */}
+              {/* Module type selection */}
               <div className='space-y-3'>
                 <div className='flex items-center gap-2'><Zap className='h-4 w-4 text-primary' /><Label className='font-semibold'>Choisissez le module</Label></div>
                 <div className='grid grid-cols-3 gap-2 max-h-48 overflow-y-auto'>
-                  {POPULAR_MODULES.map((type) => (
-                    <button key={type} onClick={() => setModuleType(type)}
-                      className={`rounded-lg border-2 px-3 py-2 text-xs font-medium text-center transition-all ${moduleType === type ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}>
-                      {QR_MODULE_LABELS[type] || type}
-                    </button>
-                  ))}
+                  {POPULAR_MODULES.map((type) => {
+                    const config = MODULE_ACTIVATION_CONFIG[type];
+                    const IconComp = config?.icon;
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => { setModuleType(type); setModuleContent({}); setContentErrors([]); }}
+                        className={`rounded-lg border-2 px-3 py-2 text-xs font-medium text-center transition-all ${moduleType === type ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
+                      >
+                        {IconComp && <IconComp className='h-4 w-4 mx-auto mb-1 text-muted-foreground' />}
+                        {QR_MODULE_LABELS[type as keyof typeof QR_MODULE_LABELS] || type}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Step 3: Name + Room */}
-              <div className='space-y-3'>
-                <div className='space-y-2'>
-                  <Label>Nom du QR code</Label>
-                  <Input placeholder='ex: Wi-Fi Invités' value={qrName} onChange={(e) => setQrName(e.target.value)} />
-                </div>
-                {rooms.length > 0 && (
-                  <div className='space-y-2'>
-                    <Label>Pièce</Label>
-                    <div className='flex flex-wrap gap-2'>
-                      {rooms.map((r) => (
-                        <button key={r.id} onClick={() => setRoomName(r.name)}
-                          className={`rounded-md border-2 px-3 py-1.5 text-xs font-medium transition-all ${roomName === r.name ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}>
-                          {r.name}
-                        </button>
-                      ))}
-                    </div>
+              {/* Module content fields */}
+              {moduleType && moduleHasContentFields(moduleType) && (
+                <>
+                  <Separator />
+                  <div className='space-y-3'>
+                    <Label className='font-semibold'>Configuration du module</Label>
+                    {contentErrors.length > 0 && (
+                      <div className='flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/5 p-2.5 text-sm text-destructive'>
+                        <AlertCircle className='h-4 w-4 shrink-0' />
+                        <span>Remplissez : {contentErrors.join(', ')}</span>
+                      </div>
+                    )}
+                    <ModuleContentFields
+                      moduleType={moduleType}
+                      content={moduleContent}
+                      onChange={(c) => { setModuleContent(c); setContentErrors([]); }}
+                    />
                   </div>
-                )}
+                </>
+              )}
+
+              {/* Name input */}
+              <div className='space-y-2'>
+                <Label>Nom du QR code</Label>
+                <Input placeholder='ex: Wi-Fi Invités' value={qrName} onChange={(e) => setQrName(e.target.value)} />
               </div>
 
               <Button className='w-full' size='lg' onClick={handleActivate} disabled={activating || !moduleType || !qrName}>

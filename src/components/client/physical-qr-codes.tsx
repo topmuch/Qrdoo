@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 import { QR_MODULE_LABELS, ALL_QR_MODULE_TYPES } from '@/types/database';
+import { ModuleContentFields, moduleHasContentFields, validateModuleContent, MODULE_ACTIVATION_CONFIG } from '@/components/client/module-content-fields';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -82,6 +83,11 @@ import {
   XCircle,
   Clock,
   User,
+  Link,
+  UtensilsCrossed,
+  Pill,
+  KeyRound,
+  Sparkles,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -128,15 +134,22 @@ interface QrCodeItem {
 
 const POPULAR_MODULES = [
   'wifi',
+  'external_link',
+  'home_manual',
+  'note',
+  'meal_planner',
   'guestbook',
   'doorbell',
   'emergency',
-  'note',
   'contact',
   'shopping_list',
+  'checklist',
+  'medication',
+  'energy_monitor',
+  'key_location',
+  'cleaning_schedule',
   'inventory',
   'chore',
-  'checklist',
   'timer',
   'recipe',
 ] as const;
@@ -154,6 +167,13 @@ const MODULE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }
   checklist: List,
   timer: Clock,
   recipe: FileText,
+  external_link: Link,
+  home_manual: FileText,
+  meal_planner: UtensilsCrossed,
+  medication: Pill,
+  energy_monitor: Zap,
+  key_location: KeyRound,
+  cleaning_schedule: Sparkles,
 };
 
 const ITEMS_PER_PAGE = 10;
@@ -178,6 +198,8 @@ export function PhysicalQrCodes() {
   const [qrName, setQrName] = useState('');
   const [activating, setActivating] = useState(false);
   const [moduleSearch, setModuleSearch] = useState('');
+  const [moduleContent, setModuleContent] = useState<Record<string, string>>({});
+  const [contentErrors, setContentErrors] = useState<string[]>([]);
 
   // ---- Tab 2 state (batch activation) ----
   const [batchCodes, setBatchCodes] = useState('');
@@ -366,8 +388,18 @@ export function PhysicalQrCodes() {
 
   async function handleSingleActivate() {
     if (!selectedHomeId || !codeInput || !selectedModuleType || !qrName) return;
+
+    // Validate content fields
+    const errors = validateModuleContent(selectedModuleType, moduleContent);
+    if (errors.length > 0) {
+      setContentErrors(errors);
+      toast.error(`Champs requis : ${errors.join(', ')}`);
+      return;
+    }
+
     setActivating(true);
     try {
+      const hasContent = moduleHasContentFields(selectedModuleType) && Object.keys(moduleContent).length > 0;
       const res = await fetch('/api/client/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -376,6 +408,7 @@ export function PhysicalQrCodes() {
           moduleType: selectedModuleType,
           name: qrName,
           homeId: selectedHomeId,
+          content: hasContent ? moduleContent : undefined,
         }),
       });
       const data = await res.json();
@@ -384,10 +417,14 @@ export function PhysicalQrCodes() {
       } else {
         toast.success('QR code activé avec succès !');
         resetWizard();
-        // Refresh QR codes list
+        // Refresh QR codes list and switch to "Mes QR codes activés" tab
         const qrRes = await fetch(`/api/client/qr-codes?homeId=${selectedHomeId}`);
         const qrData = await qrRes.json();
         setQrCodes(qrData.qrCodes ?? []);
+        // Switch to the activated QR codes tab so the user can see their QR
+        const tabsList = document.querySelector('[role="tablist"]');
+        const myCodesTab = tabsList?.querySelector('[value="my-codes"]') as HTMLElement;
+        myCodesTab?.click();
       }
     } catch {
       toast.error('Erreur lors de l\'activation');
@@ -403,6 +440,8 @@ export function PhysicalQrCodes() {
     setSelectedModuleType('');
     setSelectedRoomId('');
     setQrName('');
+    setModuleContent({});
+    setContentErrors([]);
   }
 
   // ---- Batch validation ----
@@ -796,7 +835,11 @@ export function PhysicalQrCodes() {
                         <button
                           key={moduleKey}
                           type="button"
-                          onClick={() => setSelectedModuleType(moduleKey)}
+                          onClick={() => {
+                            setSelectedModuleType(moduleKey);
+                            setModuleContent({});
+                            setContentErrors([]);
+                          }}
                           className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md ${
                             isSelected
                               ? 'border-primary bg-primary/5 shadow-md'
@@ -848,6 +891,27 @@ export function PhysicalQrCodes() {
                       onChange={(e) => setQrName(e.target.value)}
                     />
                   </div>
+
+                  {/* Module content fields (conditional) */}
+                  {selectedModuleType && moduleHasContentFields(selectedModuleType) && (
+                    <>
+                      <Separator />
+                      <div className="max-w-sm mx-auto">
+                        <p className="text-sm font-semibold mb-3">Configuration du module</p>
+                        {contentErrors.length > 0 && (
+                          <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/5 p-2.5 mb-3 text-sm text-destructive">
+                            <AlertCircle className="h-4 w-4 shrink-0" />
+                            <span>Remplissez : {contentErrors.join(', ')}</span>
+                          </div>
+                        )}
+                        <ModuleContentFields
+                          moduleType={selectedModuleType}
+                          content={moduleContent}
+                          onChange={(c) => { setModuleContent(c); setContentErrors([]); }}
+                        />
+                      </div>
+                    </>
+                  )}
 
                   {/* Navigation */}
                   <div className="flex gap-3 justify-center">
@@ -902,6 +966,25 @@ export function PhysicalQrCodes() {
                       <span className="text-sm text-muted-foreground">Nom</span>
                       <span className="text-sm font-medium">{qrName}</span>
                     </div>
+                    {selectedModuleType && moduleHasContentFields(selectedModuleType) && Object.keys(moduleContent).length > 0 && (
+                      <>
+                        <Separator />
+                        <div className="space-y-1.5">
+                          <span className="text-sm text-muted-foreground">Contenu du module</span>
+                          {Object.entries(moduleContent).map(([key, val]) => {
+                            const fieldDef = MODULE_ACTIVATION_CONFIG[selectedModuleType]?.fields.find(f => f.key === key);
+                            return val ? (
+                              <div key={key} className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">{fieldDef?.label ?? key}</span>
+                                <span className="font-medium text-right max-w-[60%] truncate">
+                                  {key === 'password' ? '••••••••' : val}
+                                </span>
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   <div className="flex gap-3">

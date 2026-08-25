@@ -63,3 +63,43 @@ Stage Summary:
 - Activation wizard no longer blocks users without rooms
 - Room selection is optional; API handles auto-resolution
 - Confirmation step hides room row when none selected
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix "Introuvable" bug, add module content fields to activation, and improve post-activation UX
+
+Work Log:
+- Created shared component `module-content-fields.tsx` with:
+  - `MODULE_ACTIVATION_CONFIG`: field definitions for 15 modules (wifi, external_link, home_manual, note, meal_planner, guestbook, doorbell, emergency, contact, medication, energy_monitor, key_location, cleaning_schedule, shopping_list, checklist)
+  - `ModuleContentFields`: reusable form component rendering per-module fields
+  - `validateModuleContent`: validates required fields, returns missing labels
+  - `moduleHasContentFields`: checks if a module type has configurable fields
+- Fixed "Introuvable" bug in `activation-page.tsx`: separated code check try/catch from homes fetch try/catch so homes API failure doesn't overwrite code status to 'not_found'
+- Updated `physical-qr-codes.tsx` (dashboard wizard):
+  - Added module content fields in Step 2 after name input
+  - Added content validation before activation
+  - Added content preview in Step 3 confirmation
+  - After activation, auto-switches to "Mes QR codes activés" tab
+  - Expanded module list to 19 modules with proper icons
+  - Added new icon imports (Link, UtensilsCrossed, Pill, KeyRound, Sparkles)
+- Rewrote `activation-page.tsx`:
+  - Fixed error handling (separate try/catch for homes fetch)
+  - Added module content fields
+  - Added success state with QR public slug info
+  - Expanded module list to 19 modules
+- Rewrote `/activate/[code]/activate-content.tsx` (public flow):
+  - Replaced custom wifi/contact fields with shared `ModuleContentFields`
+  - Added all 19 modules with icons from MODULE_ACTIVATION_CONFIG
+  - Added content validation
+  - Auto-fills name for wifi module
+- Updated activate API:
+  - Merges user-provided content with defaults (was replacing entirely)
+  - Added default content for 8 new modules (external_link, home_manual, meal_planner, medication, energy_monitor, key_location, cleaning_schedule, guestbook, shopping_list, checklist)
+
+Stage Summary:
+- "Introuvable" bug fixed: homes API failure no longer overwrites code check result
+- All 3 activation flows (dashboard wizard, activation-page, public /activate/[code]) now show module-specific content fields
+- 15 V1 modules have configurable fields (wifi: SSID+password+security, contact: name+phone+email, etc.)
+- Content is validated before activation (required fields check)
+- Post-activation: dashboard auto-switches to "Mes QR codes activés" tab
+- All changes pass lint, compilation succeeds (200 on /)

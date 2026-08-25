@@ -114,10 +114,11 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 3. Create QrContent — use provided content or defaults
+      // 3. Create QrContent — merge provided content with defaults
+      const defaults = getDefaultContent(moduleType);
       const savedContent = content && Object.keys(content).length > 0
-        ? content
-        : getDefaultContent(moduleType);
+        ? { ...defaults, ...content }
+        : defaults;
       await tx.qrContent.create({
         data: {
           qrCodeId: qrCode.id,
@@ -174,15 +175,35 @@ export async function POST(request: NextRequest) {
 function getDefaultContent(moduleType: string): Record<string, unknown> {
   switch (moduleType) {
     case 'wifi':
-      return { ssid: '', password: '', security: 'WPA', hidden: false };
+      return { ssid: '', password: '', security: 'WPA2', hidden: false };
+    case 'external_link':
+      return { url: '', title: '' };
+    case 'home_manual':
+      return { title: '', body: '' };
     case 'doorbell':
-      return { mode: 'absent', instructions: [], allowMessages: true, allowDoorbell: true, presentMessage: '', absentMessage: '' };
+      return { mode: 'absent', instructions: '', allowMessages: true, allowDoorbell: true, presentMessage: '', absentMessage: '' };
     case 'emergency':
-      return { contacts: [] };
+      return { title: '', body: '', contacts: [] };
     case 'note':
       return { title: '', body: '' };
     case 'contact':
       return { name: '', phone: '', email: '' };
+    case 'guestbook':
+      return { title: '', body: '' };
+    case 'meal_planner':
+      return { title: '', body: '' };
+    case 'medication':
+      return { title: '', body: '' };
+    case 'energy_monitor':
+      return { title: '', body: '' };
+    case 'key_location':
+      return { title: '', body: '' };
+    case 'cleaning_schedule':
+      return { title: '', body: '' };
+    case 'shopping_list':
+      return { title: '', body: '', items: [] };
+    case 'checklist':
+      return { title: '', body: '', items: [] };
     default:
       return { title: '', body: '' };
   }
