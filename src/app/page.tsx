@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, Suspense, useRef } from 'react';
 import { useSession, SessionProvider } from 'next-auth/react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { LandingPage } from '@/components/landing/hero-section';
 import { RoleSelector } from '@/components/role-selector';
 import { AuthForm } from '@/components/auth/login-form';
@@ -45,16 +45,17 @@ type AppView = 'landing' | 'auth' | 'select' | 'superadmin' | 'client';
 function AppContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const isActivateFlow = searchParams.get('action') === 'activate';
   const [view, setView] = useState<AppView>(isActivateFlow ? 'auth' : 'landing');
   const [adminPage, setAdminPage] = useState<SuperAdminPage>('overview');
   const [clientPage, setClientPage] = useState<ClientPage>('module-preview');
   const initialRegister = isActivateFlow;
+  const hasCheckedPending = useRef(false);
 
   // Redirect to activate page after auth if coming from QR scan
   useEffect(() => {
-    if (session && sessionStorage.getItem('pendingActivationCode')) {
+    if (!hasCheckedPending.current && session && sessionStorage.getItem('pendingActivationCode')) {
+      hasCheckedPending.current = true;
       const code = sessionStorage.getItem('pendingActivationCode');
       sessionStorage.removeItem('pendingActivationCode');
       window.location.href = `/activate/${code}`;
@@ -170,10 +171,20 @@ function AppContent() {
   );
 }
 
+function AuthLoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e]">
+      <div className="h-8 w-8 border-2 border-[#2563EB]/30 border-t-[#2563EB] rounded-full animate-spin" />
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <SessionProvider>
-      <AppContent />
+      <Suspense fallback={<AuthLoadingFallback />}>
+        <AppContent />
+      </Suspense>
     </SessionProvider>
   );
 }

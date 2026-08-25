@@ -2,7 +2,6 @@
 
 import { use, useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import {
   QrCode, CheckCircle2, XCircle, AlertCircle, Loader2,
-  ArrowRight, Link as LinkIcon, Zap, Sparkles,
+  ArrowRight, Link as LinkIcon, Zap, Sparkles, UserPlus, LogIn,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -23,7 +22,6 @@ const POPULAR_MODULES = ['wifi', 'guestbook', 'doorbell', 'emergency', 'note', '
 export function ActivatePageContent({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
   const { data: session, status: authStatus } = useSession();
-  const router = useRouter();
   const [codeStatus, setCodeStatus] = useState<CodeStatus>('loading');
   const [physicalQrId, setPhysicalQrId] = useState('');
 
@@ -47,13 +45,27 @@ export function ActivatePageContent({ params }: { params: Promise<{ code: string
 
   useEffect(() => { checkCode(); }, [checkCode]);
 
-  // Redirect unauthenticated users to signup
+  // After signup/login, redirect happens via sessionStorage in page.tsx
+  // This useEffect is a safety net
   useEffect(() => {
-    if (authStatus === 'unauthenticated' && codeStatus === 'inactive') {
-      sessionStorage.setItem('pendingActivationCode', code);
-      router.replace('/?action=activate');
+    if (session && sessionStorage.getItem('pendingActivationCode')) {
+      const pendingCode = sessionStorage.getItem('pendingActivationCode');
+      if (pendingCode === code) {
+        sessionStorage.removeItem('pendingActivationCode');
+        // Don't redirect, just let the activation form show
+      }
     }
-  }, [authStatus, codeStatus, code, router]);
+  }, [session, code]);
+
+  const handleGoToSignup = () => {
+    sessionStorage.setItem('pendingActivationCode', code);
+    window.location.href = '/?action=activate';
+  };
+
+  const handleGoToLogin = () => {
+    sessionStorage.setItem('pendingActivationCode', code);
+    window.location.href = '/?action=activate';
+  };
 
   const handleActivate = async () => {
     if (!physicalQrId || !moduleType || !qrName) {
@@ -65,7 +77,7 @@ export function ActivatePageContent({ params }: { params: Promise<{ code: string
       const res = await fetch('/api/client/activate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, moduleType, roomId: '', name: qrName, homeId: '' }),
+        body: JSON.stringify({ code, moduleType, name: qrName }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur');
@@ -154,6 +166,55 @@ export function ActivatePageContent({ params }: { params: Promise<{ code: string
             <p className="text-sm text-muted-foreground mb-1">Code : <span className="font-mono font-semibold">{code}</span></p>
             <p className="text-sm text-muted-foreground mb-6">Ce QR code est deja configure.</p>
             <Link href="/"><Button variant="outline" className="w-full gap-2"><LinkIcon className="h-4 w-4" />Aller au dashboard</Button></Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Not logged in + inactive = show signup/login buttons
+  if (!session && codeStatus === 'inactive') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-emerald-50 to-white p-4">
+        <Card className="w-full max-w-md border-2 border-emerald-200">
+          <CardContent className="p-8 space-y-6">
+            <div className="text-center">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500 shadow-lg shadow-emerald-500/25">
+                <QrCode className="h-7 w-7 text-white" />
+              </div>
+              <h1 className="text-xl font-bold">QR code pret a activer</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Code : <span className="font-mono font-semibold">{code}</span>
+              </p>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+              <p className="text-sm text-amber-800">
+                Connectez-vous ou creez un compte pour activer ce QR code.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                onClick={handleGoToSignup}
+                className="w-full h-12 text-base font-bold gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-600/25"
+              >
+                <UserPlus className="h-5 w-5" />
+                Creer un compte et activer
+              </Button>
+              <Button
+                onClick={handleGoToLogin}
+                variant="outline"
+                className="w-full h-12 text-base gap-2"
+              >
+                <LogIn className="h-5 w-5" />
+                Se connecter
+              </Button>
+            </div>
+
+            <p className="text-center text-xs text-muted-foreground">
+              QR Domotik &middot; qrdomotik.roomscan.pro
+            </p>
           </CardContent>
         </Card>
       </div>

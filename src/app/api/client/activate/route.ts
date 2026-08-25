@@ -1,77 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import crypto from 'crypto';
-
-async function ensureDemoUser() {
-  let user = await db.user.findFirst({
-    where: { email: 'demo@qrdomotik.com' },
-  });
-
-  if (!user) {
-    user = await db.user.create({
-      data: {
-        email: 'demo@qrdomotik.com',
-        fullName: 'Utilisateur Démo',
-        role: 'user',
-      },
-    });
-
-    const home = await db.home.create({
-      data: {
-        ownerId: user.id,
-        name: 'Ma Maison',
-        address: 'Dakar, Sénégal',
-        isActive: true,
-      },
-    });
-
-    await db.homeMember.create({
-      data: {
-        homeId: home.id,
-        userId: user.id,
-        role: 'owner',
-      },
-    });
-  }
-
-  // Find the user's first home membership
-  const member = await db.homeMember.findFirst({
-    where: { userId: user.id },
-    include: { home: true },
-  });
-
-  return { user, home: member?.home };
-}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { code, moduleType, roomId, name, homeId, userId } = body as {
+    const { code, moduleType, name, homeId, roomId } = body as {
       code: string;
       moduleType: string;
-      roomId: string;
-      name: string;
-      homeId: string;
-      userId?: string;
+      name?: string;
+      homeId?: string;
+      roomId?: string;
     };
 
-    if (!code || !moduleType || !roomId || !name || !homeId) {
+    if (!code || !moduleType) {
       return NextResponse.json(
-        { error: 'Champs requis: code, moduleType, roomId, name, homeId' },
+        { error: 'Champs requis: code, moduleType' },
         { status: 400 }
       );
     }
 
-    // Resolve user — use provided userId or fall back to demo
-    let user;
-    if (userId) {
-      user = await db.user.findUnique({ where: { id: userId } });
-      if (!user) {
-        return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
+    // Resolve authenticated user
+    const session = await getServerSession(authOptions);
+    let userId: string | undefined;
+    let resolvedHomeId: string | undefined = homeId;
+    let resolvedRoomId: string | undefined = roomId;
+
+    if (session?.user?.id) {
+      userId = session.user.id;
+
+      // Auto-resolve home if not provided
+      if (!resolvedHomeId) {
+        const membership = await db.homeMember.findFirst({
+          where: { userId },
+          include: { home: true },
+        });
+        if (membership?.home) {
+          resolvedHomeId = membership.home.id;
+        } else {
+          // Create a default home if none exists
+          const home = await db.home.create({
+            data: {
+              ownerId: userId,
+              name: 'Ma Maison',
+              address: '',
+              isActive: true,
+            },
+          });
+          await db.homeMember.create({
+            data: { homeId: home.id, userId, role: 'owner' },
+          });
+          resolvedHomeId = home.id;
+        }
       }
-    } else {
-      const demo = await ensureDemoUser();
-      user = demo.user;
+
+      // Auto-resolve room if not provided (use first room of the home)
+      if (!resolvedRoomId && resolvedHomeId) {
+        const room = await db.room.findFirst({
+          where: { homeId: resolvedHomeId },
+        });
+        if (room) {
+          resolvedRoomId = room.id;
+        }
+      }
+    }
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Vous devez etre connecte pour activer un QR code' },
+        { status: 401 }
+      );
+    }
+
+    if (!resolvedHomeId) {
+      return NextResponse.json(
+        { error: 'Aucune maison trouvee. Creez une maison dans votre dashboard.' },
+        { status: 400 }
+      );
     }
 
     const publicSlug = crypto.randomUUID().slice(0, 8);
@@ -87,26 +94,27 @@ export async function POST(request: NextRequest) {
       }
 
       if (physicalQr.status !== 'inactive') {
-        throw new Error(`Ce code QR est déjà ${physicalQr.status}`);
+        throw new Error(`Ce code QR est deja ${physicalQr.status}`);
       }
 
       // 2. Create QrCode record
       const qrCode = await tx.qrCode.create({
         data: {
-          homeId,
-          roomId,
-          name,
+          homeId: resolvedHomeId,
+          roomId: resolvedRoomId || null,
+          name: name || `QR ${code}`,
           type: moduleType,
           publicSlug,
           isActive: true,
         },
       });
 
-      // 3. Create QrContent with empty JSON
+      // 3. Create QrContent with default content based on module type
+      const defaultContent = getDefaultContent(moduleType);
       await tx.qrContent.create({
         data: {
           qrCodeId: qrCode.id,
-          contentJson: '{}',
+          contentJson: JSON.stringify(defaultContent),
         },
       });
 
@@ -115,7 +123,7 @@ export async function POST(request: NextRequest) {
         where: { id: physicalQr.id },
         data: {
           status: 'active',
-          activatedByUserId: user.id,
+          activatedByUserId: userId,
           activatedAt: new Date(),
           dynamicQrCodeId: qrCode.id,
         },
@@ -125,7 +133,7 @@ export async function POST(request: NextRequest) {
       await tx.activationLog.create({
         data: {
           physicalQrCodeId: physicalQr.id,
-          userId: user.id,
+          userId,
           action: 'activated',
         },
       });
@@ -133,12 +141,12 @@ export async function POST(request: NextRequest) {
       // 6. Create ActivityLog for the home
       await tx.activityLog.create({
         data: {
-          homeId,
+          homeId: resolvedHomeId,
           qrCodeId: qrCode.id,
-          userId: user.id,
+          userId,
           actionType: 'qr_activated',
           detailsJson: JSON.stringify({
-            qrCodeName: name,
+            qrCodeName: name || `QR ${code}`,
             moduleType,
             activationCode: code,
           }),
@@ -153,5 +161,22 @@ export async function POST(request: NextRequest) {
     console.error('[activate] Error:', error);
     const message = error instanceof Error ? error.message : 'Erreur interne du serveur';
     return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+function getDefaultContent(moduleType: string): Record<string, unknown> {
+  switch (moduleType) {
+    case 'wifi':
+      return { ssid: '', password: '', security: 'WPA', hidden: false };
+    case 'doorbell':
+      return { mode: 'absent', instructions: [], allowMessages: true, allowDoorbell: true, presentMessage: '', absentMessage: '' };
+    case 'emergency':
+      return { contacts: [] };
+    case 'note':
+      return { title: '', body: '' };
+    case 'contact':
+      return { name: '', phone: '', email: '' };
+    default:
+      return { title: '', body: '' };
   }
 }

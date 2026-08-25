@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { Suspense, use } from 'react';
 import { WifiDisplay, type WifiContent } from '@/components/modules/wifi/WifiDisplay';
 import { DoorbellDisplay, type DoorbellContent } from '@/components/modules/doorbell/DoorbellDisplay';
 import { InfoDisplay, type InfoContent } from '@/components/modules/info/InfoDisplay';
@@ -20,7 +20,7 @@ const DEMO_MODULES: Record<string, {
   component: React.ReactNode;
 }> = {
   wifi: {
-    label: 'Wi-Fi Invités',
+    label: 'Wi-Fi Invites',
     icon: <Wifi className="h-8 w-8" />,
     color: '#2563EB',
     component: (
@@ -31,7 +31,7 @@ const DEMO_MODULES: Record<string, {
           security: 'WPA',
           hidden: false,
         } satisfies WifiContent}
-        qrName="QR Wi-Fi Entrée"
+        qrName="QR Wi-Fi Entree"
       />
     ),
   },
@@ -44,16 +44,16 @@ const DEMO_MODULES: Record<string, {
         content={{
           mode: 'present',
           instructions: [
-            'Chez le gardien, au 2ème étage',
-            'Dans la boîte à colis à gauche de la porte',
-            'Déposer au bureau de poste si absent > 2h',
+            'Chez le gardien, au 2eme etage',
+            'Dans la boite a colis a gauche de la porte',
+            'Deposer au bureau de poste si absent > 2h',
           ],
           allowMessages: true,
           allowDoorbell: true,
-          presentMessage: 'Je suis là, merci de sonner !',
+          presentMessage: 'Je suis la, merci de sonner !',
           absentMessage: 'Je suis absent pour le moment. Suivez les consignes ci-dessous.',
         } satisfies DoorbellContent}
-        qrName="QR Portier Entrée"
+        qrName="QR Portier Entree"
       />
     ),
   },
@@ -64,31 +64,31 @@ const DEMO_MODULES: Record<string, {
     component: (
       <InfoDisplay
         content={{
-          title: '🛒 Liste de courses',
-          body: `# Liste de courses partagée
+          title: 'Liste de courses partagee',
+          body: `# Liste de courses partagee
 
-Cochez les articles achetés en les scannant.
+Cochez les articles achetes en les scannant.
 
-## Fruits & Légumes
+## Fruits & Legumes
 - [ ] Tomates (1 kg)
 - [ ] Avocats (x4)
 - [ ] Bananes (1 botte)
 - [ ] Salade verte
 
 ## Produits laitiers
-- [ ] Lait demi-écrémé (1L)
+- [ ] Lait demi-ecreme (1L)
 - [x] Yaourts nature (x8)
-- [ ] Fromage râpé (200g)
+- [ ] Fromage rape (200g)
 
-## Épicerie
+## Epicerie
 - [x] Pain complet
-- [ ] Pâtes penne (500g)
+- [ ] Pates penne (500g)
 - [ ] Sauce tomate (2 bocaux)
 - [ ] Huile d'olive
 
 ---
 
-*Dernière mise à jour : aujourd'hui à 14h30*`,
+*Derniere mise a jour : aujourd'hui a 14h30*`,
         } satisfies InfoContent}
         qrName="QR Liste de courses"
       />
@@ -108,20 +108,20 @@ Merci de votre visite ! Voici les informations utiles.
 
 ## Wi-Fi
 - **SSID** : MaisonDesDupont_5G
-- **Mot de passe** : Scannez le QR code dans l'entrée
+- **Mot de passe** : Scannez le QR code dans l'entree
 
 ## Consignes
 > Merci de retirer vos chaussures
-> Pas de bruit après 22h
+> Pas de bruit apres 22h
 
-## Équipements
+## Equipements
 1. **Cuisine** : Ouverte, aidez-vous !
 2. **Salle de bain** : Serviettes dans le placard
-3. **Jardin** : Accès libre
+3. **Jardin** : Acces libre
 
 ---
 
-*Pour toute question, n'hésitez pas à nous contacter.*`,
+*Pour toute question, n'hesitez pas a nous contacter.*`,
         } satisfies InfoContent}
         qrName="QR Guide Maison"
       />
@@ -134,30 +134,30 @@ Merci de votre visite ! Voici les informations utiles.
     component: (
       <InfoDisplay
         content={{
-          title: '🚨 Contacts d\'urgence',
-          body: `# Numéros d'urgence
+          title: 'Contacts d\'urgence',
+          body: `# Numeros d'urgence
 
-En cas d'urgence, contactez les services appropriés.
+En cas d'urgence, contactez les services approprges.
 
 ## Services d'urgence
 - **SAMU** : 15
 - **Pompiers** : 18
 - **Police** : 17
-- **Urgences européennes** : 112
+- **Urgences europeennes** : 112
 
 ## Contacts locaux
-1. **Médecin** : Dr. Martin — 01 23 45 67 89
+1. **Medecin** : Dr. Martin -- 01 23 45 67 89
 2. **Pharmacie de garde** : 01 23 45 67 90
-3. **Plombier** : M. Durand — 06 12 34 56 78
-4. **Électricien** : M. Bernard — 06 98 76 54 32
+3. **Plombier** : M. Durand -- 06 12 34 56 78
+4. **Electricien** : M. Bernard -- 06 98 76 54 32
 
-## Propriétaire
+## Proprietaire
 - **Nom** : M. et Mme Dupont
-- **Téléphone** : 06 11 22 33 44
+- **Telephone** : 06 11 22 33 44
 
 ---
 
-> En cas de fuite d'eau, coupez l'arrivée principale sous l'évier de la cuisine.`,
+> En cas de fuite d'eau, coupez l'arrivee principale sous l'evier de la cuisine.`,
         } satisfies InfoContent}
         qrName="QR Urgence"
       />
@@ -178,12 +178,12 @@ function UnknownModule({ id }: { id: string }) {
         </div>
         <h1 className="text-2xl font-bold mb-2">Module introuvable</h1>
         <p className="text-muted-foreground mb-6">
-          Le module de démo &quot;{id}&quot; n&apos;existe pas.
+          Le module de demo &quot;{id}&quot; n&apos;existe pas.
         </p>
         <Link href="/">
           <Button variant="outline" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
-            Retour à l&apos;accueil
+            Retour a l&apos;accueil
           </Button>
         </Link>
       </div>
@@ -192,14 +192,30 @@ function UnknownModule({ id }: { id: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Page                                                               */
+/*  Inner content (uses use() for params)                              */
 /* ------------------------------------------------------------------ */
 
-export default function DemoPage({ params }: { params: Promise<{ id: string }> }) {
+function DemoPageContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const demo = DEMO_MODULES[id];
 
   if (!demo) return <UnknownModule id={id} />;
 
-  return demo.component;
+  return <>{demo.component}</>;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page                                                               */
+/* ------------------------------------------------------------------ */
+
+export default function DemoPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+        <div className="h-8 w-8 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+      </div>
+    }>
+      <DemoPageContent params={params} />
+    </Suspense>
+  );
 }
