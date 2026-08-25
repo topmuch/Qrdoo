@@ -15,11 +15,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QR Domotik - Superadmin Dashboard",
-  description: "Plateforme SaaS de QR codes domotiques pour maisons intelligentes. Générez et gérez vos lots de QR codes physiques.",
-  keywords: ["QR Domotik", "QR codes", "domotique", "maison intelligente", "SaaS"],
+  title: "QR Domotik - QR codes intelligents pour votre maison",
+  description: "Plateforme SaaS de QR codes domotiques pour maisons intelligentes. Gérez vos modules, corvées et notifications.",
+  keywords: ["QR Domotik", "QR codes", "domotique", "maison intelligente", "SaaS", "PWA"],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "QR Domotik",
+  },
   icons: {
-    icon: "/logo.svg",
+    icon: "/icon-512.png",
+    apple: "/icon-512.png",
   },
 };
 

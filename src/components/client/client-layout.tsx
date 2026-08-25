@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import {
@@ -21,6 +21,7 @@ import {
   Bell,
   Store,
   Briefcase,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,6 +34,7 @@ export type ClientPage =
   | 'client-homes'
   | 'client-rooms'
   | 'client-activity'
+  | 'client-chores'
   | 'client-settings'
   | 'activation-public'
   | 'modules'
@@ -48,16 +50,17 @@ interface ClientLayoutProps {
   children: React.ReactNode;
 }
 
-const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode }[] = [
+const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
   { key: 'client-home', label: 'Mon Dashboard', icon: <Home className="h-5 w-5" /> },
   { key: 'client-activate', label: 'Activer QR codes', icon: <Plus className="h-5 w-5" /> },
   { key: 'client-homes', label: 'Mes Maisons', icon: <Home className="h-5 w-5" /> },
   { key: 'client-rooms', label: 'Mes Pièces', icon: <DoorOpen className="h-5 w-5" /> },
   { key: 'client-activity', label: "Journal d'activité", icon: <Activity className="h-5 w-5" /> },
+  { key: 'client-chores', label: 'Corvées & Récompenses', icon: <Sparkles className="h-5 w-5" />, badge: 'V2' },
   { key: 'client-notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" /> },
 ];
 
-const MODULE_ITEMS_V1: { key: ClientPage; label: string; icon: React.ReactNode }[] = [
+const MODULE_ITEMS_V1: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
   { key: 'module-config', label: 'Configurer un module', icon: <Settings2 className="h-5 w-5" /> },
   { key: 'module-preview', label: 'Aperçu des modules', icon: <Eye className="h-5 w-5" /> },
   { key: 'modules', label: 'Catalogue Modules', icon: <Layers className="h-5 w-5" /> },
@@ -71,6 +74,13 @@ const MODULE_ITEMS_V3: { key: ClientPage; label: string; icon: React.ReactNode; 
 export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogout, children }: ClientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const handleLogout = () => { signOut({ redirect: false }); onLogout(); };
+
+  // Register service worker for PWA
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  }, []);
 
   const allItems = [
     ...DASHBOARD_ITEMS,
@@ -261,7 +271,7 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
 
         <footer className="border-t bg-card px-4 py-3 lg:px-8">
           <p className="text-center text-xs text-muted-foreground">
-            QR Domotik v1.0.0 &middot; Espace Client
+            QR Domotik v2.0.0 &middot; Espace Client
           </p>
         </footer>
       </div>

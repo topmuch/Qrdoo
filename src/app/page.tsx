@@ -28,6 +28,8 @@ import { ActivityLogViewer } from '@/components/client/activity-log-viewer';
 import { ActivationPage } from '@/components/client/activation-page';
 import { ModuleConfigPage } from '@/components/client/module-config';
 import { ModulePreviewPage } from '@/components/client/module-preview';
+import { ChoresManager } from '@/components/client/chores-manager';
+import { NotificationCenter } from '@/components/client/notifications-center';
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -150,7 +152,8 @@ function AppContent() {
       case 'client-homes': return <HomesManager />;
       case 'client-rooms': return <RoomsManager />;
       case 'client-activity': return <ActivityLogViewer />;
-      case 'client-notifications': return <PlaceholderPage title="Notifications" />;
+      case 'client-chores': return <ChoresManager />;
+      case 'client-notifications': return <NotificationCenter />;
       case 'activation-public': return <ActivationPage />;
       case 'module-config': return <ModuleConfigPage />;
       case 'module-preview': return <ModulePreviewPage />;

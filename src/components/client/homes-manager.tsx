@@ -69,18 +69,26 @@ export function HomesManager() {
     finally { setCreating(false); }
   };
 
-  const fetchMembers = (homeId: string) => {
-    // For demo, we'll show the owner
-    setMembers([{ id: 'demo', role: 'owner', nickname: null, points: 0, user: { fullName: 'Utilisateur Démo', email: 'demo@qrdomotik.com' } }]);
+  const [membersLoading, setMembersLoading] = useState(false);
+
+  const fetchMembers = async (homeId: string) => {
+    setMembersLoading(true);
+    try {
+      const res = await fetch(`/api/client/homes/${homeId}/members`);
+      const data = await res.json();
+      setMembers(data.members || []);
+    } catch {
+      setMembers([]);
+    } finally { setMembersLoading(false); }
   };
 
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !selectedHome) return;
     setInviting(true);
     try {
-      const res = await fetch('/api/client/invite', {
+      const res = await fetch(`/api/client/homes/${selectedHome.id}/members`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ homeId: selectedHome.id, email: inviteEmail, role: inviteRole }),
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -137,7 +145,7 @@ export function HomesManager() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10"><Home className="h-5 w-5 text-emerald-600" /></div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedHome(home); fetchMembers(home.id); }}><Edit className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setSelectedHome(home); fetchMembers(home.id); }}><Users className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteHome(home)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </div>
