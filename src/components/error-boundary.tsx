@@ -23,7 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error('[ErrorBoundary] Caught:', error, info.componentStack);
+    console.error('[ErrorBoundary] Caught:', error.message, error.stack, info.componentStack);
   }
 
   handleReset = () => {
@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </svg>
             </div>
             <p className="text-lg font-semibold">Une erreur est survenue</p>
-            <p className="mt-2 text-sm text-muted-foreground">Veuillez réessayer ou recharger la page.</p>
+            <p className="mt-2 text-sm text-muted-foreground">{this.state.error?.message || 'Veuillez réessayer ou recharger la page.'}</p>
             <div className="mt-4 flex items-center justify-center gap-3">
               <button
                 onClick={this.handleReset}

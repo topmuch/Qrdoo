@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { sendPushToHome } from '@/lib/push-sender';
 
 async function ensureDemoUser() {
   let user = await db.user.findFirst({
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     const demoUser = await ensureDemoUser();
+    const homeId = qrCode.homeId;
 
     // Log the action
     const actionType = action === 'ring' ? 'doorbell_ring' : 'doorbell_message';
@@ -76,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     await db.activityLog.create({
       data: {
-        homeId: qrCode.homeId,
+        homeId,
         qrCodeId: qrCode.id,
         userId: demoUser.id,
         actionType,
@@ -84,9 +86,37 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // TODO: Send push notification to home owner
-    // This would integrate with the PushSubscription model
-    // when PWA is set up in Étape 6
+    // Send push notification to home owners/members (fire-and-forget)
+    if (homeId) {
+      const pushPayload = action === 'ring'
+        ? {
+            title: '🔔 Quelqu\'un sonne !',
+            body: `Un visiteur a sonné à "${qrCode.name || 'votre porte'}"`,
+            tag: `doorbell-${qrCodeId}`,
+            data: { type: 'doorbell', qrCodeId, homeId },
+            actions: [
+              { action: 'view', title: 'Voir' },
+            ],
+          }
+        : {
+            title: '💬 Nouveau message',
+            body: text ? `${text.slice(0, 80)}${text.length > 80 ? '...' : ''}` : 'Un visiteur vous a laissé un message',
+            tag: `doorbell-msg-${qrCodeId}`,
+            data: { type: 'doorbell_message', qrCodeId, homeId },
+            actions: [
+              { action: 'view', title: 'Voir' },
+            ],
+          };
+
+      // Fire and forget — don't block the response
+      sendPushToHome(homeId, pushPayload).then((result) => {
+        if (result.sent > 0) {
+          console.log(`[doorbell] Push sent: ${result.sent} to home ${homeId}`);
+        }
+      }).catch((err) => {
+        console.error('[doorbell] Push error:', err);
+      });
+    }
 
     return NextResponse.json({
       success: true,

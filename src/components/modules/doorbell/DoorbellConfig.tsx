@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Bell, Plus, X, Home, MessageSquare, BellRing, Eye } from 'lucide-react';
+import { Loader2, Save, Bell, Plus, X, Home, MessageSquare, BellRing, Eye, BellOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 
 export interface DoorbellContent {
   mode: 'present' | 'absent';
@@ -272,6 +273,9 @@ export function DoorbellConfig({ qrCodeId, initialContent, onSave }: DoorbellCon
         </CardContent>
       </Card>
 
+      {/* Push Notification Card */}
+      <NotificationCard />
+
       <div className="flex justify-end">
         <Button onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -279,5 +283,53 @@ export function DoorbellConfig({ qrCodeId, initialContent, onSave }: DoorbellCon
         </Button>
       </div>
     </div>
+  );
+}
+
+/** Standalone notification card for the doorbell config */
+function NotificationCard() {
+  const { supported, permission, subscribed, loading, toggle } = usePushNotifications();
+
+  if (!supported) return null;
+
+  return (
+    <Card className="border-violet-200 dark:border-violet-900/50">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          {subscribed ? <Bell className="h-4 w-4 text-violet-600" /> : <BellOff className="h-4 w-4 text-muted-foreground" />}
+          Notifications push
+        </CardTitle>
+        <CardDescription>
+          Recevez une notification sur votre appareil quand quelqu&apos;un sonne
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`h-3 w-3 rounded-full ${subscribed ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+            <div>
+              <p className="text-sm font-medium">
+                {subscribed ? 'Notifications activées' : 'Notifications désactivées'}
+              </p>
+              {!subscribed && permission === 'denied' && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Les notifications sont bloquées. Autorisez-les dans les paramètres de votre navigateur.
+                </p>
+              )}
+            </div>
+          </div>
+          <Button
+            variant={subscribed ? 'outline' : 'default'}
+            size="sm"
+            onClick={toggle}
+            disabled={loading || (!subscribed && permission === 'denied')}
+            className={subscribed ? '' : 'bg-violet-600 hover:bg-violet-700'}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            {subscribed ? 'Désactiver' : 'Activer'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
