@@ -1,0 +1,967 @@
+     5→import {
+     6→  QrCode,
+     7→  Printer,
+     8→  Smartphone,
+     9→  Wifi,
+    10→  DoorOpen,
+    11→  ShoppingBag,
+    12→  BookOpen,
+    13→  ClipboardList,
+    14→  Shield,
+    15→  Zap,
+    16→  Layers,
+    17→  RefreshCw,
+    18→  Lock,
+    19→  Headphones,
+    20→  Star,
+    21→  ArrowRight,
+    22→  Check,
+    23→  Menu,
+    24→  X,
+    25→} from 'lucide-react';
+    26→import {
+    27→  Accordion,
+    28→  AccordionContent,
+    29→  AccordionItem,
+    30→  AccordionTrigger,
+    31→} from '@/components/ui/accordion';
+    32→import { QrDemoMini } from './qr-demo';
+    33→import { QrDemo } from './qr-demo';
+    34→
+    35→interface LandingPageProps {
+    36→  onGoToDemo: () => void;
+    37→  onGoToDashboard: () => void;
+    38→}
+    39→
+    40→/* ─── Reusable fade-in-up wrapper ─── */
+    41→function FadeIn({
+    42→  children,
+    43→  delay = 0,
+    44→  className = '',
+    45→}: {
+    46→  children: React.ReactNode;
+    47→  delay?: number;
+    48→  className?: string;
+    49→}) {
+    50→  return (
+    51→    <motion.div
+    52→      initial={{ opacity: 0, y: 30 }}
+    53→      whileInView={{ opacity: 1, y: 0 }}
+    54→      viewport={{ once: true, margin: '-50px' }}
+    55→      transition={{ duration: 0.6, delay }}
+    56→      className={className}
+    57→    >
+    58→      {children}
+    59→    </motion.div>
+    60→  );
+    61→}
+    62→
+    63→/* ─── Sticky Navbar ─── */
+    64→function Navbar({ onGoToDashboard }: { onGoToDashboard: () => void }) {
+    65→  const [mobileOpen, setMobileOpen] = useState(false);
+    66→  const [scrolled, setScrolled] = useState(false);
+    67→
+    68→  useEffect(() => {
+    69→    const onScroll = () => setScrolled(window.scrollY > 20);
+    70→    window.addEventListener('scroll', onScroll, { passive: true });
+    71→    return () => window.removeEventListener('scroll', onScroll);
+    72→  }, []);
+    73→
+    74→  const links = [
+    75→    { label: 'Accueil', href: '#hero' },
+    76→    { label: 'A propos', href: '#avantages' },
+    77→    { label: 'Tarifs', href: '#pricing' },
+    78→    { label: 'Contactez nous', href: '#cta-final' },
+    79→  ];
+    80→
+    81→  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    82→    e.preventDefault();
+    83→    setMobileOpen(false);
+    84→    const target = document.querySelector(href);
+    85→    if (target) {
+    86→      target.scrollIntoView({ behavior: 'smooth' });
+    87→    }
+    88→  };
+    89→
+    90→  return (
+    91→    <nav
+    92→      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+    93→        scrolled
+    94→          ? 'bg-[#0a0f1e]/95 backdrop-blur-md border-b border-white/10 shadow-lg shadow-black/20'
+    95→          : 'bg-[#0a0f1e]/80 backdrop-blur-md border-b border-white/10'
+    96→      }`}
+    97→    >
+    98→      <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center justify-between h-16">
+    99→        {/* Logo */
+   100→        <a
+   101→          href="#hero"
+   102→          onClick={(e) => handleNavClick(e, '#hero')}
+   103→          className="flex items-center gap-2 group"
+   104→        >
+   105→          <QrCode className="w-6 h-6 text-[#2563EB] group-hover:scale-110 transition-transform" />
+   106→          <span className="font-bold text-lg tracking-tight">QR Domotik</span>
+   107→        </a>
+   108→
+   109→        {/* Desktop links */
+   110→        <div className="hidden md:flex items-center gap-8">
+   111→          {links.map((link) => (
+   112→            <a
+   113→              key={link.href}
+   114→              href={link.href}
+   115→              onClick={(e) => handleNavClick(e, link.href)}
+   116→              className="text-sm text-gray-300 hover:text-white transition-colors"
+   117→            >
+   118→              {link.label}
+   119→            </a>
+   120→          ))}
+   121→          <button
+   122→            onClick={onGoToDashboard}
+   123→            className="ml-2 px-5 py-2 rounded-lg bg-[#2563EB] text-white text-sm font-medium hover:bg-[#1d4ed8] transition-colors"
+   124→          >
+   125→            Se connecter
+   126→          </button>
+   127→        </div>
+   128→
+   129→        {/* Mobile hamburger */
+   130→        <button
+   131→          onClick={() => setMobileOpen(!mobileOpen)}
+   132→          className="md:hidden p-2 text-gray-300 hover:text-white transition-colors"
+   133→          aria-label="Menu"
+   134→        >
+   135→          {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+   136→        </button>
+   137→      </div>
+   138→
+   139→      {/* Mobile menu */
+   140→      <div
+   141→        className={`md:hidden overflow-hidden transition-all duration-300 ${
+   142→          mobileOpen ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'
+   143→        }`}
+   144→      >
+   145→        <div className="px-4 pb-4 space-y-1 bg-[#0a0f1e]/95 backdrop-blur-md border-t border-white/5">
+   146→          {links.map((link) => (
+   147→            <a
+   148→              key={link.href}
+   149→              href={link.href}
+   150→              onClick={(e) => handleNavClick(e, link.href)}
+   151→              className="block py-3 px-3 text-gray-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+   152→            >
+   153→              {link.label}
+   154→            </a>
+   155→          ))}
+   156→          <button
+   157→            onClick={() => {
+   158→              setMobileOpen(false);
+   159→              onGoToDashboard();
+   160→            }}
+   161→            className="w-full mt-2 px-5 py-3 rounded-lg bg-[#2563EB] text-white text-sm font-medium hover:bg-[#1d4ed8] transition-colors"
+   162→          >
+   163→            Se connecter
+   164→          </button>
+   165→        </div>
+   166→      </div>
+   167→    </nav>
+   168→  );
+   169→}
+   170→
+   171→/* ─── Section wrapper ─── */
+   172→function Section({
+   173→  children,
+   174→  className = '',
+   175→  id,
+   176→}: {
+   177→  children: React.ReactNode;
+   178→  className?: string;
+   179→  id?: string;
+   180→}) {
+   181→  const ref = useRef(null);
+   182→  const isInView = useInView(ref, { once: true, margin: '-50px' });
+   183→
+   184→  return (
+   185→    <motion.section
+   186→      id={id}
+   187→      ref={ref}
+   188→      initial={{ opacity: 0, y: 30 }}
+   189→      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+   190→      transition={{ duration: 0.6 }}
+   191→      className={`py-20 md:py-28 px-4 md:px-8 scroll-mt-16 ${className}`}
+   192→    >
+   193→      <div className="max-w-7xl mx-auto">{children}</div>
+   194→    </motion.section>
+   195→  );
+   196→}
+   197→
+   198→/* ─── Section Title ─── */
+   199→function SectionTitle({
+   200→  title,
+   201→  subtitle,
+   202→}: {
+   203→  title: string;
+   204→  subtitle?: string;
+   205→}) {
+   206→  return (
+   207→    <div className="text-center mb-16">
+   208→      <FadeIn>
+   209→        <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+   210→          {title}
+   211→        </h2>
+   212→      </FadeIn>
+   213→      {subtitle && (
+   214→        <FadeIn delay={0.1}>
+   215→          <p className="text-gray-400 text-lg md:text-xl">{subtitle}</p>
+   216→        </FadeIn>
+   217→      )}
+   218→    </div>
+   219→  );
+   220→}
+   221→
+   222→/* ═══════════════════════════════════════════════════════
+   223→   LANDING PAGE
+   224→   ═══════════════════════════════════════════════════════ */
+   225→export function LandingPage({ onGoToDemo, onGoToDashboard }: LandingPageProps) {
+   226→  const heroRef = useRef(null);
+   227→  const heroInView = useInView(heroRef, { once: true });
+   228→
+   229→  return (
+   230→    <div className="min-h-screen flex flex-col bg-[#0a0f1e] text-white">
+   231→      {/* ═══ 1. HERO SECTION ═══ */}
+   232→      <section
+   233→        ref={heroRef}
+   234→        className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-[#0a0f1e] via-[#111827] to-[#0d1526]"
+   235→      >
+   236→        {/* Animated background orbs */}
+   237→        <motion.div
+   238→          className="absolute top-20 left-10 w-72 h-72 bg-[#2563EB]/20 rounded-full blur-3xl pointer-events-none"
+   239→          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+   240→          transition={{ duration: 6, repeat: Infinity }}
+   241→        />
+   242→        <motion.div
+   243→          className="absolute bottom-20 right-10 w-96 h-96 bg-[#10B981]/15 rounded-full blur-3xl pointer-events-none"
+   244→          animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
+   245→          transition={{ duration: 8, repeat: Infinity, delay: 2 }}
+   246→        />
+   247→        <motion.div
+   248→          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-[#F59E0B]/10 rounded-full blur-3xl pointer-events-none"
+   249→          animate={{ scale: [1, 1.15, 1], opacity: [0.15, 0.3, 0.15] }}
+   250→          transition={{ duration: 7, repeat: Infinity, delay: 4 }}
+   251→        />
+   252→
+   253→        <div className="max-w-7xl mx-auto px-4 md:px-8 w-full">
+   254→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+   255→            {/* Left content */}
+   256→            <motion.div
+   257→              initial={{ opacity: 0, x: -40 }}
+   258→              animate={heroInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -40 }}
+   259→              transition={{ duration: 0.8 }}
+   260→            >
+   261→              {/* Badge */}
+   262→              <motion.span
+   263→                initial={{ opacity: 0, y: 20 }}
+   264→                animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+   265→                transition={{ duration: 0.6, delay: 0.2 }}
+   266→                className="inline-block bg-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm mb-8"
+   267→              >
+   268→                🚀 La nouvelle façon de gérer votre maison
+   269→              </motion.span>
+   270→
+   271→              {/* H1 */}
+   272→              <motion.h1
+   273→                initial={{ opacity: 0, y: 20 }}
+   274→                animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+   275→                transition={{ duration: 0.6, delay: 0.3 }}
+   276→                className="text-4xl sm:text-5xl md:text-6xl font-extrabold leading-tight mb-6"
+   277→              >
+   278→                Transformez votre maison en{' '}
+   279→                <span className="bg-gradient-to-r from-[#2563EB] via-[#10B981] to-[#2563EB] bg-clip-text text-transparent">
+   280→                  maison intelligente
+   281→                </span>
+   282→              </motion.h1>
+   283→
+   284→              {/* Subtitle */}
+   285→              <motion.p
+   286→                initial={{ opacity: 0, y: 20 }}
+   287→                animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+   288→                transition={{ duration: 0.6, delay: 0.4 }}
+   289→                className="text-lg md:text-xl text-gray-300 mb-8 max-w-xl"
+   290→              >
+   291→                Collez un QR code. Scannez-le. C'est tout. QR Domotik
+   292→                transforme n'importe quel objet en commande domotique.
+   293→              </motion.p>
+   294→
+   295→              {/* CTA Buttons */}
+   296→              <motion.div
+   297→                initial={{ opacity: 0, y: 20 }}
+   298→                animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+   299→                transition={{ duration: 0.6, delay: 0.5 }}
+   300→                className="flex flex-col sm:flex-row gap-4 mb-8"
+   301→              >
+   302→                <button
+   303→                  onClick={onGoToDashboard}
+   304→                  className="flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#2563EB]/90 text-white font-semibold px-8 py-4 rounded-xl transition-all shadow-lg shadow-[#2563EB]/25 hover:shadow-[#2563EB]/40"
+   305→                >
+   306→                  Commencer gratuitement
+   307→                  <ArrowRight className="w-5 h-5" />
+   308→                </button>
+   309→                <button
+   310→                  onClick={onGoToDemo}
+   311→                  className="flex items-center justify-center gap-2 backdrop-blur-xl bg-white/10 border border-white/20 text-white font-semibold px-8 py-4 rounded-xl transition-all hover:bg-white/20"
+   312→                >
+   313→                  Voir la démo
+   314→                </button>
+   315→              </motion.div>
+   316→
+   317→              {/* Social proof */}
+   318→              <motion.p
+   319→                initial={{ opacity: 0 }}
+   320→                animate={heroInView ? { opacity: 1 } : { opacity: 0 }}
+   321→                transition={{ duration: 0.6, delay: 0.7 }}
+   322→                className="text-gray-400 text-sm"
+   323→              >
+   324→                ✨ Rejoint par 2 500+ foyers français
+   325→              </motion.p>
+   326→            </motion.div>
+   327→
+   328→            {/* Right side - Phone mockup */}
+   329→            <motion.div
+   330→              initial={{ opacity: 0, x: 40 }}
+   331→              animate={heroInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 40 }}
+   332→              transition={{ duration: 0.8, delay: 0.3 }}
+   333→              className="flex justify-center lg:justify-end"
+   334→            >
+   335→              <div
+   336→                id="qr-hero-slot"
+   337→                className="w-[280px] h-[560px] md:w-[300px] md:h-[600px] rounded-[2.5rem] bg-gradient-to-b from-gray-800 to-gray-900 p-3 shadow-2xl shadow-[#2563EB]/20"
+   338→              >
+   339→                <div className="w-full h-full rounded-[2rem] bg-gray-950 overflow-hidden">
+   340→                  <QrDemoMini />
+   341→                </div>
+   342→              </div>
+   343→            </motion.div>
+   344→          </div>
+   345→        </div>
+   346→      </section>
+   347→
+   348→      {/* ═══ 2. COMMENT CA MARCHE ═══ */}
+   349→      <Section>
+   350→        <SectionTitle
+   351→          title="Comment ça marche ?"
+   352→          subtitle="3 étapes simples"
+   353→        />
+   354→        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+   355→          {[
+   356→            {
+   357→              icon: QrCode,
+   358→              number: '01',
+   359→              title: 'Créez',
+   360→              description:
+   361→                'Générez vos QR codes personnalisés en quelques clics depuis le dashboard.',
+   362→            },
+   363→            {
+   364→              icon: Printer,
+   365→              number: '02',
+   366→              title: 'Imprimez',
+   367→              description:
+   368→                'Imprimez et collez vos QR codes sur vos appareils, portes, meubles...',
+   369→            },
+   370→            {
+   371→              icon: Smartphone,
+   372→              number: '03',
+   373→              title: 'Scannez',
+   374→              description:
+   375→                'Scannez le QR code et accédez instantanément à l\'information ou l\'action.',
+   376→            },
+   377→          ].map((step, index) => (
+   378→            <FadeIn key={step.number} delay={index * 0.15}>
+   379→              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 text-center h-full">
+   380→                <p className="text-5xl font-bold text-[#2563EB]/20 mb-4">
+   381→                  {step.number}
+   382→                </p>
+   383→                <div className="w-14 h-14 rounded-2xl bg-[#2563EB]/10 flex items-center justify-center mx-auto mb-4">
+   384→                  <step.icon className="w-7 h-7 text-[#2563EB]" />
+   385→                </div>
+   386→                <h3 className="text-xl font-bold mb-3">{step.title}</h3>
+   387→                <p className="text-gray-400">{step.description}</p>
+   388→              </div>
+   389→            </FadeIn>
+   390→          ))}
+   391→        </div>
+   392→      </Section>
+   393→
+   394→      {/* ═══ 3. MODULES POPULAIRES ═══ */}
+   395→      <Section>
+   396→        <SectionTitle
+   397→          title="Des modules pour chaque besoin"
+   398→          subtitle="Plus de 50 modules disponibles"
+   399→        />
+   400→        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+   401→          {[
+   402→            {
+   403→              icon: Wifi,
+   404→              title: 'Wi-Fi Invités',
+   405→              description: 'Partagez votre Wi-Fi en un scan',
+   406→              color: '#2563EB',
+   407→            },
+   408→            {
+   409→              icon: DoorOpen,
+   410→              title: 'Portier Virtuel',
+   411→              description: 'Gérez les visiteurs à distance',
+   412→              color: '#10B981',
+   413→            },
+   414→            {
+   415→              icon: ShoppingBag,
+   416→              title: 'Liste de courses',
+   417→              description: 'Partagez et synchronisez vos achats',
+   418→              color: '#F59E0B',
+   419→            },
+   420→            {
+   421→              icon: BookOpen,
+   422→              title: 'Manuel Maison',
+   423→              description: 'Guide interactif pour vos invités',
+   424→              color: '#8B5CF6',
+   425→            },
+   426→            {
+   427→              icon: ClipboardList,
+   428→              title: 'Checklist',
+   429→              description: 'Listes de tâches partagées',
+   430→              color: '#EC4899',
+   431→            },
+   432→            {
+   433→              icon: Shield,
+   434→              title: 'Urgence',
+   435→              description: 'Accès rapide aux contacts d\'urgence',
+   436→              color: '#EF4444',
+   437→            },
+   438→          ].map((mod, index) => (
+   439→            <FadeIn key={mod.title} delay={index * 0.08}>
+   440→              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all hover:border-[#2563EB]/30 group cursor-pointer h-full">
+   441→                <div
+   442→                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
+   443→                  style={{ backgroundColor: `${mod.color}15` }}
+   444→                >
+   445→                  <mod.icon
+   446→                    className="w-6 h-6"
+   447→                    style={{ color: mod.color }}
+   448→                  />
+   449→                </div>
+   450→                <h3 className="font-semibold mb-1 group-hover:text-white transition-colors">
+   451→                  {mod.title}
+   452→                </h3>
+   453→                <p className="text-sm text-gray-400">{mod.description}</p>
+   454→              </div>
+   455→            </FadeIn>
+   456→          ))}
+   457→        </div>
+   458→      </Section>
+   459→
+   460→      {/* ═══ 4. DEMO EN DIRECT ═══ */}
+   461→      <Section>
+   462→        <SectionTitle
+   463→          title="Demo en direct"
+   464→          subtitle="Scannez ce QR code pour voir un module en action"
+   465→        />
+   466→        <FadeIn>
+   467→          <div className="flex flex-col lg:flex-row items-center justify-center gap-12">
+   468→            {/* QR Code */}
+   469→            <div className="relative">
+   470→              {/* Glow effect */}
+   471→              <div className="absolute inset-0 bg-[#2563EB]/20 rounded-3xl blur-2xl scale-110" />
+   472→              <div className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-10">
+   473→                <QrDemo size={220} showLabel showScanner />
+   474→              </div>
+   475→            </div>
+   476→
+   477→            {/* Description */}
+   478→            <div className="max-w-md text-center lg:text-left">
+   479→              <h3 className="text-2xl font-bold mb-4">
+   480→                Essayez-le maintenant
+   481→              </h3>
+   482→              <p className="text-gray-400 mb-6 leading-relaxed">
+   483→                Ce QR code est reel et fonctionnel. Scannez-le avec votre
+   484→                telephone pour voir comment fonctionne un module QR Domotik.
+   485→                Le contenu change automatiquement toutes les 5 secondes.
+   486→              </p>
+   487→              <div className="flex flex-col sm:flex-row gap-3">
+   488→                <div className="flex items-center gap-2 text-sm text-gray-300">
+   489→                  <div className="w-2 h-2 rounded-full bg-[#10B981]" />
+   490→                  QR dynamique
+   491→                </div>
+   492→                <div className="flex items-center gap-2 text-sm text-gray-300">
+   493→                  <div className="w-2 h-2 rounded-full bg-[#2563EB]" />
+   494→                  5 modules de demo
+   495→                </div>
+   496→                <div className="flex items-center gap-2 text-sm text-gray-300">
+   497→                  <div className="w-2 h-2 rounded-full bg-[#F59E0B]" />
+   498→                  Temps reel
+   499→                </div>
+   500→              </div>
+   501→            </div>
+   502→          </div>
+   503→        </FadeIn>
+   504→      </Section>
+   505→
+   506→      {/* ═══ 5. AVANTAGES (Bento Grid) ═══ */}
+   507→      <Section>
+   508→        <SectionTitle title="Pourquoi QR Domotik ?" />
+   509→        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+   510→          {/* Large: Installation instantanée */}
+   511→          <FadeIn delay={0} className="md:col-span-2">
+   512→            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 hover:border-[#2563EB]/30 transition-all h-full">
+   513→              <div className="flex items-start gap-4">
+   514→                <div className="w-12 h-12 rounded-xl bg-[#F59E0B]/10 flex items-center justify-center shrink-0">
+   515→                  <Zap className="w-6 h-6 text-[#F59E0B]" />
+   516→                </div>
+   517→                <div>
+   518→                  <h3 className="text-lg font-bold mb-2">
+   519→                    Installation instantanée
+   520→                  </h3>
+   521→                  <p className="text-gray-400">
+   522→                    Collez un QR code, c'est opérationnel. Aucune installation
+   523→                    technique, aucun câblage.
+   524→                  </p>
+   525→                </div>
+   526→              </div>
+   527→            </div>
+   528→          </FadeIn>
+   529→
+   530→          {/* Small: 50+ modules */}
+   531→          <FadeIn delay={0.1}>
+   532→            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 hover:border-[#2563EB]/30 transition-all h-full">
+   533→              <div className="flex items-start gap-4">
+   534→                <div className="w-12 h-12 rounded-xl bg-[#2563EB]/10 flex items-center justify-center shrink-0">
+   535→                  <Layers className="w-6 h-6 text-[#2563EB]" />
+   536→                </div>
+   537→                <div>
+   538→                  <p className="text-3xl font-bold text-[#2563EB] mb-1">50+</p>
+   539→                  <h3 className="font-bold mb-2">modules</h3>
+   540→                  <p className="text-sm text-gray-400">
+   541→                    De Wi-Fi à la domotique, trouvez le module parfait.
+   542→                  </p>
+   543→                </div>
+   544→              </div>
+   545→            </div>
+   546→          </FadeIn>
+   547→
+   548→          {/* Small: Zero app requise */}
+   549→          <FadeIn delay={0.15}>
+   550→            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 hover:border-[#2563EB]/30 transition-all h-full">
+   551→              <div className="flex items-start gap-4">
+   552→                <div className="w-12 h-12 rounded-xl bg-[#10B981]/10 flex items-center justify-center shrink-0">
+   553→                  <Smartphone className="w-6 h-6 text-[#10B981]" />
+   554→                </div>
+   555→                <div>
+   556→                  <h3 className="font-bold mb-2">Zero app requise</h3>
+   557→                  <p className="text-sm text-gray-400">
+   558→                    Vos invités scannent le QR, pas besoin de télécharger quoi
+   559→                    que ce soit.
+   560→                  </p>
+   561→                </div>
+   562→              </div>
+   563→            </div>
+   564→          </FadeIn>
+   565→
+   566→          {/* Small: Mises à jour */}
+   567→          <FadeIn delay={0.2}>
+   568→            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 hover:border-[#2563EB]/30 transition-all h-full">
+   569→              <div className="flex items-start gap-4">
+   570→                <div className="w-12 h-12 rounded-xl bg-[#8B5CF6]/10 flex items-center justify-center shrink-0">
+   571→                  <RefreshCw className="w-6 h-6 text-[#8B5CF6]" />
+   572→                </div>
+   573→                <div>
+   574→                  <h3 className="font-bold mb-2">Mises à jour</h3>
+   575→                  <p className="text-sm text-gray-400">
+   576→                    Modifiez le contenu de vos QR codes à tout moment depuis le
+   577→                    dashboard.
+   578→                  </p>
+   579→                </div>
+   580→              </div>
+   581→            </div>
+   582→          </FadeIn>
+   583→
+   584→          {/* Large: Sécurisé et privé */}
+   585→          <FadeIn delay={0.25} className="md:col-span-2">
+   586→            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 hover:border-[#2563EB]/30 transition-all h-full">
+   587→              <div className="flex items-start gap-4">
+   588→                <div className="w-12 h-12 rounded-xl bg-[#10B981]/10 flex items-center justify-center shrink-0">
+   589→                  <Lock className="w-6 h-6 text-[#10B981]" />
+   590→                </div>
+   591→                <div>
+   592→                  <h3 className="text-lg font-bold mb-2">
+   593→                    Sécurisé et privé
+   594→                  </h3>
+   595→                  <p className="text-gray-400">
+   596→                    Vos données sont chiffrées. Vous contrôlez qui voit quoi.
+   597→                    Conformité RGPD.
+   598→                  </p>
+   599→                </div>
+   600→              </div>
+   601→            </div>
+   602→          </FadeIn>
+   603→
+   604→          {/* Small: Support 24/7 */}
+   605→          <FadeIn delay={0.3}>
+   606→            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 hover:border-[#2563EB]/30 transition-all h-full">
+   607→              <div className="flex items-start gap-4">
+   608→                <div className="w-12 h-12 rounded-xl bg-[#EC4899]/10 flex items-center justify-center shrink-0">
+   609→                  <Headphones className="w-6 h-6 text-[#EC4899]" />
+   610→                </div>
+   611→                <div>
+   612→                  <h3 className="font-bold mb-2">Support 24/7</h3>
+   613→                  <p className="text-sm text-gray-400">
+   614→                    Notre équipe est là pour vous aider à tout moment.
+   615→                  </p>
+   616→                </div>
+   617→              </div>
+   618→            </div>
+   619→          </FadeIn>
+   620→        </div>
+   621→      </Section>
+   622→
+   623→      {/* ═══ 5. TÉMOIGNAGES ═══ */}
+   624→      <Section>
+   625→        <SectionTitle title="Ils nous font confiance" />
+   626→        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+   627→          {[
+   628→            {
+   629→              quote:
+   630→                'QR Domotik a transformé notre maison Airbnb. Nos invités adorent !',
+   631→              name: 'Marie D.',
+   632→              role: 'Hôtesse Airbnb',
+   633→              city: 'Paris',
+   634→              initials: 'MD',
+   635→              color: '#2563EB',
+   636→            },
+   637→            {
+   638→              quote:
+   639→                'Plus besoin de noter le mot de passe Wi-Fi sur un bout de papier.',
+   640→              name: 'Thomas R.',
+   641→              role: 'Papa de 3 enfants',
+   642→              city: 'Lyon',
+   643→              initials: 'TR',
+   644→              color: '#10B981',
+   645→            },
+   646→            {
+   647→              quote:
+   648→                'Le portier virtuel est génial. On sait toujours qui est passé.',
+   649→              name: 'Sophie M.',
+   650→              role: 'Propriétaire',
+   651→              city: 'Bordeaux',
+   652→              initials: 'SM',
+   653→              color: '#F59E0B',
+   654→            },
+   655→          ].map((t, index) => (
+   656→            <FadeIn key={t.name} delay={index * 0.15}>
+   657→              <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 h-full flex flex-col">
+   658→                {/* Stars */}
+   659→                <div className="flex gap-1 mb-4">
+   660→                  {Array.from({ length: 5 }).map((_, i) => (
+   661→                    <Star
+   662→                      key={i}
+   663→                      className="w-5 h-5 text-[#F59E0B] fill-[#F59E0B]"
+   664→                    />
+   665→                  ))}
+   666→                </div>
+   667→                <p className="text-gray-300 mb-6 flex-1 italic">
+   668→                  &ldquo;{t.quote}&rdquo;
+   669→                </p>
+   670→                <div className="flex items-center gap-3">
+   671→                  <div
+   672→                    className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+   673→                    style={{ backgroundColor: t.color }}
+   674→                  >
+   675→                    {t.initials}
+   676→                  </div>
+   677→                  <div>
+   678→                    <p className="font-semibold text-sm">{t.name}</p>
+   679→                    <p className="text-xs text-gray-400">
+   680→                      {t.role}, {t.city}
+   681→                    </p>
+   682→                  </div>
+   683→                </div>
+   684→              </div>
+   685→            </FadeIn>
+   686→          ))}
+   687→        </div>
+   688→      </Section>
+   689→
+   690→      {/* ═══ 6. PRICING ═══ */}
+   691→      <Section>
+   692→        <SectionTitle
+   693→          title="Simple et transparent"
+   694→          subtitle="Choisissez le plan qui vous convient"
+   695→        />
+   696→        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+   697→          {/* Gratuit */}
+   698→          <FadeIn delay={0}>
+   699→            <div className="bg-white/5 border border-white/10 rounded-2xl p-8 h-full flex flex-col">
+   700→              <h3 className="text-xl font-bold mb-2">Gratuit</h3>
+   701→              <div className="mb-6">
+   702→                <span className="text-5xl font-extrabold">0€</span>
+   703→                <span className="text-gray-400">/mois</span>
+   704→              </div>
+   705→              <ul className="space-y-3 mb-8 flex-1">
+   706→                {[
+   707→                  '5 QR codes',
+   708→                  '3 modules de base',
+   709→                  '1 maison',
+   710→                  'Support email',
+   711→                ].map((f) => (
+   712→                  <li key={f} className="flex items-center gap-3">
+   713→                    <Check className="w-5 h-5 text-[#10B981] shrink-0" />
+   714→                    <span className="text-gray-300">{f}</span>
+   715→                  </li>
+   716→                ))}
+   717→              </ul>
+   718→              <button
+   719→                onClick={onGoToDashboard}
+   720→                className="w-full py-3 rounded-xl border border-white/20 text-white font-semibold hover:bg-white/10 transition-all"
+   721→              >
+   722→                Commencer gratuitement
+   723→              </button>
+   724→            </div>
+   725→          </FadeIn>
+   726→
+   727→          {/* Pro */}
+   728→          <FadeIn delay={0.15}>
+   729→            <div className="bg-gradient-to-b from-[#2563EB]/20 to-[#10B981]/10 border border-[#2563EB]/30 rounded-2xl p-8 h-full flex flex-col relative">
+   730→              <span className="absolute top-4 right-4 bg-[#2563EB] text-white text-xs font-bold px-3 py-1 rounded-full">
+   731→                Populaire
+   732→              </span>
+   733→              <h3 className="text-xl font-bold mb-2">Pro</h3>
+   734→              <div className="mb-6">
+   735→                <span className="text-5xl font-extrabold">9,90€</span>
+   736→                <span className="text-gray-400">/mois</span>
+   737→              </div>
+   738→              <ul className="space-y-3 mb-8 flex-1">
+   739→                {[
+   740→                  'QR codes illimités',
+   741→                  'Tous les modules',
+   742→                  'Maisons illimitées',
+   743→                  'Marketplace V3',
+   744→                  'Support prioritaire',
+   745→                  'API & intégrations',
+   746→                ].map((f) => (
+   747→                  <li key={f} className="flex items-center gap-3">
+   748→                    <Check className="w-5 h-5 text-[#10B981] shrink-0" />
+   749→                    <span className="text-gray-300">{f}</span>
+   750→                  </li>
+   751→                ))}
+   752→              </ul>
+   753→              <button
+   754→                onClick={onGoToDashboard}
+   755→                className="w-full py-3 rounded-xl bg-[#2563EB] hover:bg-[#2563EB]/90 text-white font-semibold transition-all shadow-lg shadow-[#2563EB]/25"
+   756→              >
+   757→                Démarrer l'essai gratuit
+   758→              </button>
+   759→            </div>
+   760→          </FadeIn>
+   761→        </div>
+   762→      </Section>
+   763→
+   764→      {/* ═══ 7. FAQ ═══ */}
+   765→      <Section>
+   766→        <SectionTitle title="Questions fréquentes" />
+   767→        <div className="max-w-3xl mx-auto">
+   768→          <FadeIn>
+   769→            <Accordion type="single" collapsible className="space-y-4">
+   770→              <AccordionItem
+   771→                value="faq-1"
+   772→                className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden px-6"
+   773→              >
+   774→                <AccordionTrigger className="text-left text-white hover:no-underline py-5">
+   775→                  Comment fonctionne QR Domotik ?
+   776→                </AccordionTrigger>
+   777→                <AccordionContent className="text-gray-400">
+   778→                  QR Domotik utilise des QR codes dynamiques liés à des modules
+   779→                  configurables. Collez un QR code sur un objet, scannez-le avec
+   780→                  votre téléphone, et accédez instantanément à l'information ou
+   781→                  l'action associée.
+   782→                </AccordionContent>
+   783→              </AccordionItem>
+   784→
+   785→              <AccordionItem
+   786→                value="faq-2"
+   787→                className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden px-6"
+   788→              >
+   789→                <AccordionTrigger className="text-left text-white hover:no-underline py-5">
+   790→                  Mes invités doivent-ils installer une application ?
+   791→                </AccordionTrigger>
+   792→                <AccordionContent className="text-gray-400">
+   793→                  Non, absolument pas ! Vos invités n'ont besoin que de
+   794→                  l'appareil photo de leur téléphone. Le QR code ouvre une page
+   795→                  web mobile optimisée.
+   796→                </AccordionContent>
+   797→              </AccordionItem>
+   798→
+   799→              <AccordionItem
+   800→                value="faq-3"
+   801→                className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden px-6"
+   802→              >
+   803→                <AccordionTrigger className="text-left text-white hover:no-underline py-5">
+   804→                  Puis-je modifier le contenu d'un QR code ?
+   805→                </AccordionTrigger>
+   806→                <AccordionContent className="text-gray-400">
+   807→                  Oui ! Contrairement aux QR codes classiques, les QR Domotik
+   808→                  sont dynamiques. Vous pouvez modifier le contenu à tout moment
+   809→                  depuis votre dashboard sans changer le QR code physique.
+   810→                </AccordionContent>
+   811→              </AccordionItem>
+   812→
+   813→              <AccordionItem
+   814→                value="faq-4"
+   815→                className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden px-6"
+   816→              >
+   817→                <AccordionTrigger className="text-left text-white hover:no-underline py-5">
+   818→                  Le portier virtuel fonctionne-t-il quand je suis absent ?
+   819→                </AccordionTrigger>
+   820→                <AccordionContent className="text-gray-400">
+   821→                  Oui, le portier virtuel affiche un statut 'Absent' et présente
+   822→                  vos consignes personnalisées au visiteur. Vous recevez une
+   823→                  notification à chaque sonnerie ou message.
+   824→                </AccordionContent>
+   825→              </AccordionItem>
+   826→
+   827→              <AccordionItem
+   828→                value="faq-5"
+   829→                className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden px-6"
+   830→              >
+   831→                <AccordionTrigger className="text-left text-white hover:no-underline py-5">
+   832→                  Qu'est-ce que le Marketplace V3 ?
+   833→                </AccordionTrigger>
+   834→                <AccordionContent className="text-gray-400">
+   835→                  Le Marketplace V3 connecte votre maison aux commerçants et
+   836→                  artisans de votre quartier. Promotions, services à domicile, et
+   837→                  tout cela accessible directement depuis vos QR codes.
+   838→                </AccordionContent>
+   839→              </AccordionItem>
+   840→
+   841→              <AccordionItem
+   842→                value="faq-6"
+   843→                className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden px-6"
+   844→              >
+   845→                <AccordionTrigger className="text-left text-white hover:no-underline py-5">
+   846→                  Mes données sont-elles sécurisées ?
+   847→                </AccordionTrigger>
+   848→                <AccordionContent className="text-gray-400">
+   849→                  Absolument. Toutes les données sont chiffrées (SSL/TLS),
+   850→                  hébergées en France (RGPD), et vous contrôlez la visibilité de
+   851→                  chaque QR code.
+   852→                </AccordionContent>
+   853→              </AccordionItem>
+   854→            </Accordion>
+   855→          </FadeIn>
+   856→        </div>
+   857→      </Section>
+   858→
+   859→      {/* ═══ 8. CTA FINAL ═══ */}
+   860→      <section className="bg-gradient-to-r from-[#2563EB] to-[#10B981] py-20 px-4 md:px-8">
+   861→        <FadeIn>
+   862→          <div className="max-w-3xl mx-auto text-center">
+   863→            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+   864→              Prêt à transformer votre maison ?
+   865→            </h2>
+   866→            <p className="text-white/80 text-lg mb-8">
+   867→              Rejoignez les 2 500+ foyers qui ont déjà fait le choix de la
+   868→              simplicité.
+   869→            </p>
+   870→            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+   871→              <button
+   872→                onClick={onGoToDashboard}
+   873→                className="px-8 py-4 rounded-xl bg-white text-[#2563EB] font-semibold hover:bg-white/90 transition-all shadow-lg"
+   874→              >
+   875→                Commencer gratuitement
+   876→              </button>
+   877→              <button
+   878→                onClick={onGoToDemo}
+   879→                className="px-8 py-4 rounded-xl border-2 border-white text-white font-semibold hover:bg-white/10 transition-all"
+   880→              >
+   881→                Voir la démo
+   882→              </button>
+   883→            </div>
+   884→          </div>
+   885→        </FadeIn>
+   886→      </section>
+   887→
+   888→      {/* ═══ 9. FOOTER ═══ */}
+   889→      <footer className="mt-auto bg-[#0a0f1e] border-t border-white/10 py-12 md:py-16 px-4 md:px-8">
+   890→        <div className="max-w-7xl mx-auto">
+   891→          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+   892→            {/* Col 1: Logo & description */}
+   893→            <div className="col-span-2 md:col-span-1">
+   894→              <div className="flex items-center gap-2 mb-4">
+   895→                <QrCode className="w-6 h-6 text-[#2563EB]" />
+   896→                <span className="font-bold text-lg">QR Domotik</span>
+   897→              </div>
+   898→              <p className="text-sm text-gray-400 leading-relaxed">
+   899→                Transformez n'importe quel objet en commande domotique grâce à
+   900→                la puissance des QR codes.
+   901→              </p>
+   902→            </div>
+   903→
+   904→            {/* Col 2: Produit */}
+   905→            <div>
+   906→              <h4 className="font-semibold mb-4">Produit</h4>
+   907→              <ul className="space-y-2.5">
+   908→                {['Fonctionnalités', 'Modules', 'Prix', 'Marketplace'].map(
+   909→                  (link) => (
+   910→                    <li key={link}>
+   911→                      <a
+   912→                        href="#"
+   913→                        className="text-sm text-gray-400 hover:text-white transition-colors"
+   914→                      >
+   915→                        {link}
+   916→                      </a>
+   917→                    </li>
+   918→                  )
+   919→                )}
+   920→              </ul>
+   921→            </div>
+   922→
+   923→            {/* Col 3: Support */}
+   924→            <div>
+   925→              <h4 className="font-semibold mb-4">Support</h4>
+   926→              <ul className="space-y-2.5">
+   927→                {['Documentation', 'Contact', 'FAQ', 'Statut'].map((link) => (
+   928→                  <li key={link}>
+   929→                    <a
+   930→                      href="#"
+   931→                      className="text-sm text-gray-400 hover:text-white transition-colors"
+   932→                    >
+   933→                      {link}
+   934→                    </a>
+   935→                  </li>
+   936→                ))}
+   937→              </ul>
+   938→            </div>
+   939→
+   940→            {/* Col 4: Légal */}
+   941→            <div>
+   942→              <h4 className="font-semibold mb-4">Légal</h4>
+   943→              <ul className="space-y-2.5">
+   944→                {['CGU', 'Confidentialité', 'Mentions légales', 'Cookies'].map(
+   945→                  (link) => (
+   946→                    <li key={link}>
+   947→                      <a
+   948→                        href="#"
+   949→                        className="text-sm text-gray-400 hover:text-white transition-colors"
+   950→                      >
+   951→                        {link}
+   952→                      </a>
+   953→                    </li>
+   954→                  )
+   955→                )}
+   956→              </ul>
+   957→            </div>
+   958→          </div>
+   959→
+   960→          {/* Bottom copyright */}
+   961→          <div className="border-t border-white/10 pt-8 text-center">
+   962→            <p className="text-sm text-gray-500">
+   963→              © 2025 QR Domotik. Tous droits réservés.
+   964→            </p>
+   965→          </div>
+   966→        </div>
+   967→      </footer>
+   968→    </div>
+   969→  );
+   970→}
+   971→

@@ -1,0 +1,771 @@
+   676→CREATE TABLE public.transactions (
+   677→    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+   678→    type                VARCHAR(20) NOT NULL CHECK (type IN ('flash_sale', 'commission', 'subscription', 'redemption')),
+   679→    payer_id            UUID,
+   680→    receiver_id         UUID,
+   681→    amount              DECIMAL(10,2) NOT NULL,
+   682→    currency            VARCHAR(3) NOT NULL DEFAULT 'EUR',
+   683→    stripe_payment_id   VARCHAR(255),
+   684→    status              VARCHAR(20) NOT NULL DEFAULT 'pending' 
+   685→                        CHECK (status IN ('pending', 'completed', 'failed', 'refunded')),
+   686→    reference_id        UUID,
+   687→    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   688→);
+   689→
+   690→CREATE INDEX idx_transactions_type ON public.transactions(type);
+   691→CREATE INDEX idx_transactions_payer_id ON public.transactions(payer_id);
+   692→CREATE INDEX idx_transactions_receiver_id ON public.transactions(receiver_id);
+   693→CREATE INDEX idx_transactions_status ON public.transactions(status);
+   694→CREATE INDEX idx_transactions_stripe_payment_id ON public.transactions(stripe_payment_id);
+   695→CREATE INDEX idx_transactions_created_at ON public.transactions(created_at);
+   696→
+   697→COMMENT ON TABLE public.transactions IS 'Transactions financières de la plateforme';
+   698→
+   699→
+   700→-- ==============================================================
+   701→-- ==============================================================
+   702→-- POLITIQUES RLS (ROW LEVEL SECURITY)
+   703→-- ==============================================================
+   704→-- ==============================================================
+   705→
+   706→-- ==============================================================
+   707→-- HELPER: Fonctions pour RLS
+   708→-- ==============================================================
+   709→
+   710→-- Vérifie si l'utilisateur courant est superadmin
+   711→CREATE OR REPLACE FUNCTION is_superadmin()
+   712→RETURNS BOOLEAN AS $$
+   713→BEGIN
+   714→    RETURN EXISTS (
+   715→        SELECT 1 FROM public.users 
+   716→        WHERE id = auth.uid() AND role = 'superadmin'
+   717→    );
+   718→END;
+   719→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   720→
+   721→-- Retourne les IDs des homes dont l'utilisateur est membre
+   722→CREATE OR REPLACE FUNCTION user_home_ids()
+   723→RETURNS UUID[] AS $$
+   724→BEGIN
+   725→    RETURN ARRAY(
+   726→        SELECT home_id FROM public.home_members 
+   727→        WHERE user_id = auth.uid()
+   728→    );
+   729→END;
+   730→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   731→
+   732→-- Vérifie si l'utilisateur est membre d'un home donné
+   733→CREATE OR REPLACE FUNCTION is_home_member(p_home_id UUID)
+   734→RETURNS BOOLEAN AS $$
+   735→BEGIN
+   736→    RETURN EXISTS (
+   737→        SELECT 1 FROM public.home_members 
+   738→        WHERE home_id = p_home_id AND user_id = auth.uid()
+   739→    );
+   740→END;
+   741→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   742→
+   743→-- Vérifie si l'utilisateur est owner/admin d'un home donné
+   744→CREATE OR REPLACE FUNCTION is_home_admin(p_home_id UUID)
+   745→RETURNS BOOLEAN AS $$
+   746→BEGIN
+   747→    RETURN EXISTS (
+   748→        SELECT 1 FROM public.home_members 
+   749→        WHERE home_id = p_home_id AND user_id = auth.uid() 
+   750→        AND role IN ('owner', 'admin')
+   751→    );
+   752→END;
+   753→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   754→
+   755→-- ==============================================================
+   756→-- ENABLE RLS SUR TOUTES LES TABLES
+   757→-- ==============================================================
+   758→ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+   759→ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+   760→ALTER TABLE public.homes ENABLE ROW LEVEL SECURITY;
+   761→ALTER TABLE public.home_members ENABLE ROW LEVEL SECURITY;
+   762→ALTER TABLE public.rooms ENABLE ROW LEVEL SECURITY;
+   763→ALTER TABLE public.qr_codes ENABLE ROW LEVEL SECURITY;
+   764→ALTER TABLE public.qr_contents ENABLE ROW LEVEL SECURITY;
+   765→ALTER TABLE public.qr_batches ENABLE ROW LEVEL SECURITY;
+   766→ALTER TABLE public.physical_qr_codes ENABLE ROW LEVEL SECURITY;
+   767→ALTER TABLE public.activation_logs ENABLE ROW LEVEL SECURITY;
+   768→ALTER TABLE public.guestbook_entries ENABLE ROW LEVEL SECURITY;
+   769→ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+   770→ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+   771→ALTER TABLE public.product_instances ENABLE ROW LEVEL SECURITY;
+   772→ALTER TABLE public.chores ENABLE ROW LEVEL SECURITY;
+   773→ALTER TABLE public.chore_completions ENABLE ROW LEVEL SECURITY;
+   774→ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+   775→ALTER TABLE public.merchants ENABLE ROW LEVEL SECURITY;
+   776→ALTER TABLE public.promos ENABLE ROW LEVEL SECURITY;
+   777→ALTER TABLE public.promo_redemptions ENABLE ROW LEVEL SECURITY;
+   778→ALTER TABLE public.scraping_jobs ENABLE ROW LEVEL SECURITY;
+   779→ALTER TABLE public.professionals ENABLE ROW LEVEL SECURITY;
+   780→ALTER TABLE public.services ENABLE ROW LEVEL SECURITY;
+   781→ALTER TABLE public.service_requests ENABLE ROW LEVEL SECURITY;
+   782→ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+   783→ALTER TABLE public.emergency_qr_codes ENABLE ROW LEVEL SECURITY;
+   784→ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
+   785→ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+   786→
+   787→-- ==============================================================
+   788→-- RLS: users - Un user voit son profil, superadmin voit tout
+   789→-- ==============================================================
+   790→CREATE POLICY "users_self_read" ON public.users
+   791→    FOR SELECT USING (id = auth.uid());
+   792→
+   793→CREATE POLICY "users_self_update" ON public.users
+   794→    FOR UPDATE USING (id = auth.uid());
+   795→
+   796→CREATE POLICY "users_superadmin_all" ON public.users
+   797→    FOR ALL USING (is_superadmin());
+   798→
+   799→CREATE POLICY "users_self_insert" ON public.users
+   800→    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+   801→
+   802→-- ==============================================================
+   803→-- RLS: profiles - User voit son profil, superadmin voit tout
+   804→-- ==============================================================
+   805→CREATE POLICY "profiles_self_read" ON public.profiles
+   806→    FOR SELECT USING (user_id = auth.uid());
+   807→
+   808→CREATE POLICY "profiles_self_update" ON public.profiles
+   809→    FOR UPDATE USING (user_id = auth.uid());
+   810→
+   811→CREATE POLICY "profiles_self_insert" ON public.profiles
+   812→    FOR INSERT WITH CHECK (user_id = auth.uid());
+   813→
+   814→CREATE POLICY "profiles_superadmin_all" ON public.profiles
+   815→    FOR ALL USING (is_superadmin());
+   816→
+   817→-- ==============================================================
+   818→-- RLS: homes - Owner et membres voient leurs homes
+   819→-- ==============================================================
+   820→CREATE POLICY "homes_members_read" ON public.homes
+   821→    FOR SELECT USING (
+   822→        owner_id = auth.uid() 
+   823→        OR is_home_member(id)
+   824→        OR is_superadmin()
+   825→    );
+   826→
+   827→CREATE POLICY "homes_owner_insert" ON public.homes
+   828→    FOR INSERT WITH CHECK (owner_id = auth.uid());
+   829→
+   830→CREATE POLICY "homes_admin_update" ON public.homes
+   831→    FOR UPDATE USING (
+   832→        owner_id = auth.uid() 
+   833→        OR is_home_admin(id)
+   834→        OR is_superadmin()
+   835→    );
+   836→
+   837→CREATE POLICY "homes_owner_delete" ON public.homes
+   838→    FOR DELETE USING (owner_id = auth.uid() OR is_superadmin());
+   839→
+   840→-- ==============================================================
+   841→-- RLS: home_members - Membres voient les membres de leurs homes
+   842→-- ==============================================================
+   843→CREATE POLICY "home_members_read" ON public.home_members
+   844→    FOR SELECT USING (
+   845→        user_id = auth.uid()
+   846→        OR is_home_member(home_id)
+   847→        OR is_superadmin()
+   848→    );
+   849→
+   850→CREATE POLICY "home_members_admin_insert" ON public.home_members
+   851→    FOR INSERT WITH CHECK (is_home_admin(home_id) OR is_superadmin());
+   852→
+   853→CREATE POLICY "home_members_admin_update" ON public.home_members
+   854→    FOR UPDATE USING (is_home_admin(home_id) OR is_superadmin());
+   855→
+   856→CREATE POLICY "home_members_admin_delete" ON public.home_members
+   857→    FOR DELETE USING (is_home_admin(home_id) OR is_superadmin());
+   858→
+   859→-- ==============================================================
+   860→-- RLS: rooms - Membres du home voient les pièces
+   861→-- ==============================================================
+   862→CREATE POLICY "rooms_members_read" ON public.rooms
+   863→    FOR SELECT USING (is_home_member(home_id) OR is_superadmin());
+   864→
+   865→CREATE POLICY "rooms_admin_insert" ON public.rooms
+   866→    FOR INSERT WITH CHECK (is_home_admin(home_id) OR is_superadmin());
+   867→
+   868→CREATE POLICY "rooms_admin_update" ON public.rooms
+   869→    FOR UPDATE USING (is_home_admin(home_id) OR is_superadmin());
+   870→
+   871→CREATE POLICY "rooms_admin_delete" ON public.rooms
+   872→    FOR DELETE USING (is_home_admin(home_id) OR is_superadmin());
+   873→
+   874→-- ==============================================================
+   875→-- RLS: qr_codes - Membres voient les QR de leurs homes
+   876→-- (Les pages publiques /r/[slug] utilisent un service key côté serveur)
+   877→-- ==============================================================
+   878→CREATE POLICY "qr_codes_members_read" ON public.qr_codes
+   879→    FOR SELECT USING (
+   880→        is_home_member(home_id) 
+   881→        OR is_superadmin()
+   882→        OR (NOT is_private AND is_active)  -- QR publics actifs visibles par tous
+   883→    );
+   884→
+   885→CREATE POLICY "qr_codes_admin_insert" ON public.qr_codes
+   886→    FOR INSERT WITH CHECK (is_home_admin(home_id) OR is_superadmin());
+   887→
+   888→CREATE POLICY "qr_codes_admin_update" ON public.qr_codes
+   889→    FOR UPDATE USING (is_home_admin(home_id) OR is_superadmin());
+   890→
+   891→CREATE POLICY "qr_codes_admin_delete" ON public.qr_codes
+   892→    FOR DELETE USING (is_home_admin(home_id) OR is_superadmin());
+   893→
+   894→-- ==============================================================
+   895→-- RLS: qr_contents - Lié aux qr_codes
+   896→-- ==============================================================
+   897→CREATE POLICY "qr_contents_members_read" ON public.qr_contents
+   898→    FOR SELECT USING (
+   899→        EXISTS (
+   900→            SELECT 1 FROM public.qr_codes qc
+   901→            WHERE qc.id = qr_contents.qr_code_id
+   902→            AND (is_home_member(qc.home_id) OR is_superadmin() OR (NOT qc.is_private AND qc.is_active))
+   903→        )
+   904→    );
+   905→
+   906→CREATE POLICY "qr_contents_admin_insert" ON public.qr_contents
+   907→    FOR INSERT WITH CHECK (
+   908→        EXISTS (
+   909→            SELECT 1 FROM public.qr_codes qc
+   910→            WHERE qc.id = qr_contents.qr_code_id
+   911→            AND (is_home_admin(qc.home_id) OR is_superadmin())
+   912→        )
+   913→    );
+   914→
+   915→CREATE POLICY "qr_contents_admin_update" ON public.qr_contents
+   916→    FOR UPDATE USING (
+   917→        EXISTS (
+   918→            SELECT 1 FROM public.qr_codes qc
+   919→            WHERE qc.id = qr_contents.qr_code_id
+   920→            AND (is_home_admin(qc.home_id) OR is_superadmin())
+   921→        )
+   922→    );
+   923→
+   924→CREATE POLICY "qr_contents_admin_delete" ON public.qr_contents
+   925→    FOR DELETE USING (is_superadmin());
+   926→
+   927→-- ==============================================================
+   928→-- RLS: qr_batches - Superadmin uniquement (génération de lots)
+   929→-- ==============================================================
+   930→CREATE POLICY "qr_batches_superadmin_all" ON public.qr_batches
+   931→    FOR ALL USING (is_superadmin());
+   932→
+   933→-- ==============================================================
+   934→-- RLS: physical_qr_codes - Superadmin gère, user voit les siens
+   935→-- ==============================================================
+   936→CREATE POLICY "physical_qr_superadmin_all" ON public.physical_qr_codes
+   937→    FOR ALL USING (is_superadmin());
+   938→
+   939→CREATE POLICY "physical_qr_user_read" ON public.physical_qr_codes
+   940→    FOR SELECT USING (activated_by_user_id = auth.uid());
+   941→
+   942→CREATE POLICY "physical_qr_user_update" ON public.physical_qr_codes
+   943→    FOR UPDATE USING (activated_by_user_id = auth.uid());
+   944→
+   945→-- ==============================================================
+   946→-- RLS: activation_logs - User voit ses propres activations
+   947→-- ==============================================================
+   948→CREATE POLICY "activation_logs_superadmin_all" ON public.activation_logs
+   949→    FOR ALL USING (is_superadmin());
+   950→
+   951→CREATE POLICY "activation_logs_user_read" ON public.activation_logs
+   952→    FOR SELECT USING (user_id = auth.uid());
+   953→
+   954→CREATE POLICY "activation_logs_user_insert" ON public.activation_logs
+   955→    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+   956→
+   957→-- ==============================================================
+   958→-- RLS: guestbook_entries - Membres du home + invités (public)
+   959→-- ==============================================================
+   960→CREATE POLICY "guestbook_members_read" ON public.guestbook_entries
+   961→    FOR SELECT USING (
+   962→        EXISTS (
+   963→            SELECT 1 FROM public.qr_codes qc
+   964→            WHERE qc.id = guestbook_entries.qr_code_id
+   965→            AND (is_home_member(qc.home_id) OR is_superadmin() OR (NOT qc.is_private AND qc.is_active))
+   966→        )
+   967→    );
+   968→
+   969→CREATE POLICY "guestbook_public_insert" ON public.guestbook_entries
+   970→    FOR INSERT WITH CHECK (
+   971→        EXISTS (
+   972→            SELECT 1 FROM public.qr_codes qc
+   973→            WHERE qc.id = guestbook_entries.qr_code_id
+   974→            AND (NOT qc.is_private AND qc.is_active)
+   975→        )
+   976→    );
+   977→
+   978→CREATE POLICY "guestbook_admin_delete" ON public.guestbook_entries
+   979→    FOR DELETE USING (
+   980→        EXISTS (
+   981→            SELECT 1 FROM public.qr_codes qc
+   982→            WHERE qc.id = guestbook_entries.qr_code_id
+   983→            AND (is_home_admin(qc.home_id) OR is_superadmin())
+   984→        )
+   985→    );
+   986→
+   987→-- ==============================================================
+   988→-- RLS: activity_logs - Membres du home
+   989→-- ==============================================================
+   990→CREATE POLICY "activity_logs_members_read" ON public.activity_logs
+   991→    FOR SELECT USING (
+   992→        is_home_member(home_id) OR is_superadmin()
+   993→    );
+   994→
+   995→CREATE POLICY "activity_logs_members_insert" ON public.activity_logs
+   996→    FOR INSERT WITH CHECK (
+   997→        is_home_member(home_id) OR is_superadmin()
+   998→    );
+   999→
+  1000→-- ==============================================================
+  1001→-- RLS: products - Membres du home
+  1002→-- ==============================================================
+  1003→CREATE POLICY "products_members_all" ON public.products
+  1004→    FOR ALL USING (
+  1005→        is_home_member(home_id) OR is_superadmin()
+  1006→    );
+  1007→
+  1008→-- ==============================================================
+  1009→-- RLS: product_instances - Membres du home
+  1010→-- ==============================================================
+  1011→CREATE POLICY "product_instances_members_all" ON public.product_instances
+  1012→    FOR ALL USING (
+  1013→        is_home_member(home_id) OR is_superadmin()
+  1014→    );
+  1015→
+  1016→-- ==============================================================
+  1017→-- RLS: chores - Admin/parent voient toutes les corvées du home
+  1018→-- ENFANTS: ne voient que les corvées qui leur sont assignées
+  1019→-- ==============================================================
+  1020→CREATE POLICY "chores_admin_read" ON public.chores
+  1021→    FOR SELECT USING (
+  1022→        is_home_admin(home_id) 
+  1023→        OR is_superadmin()
+  1024→        OR assigned_to_user_id = auth.uid()  -- enfants voient les leurs
+  1025→    );
+  1026→
+  1027→CREATE POLICY "chores_admin_insert" ON public.chores
+  1028→    FOR INSERT WITH CHECK (is_home_admin(home_id) OR is_superadmin());
+  1029→
+  1030→CREATE POLICY "chores_admin_update" ON public.chores
+  1031→    FOR UPDATE USING (is_home_admin(home_id) OR is_superadmin());
+  1032→
+  1033→CREATE POLICY "chores_admin_delete" ON public.chores
+  1034→    FOR DELETE USING (is_home_admin(home_id) OR is_superadmin());
+  1035→
+  1036→-- ==============================================================
+  1037→-- RLS: chore_completions - Enfants voient les leurs, parents/admins valident
+  1038→-- ==============================================================
+  1039→CREATE POLICY "chore_completions_child_read" ON public.chore_completions
+  1040→    FOR SELECT USING (
+  1041→        child_user_id = auth.uid()  -- l'enfant voit ses complétions
+  1042→        OR is_superadmin()
+  1043→        OR EXISTS (
+  1044→            SELECT 1 FROM public.chores c
+  1045→            WHERE c.id = chore_completions.chore_id
+  1046→            AND is_home_admin(c.home_id)
+  1047→        )
+  1048→    );
+  1049→
+  1050→CREATE POLICY "chore_completions_child_insert" ON public.chore_completions
+  1051→    FOR INSERT WITH CHECK (child_user_id = auth.uid());
+  1052→
+  1053→CREATE POLICY "chore_completions_parent_update" ON public.chore_completions
+  1054→    FOR UPDATE USING (
+  1055→        EXISTS (
+  1056→            SELECT 1 FROM public.chores c
+  1057→            WHERE c.id = chore_completions.chore_id
+  1058→            AND (is_home_admin(c.home_id) OR is_superadmin())
+  1059→        )
+  1060→    );
+  1061→
+  1062→-- ==============================================================
+  1063→-- RLS: push_subscriptions - User gère ses propres abonnements
+  1064→-- ==============================================================
+  1065→CREATE POLICY "push_subscriptions_user_all" ON public.push_subscriptions
+  1066→    FOR ALL USING (user_id = auth.uid());
+  1067→
+  1068→-- ==============================================================
+  1069→-- RLS: merchants - Public read, merchant gère le sien
+  1070→-- ==============================================================
+  1071→CREATE POLICY "merchants_public_read" ON public.merchants
+  1072→    FOR SELECT USING (is_active OR is_superadmin());
+  1073→
+  1074→CREATE POLICY "merchants_own_insert" ON public.merchants
+  1075→    FOR INSERT WITH CHECK (user_id = auth.uid());
+  1076→
+  1077→CREATE POLICY "merchants_own_update" ON public.merchants
+  1078→    FOR UPDATE USING (user_id = auth.uid() OR is_superadmin());
+  1079→
+  1080→CREATE POLICY "merchants_superadmin_all" ON public.merchants
+  1081→    FOR ALL USING (is_superadmin());
+  1082→
+  1083→-- ==============================================================
+  1084→-- RLS: promos - Public read, merchant gère les siennes
+  1085→-- ==============================================================
+  1086→CREATE POLICY "promos_public_read" ON public.promos
+  1087→    FOR SELECT USING (true);  -- Tout le monde voit les promos actives
+  1088→
+  1089→CREATE POLICY "promos_merchant_insert" ON public.promos
+  1090→    FOR INSERT WITH CHECK (
+  1091→        merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+  1092→        OR is_superadmin()
+  1093→    );
+  1094→
+  1095→CREATE POLICY "promos_merchant_update" ON public.promos
+  1096→    FOR UPDATE USING (
+  1097→        merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+  1098→        OR is_superadmin()
+  1099→    );
+  1100→
+  1101→CREATE POLICY "promos_merchant_delete" ON public.promos
+  1102→    FOR DELETE USING (
+  1103→        merchant_id IN (SELECT id FROM public.merchants WHERE user_id = auth.uid())
+  1104→        OR is_superadmin()
+  1105→    );
+  1106→
+  1107→-- ==============================================================
+  1108→-- RLS: promo_redemptions - User voit les siennes, admin voit tout
+  1109→-- ==============================================================
+  1110→CREATE POLICY "promo_redemptions_user_read" ON public.promo_redemptions
+  1111→    FOR SELECT USING (user_id = auth.uid() OR is_superadmin());
+  1112→
+  1113→CREATE POLICY "promo_redemptions_user_insert" ON public.promo_redemptions
+  1114→    FOR INSERT WITH CHECK (user_id = auth.uid());
+  1115→
+  1116→-- ==============================================================
+  1117→-- RLS: scraping_jobs - Superadmin uniquement
+  1118→-- ==============================================================
+  1119→CREATE POLICY "scraping_jobs_superadmin_all" ON public.scraping_jobs
+  1120→    FOR ALL USING (is_superadmin());
+  1121→
+  1122→-- ==============================================================
+  1123→-- RLS: professionals - Public read, pro gère le sien
+  1124→-- ==============================================================
+  1125→CREATE POLICY "professionals_public_read" ON public.professionals
+  1126→    FOR SELECT USING (is_active OR is_superadmin());
+  1127→
+  1128→CREATE POLICY "professionals_own_insert" ON public.professionals
+  1129→    FOR INSERT WITH CHECK (user_id = auth.uid());
+  1130→
+  1131→CREATE POLICY "professionals_own_update" ON public.professionals
+  1132→    FOR UPDATE USING (user_id = auth.uid() OR is_superadmin());
+  1133→
+  1134→CREATE POLICY "professionals_superadmin_all" ON public.professionals
+  1135→    FOR ALL USING (is_superadmin());
+  1136→
+  1137→-- ==============================================================
+  1138→-- RLS: services - Lié aux professionnels
+  1139→-- ==============================================================
+  1140→CREATE POLICY "services_public_read" ON public.services
+  1141→    FOR SELECT USING (is_active);
+  1142→
+  1143→CREATE POLICY "services_pro_insert" ON public.services
+  1144→    FOR INSERT WITH CHECK (
+  1145→        professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+  1146→        OR is_superadmin()
+  1147→    );
+  1148→
+  1149→CREATE POLICY "services_pro_update" ON public.services
+  1150→    FOR UPDATE USING (
+  1151→        professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+  1152→        OR is_superadmin()
+  1153→    );
+  1154→
+  1155→CREATE POLICY "services_pro_delete" ON public.services
+  1156→    FOR DELETE USING (
+  1157→        professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+  1158→        OR is_superadmin()
+  1159→    );
+  1160→
+  1161→-- ==============================================================
+  1162→-- RLS: service_requests - Home member + professional voient les leurs
+  1163→-- ==============================================================
+  1164→CREATE POLICY "service_requests_member_read" ON public.service_requests
+  1165→    FOR SELECT USING (
+  1166→        is_home_member(home_id)
+  1167→        OR professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+  1168→        OR is_superadmin()
+  1169→    );
+  1170→
+  1171→CREATE POLICY "service_requests_member_insert" ON public.service_requests
+  1172→    FOR INSERT WITH CHECK (is_home_member(home_id));
+  1173→
+  1174→CREATE POLICY "service_requests_member_update" ON public.service_requests
+  1175→    FOR UPDATE USING (
+  1176→        is_home_member(home_id)
+  1177→        OR professional_id IN (SELECT id FROM public.professionals WHERE user_id = auth.uid())
+  1178→        OR is_superadmin()
+  1179→    );
+  1180→
+  1181→-- ==============================================================
+  1182→-- RLS: reviews - Public read, auteur et pro voient les leurs
+  1183→-- ==============================================================
+  1184→CREATE POLICY "reviews_public_read" ON public.reviews
+  1185→    FOR SELECT USING (true);
+  1186→
+  1187→CREATE POLICY "reviews_user_insert" ON public.reviews
+  1188→    FOR INSERT WITH CHECK (user_id = auth.uid());
+  1189→
+  1190→CREATE POLICY "reviews_user_update" ON public.reviews
+  1191→    FOR UPDATE USING (user_id = auth.uid() OR is_superadmin());
+  1192→
+  1193→-- ==============================================================
+  1194→-- RLS: emergency_qr_codes - Membres du home
+  1195→-- ==============================================================
+  1196→CREATE POLICY "emergency_qr_members_read" ON public.emergency_qr_codes
+  1197→    FOR SELECT USING (
+  1198→        EXISTS (
+  1199→            SELECT 1 FROM public.qr_codes qc
+  1200→            WHERE qc.id = emergency_qr_codes.qr_code_id
+  1201→            AND (is_home_member(qc.home_id) OR is_superadmin())
+  1202→        )
+  1203→    );
+  1204→
+  1205→CREATE POLICY "emergency_qr_admin_insert" ON public.emergency_qr_codes
+  1206→    FOR INSERT WITH CHECK (
+  1207→        EXISTS (
+  1208→            SELECT 1 FROM public.qr_codes qc
+  1209→            WHERE qc.id = emergency_qr_codes.qr_code_id
+  1210→            AND (is_home_admin(qc.home_id) OR is_superadmin())
+  1211→        )
+  1212→    );
+  1213→
+  1214→CREATE POLICY "emergency_qr_admin_update" ON public.emergency_qr_codes
+  1215→    FOR UPDATE USING (is_superadmin());
+  1216→
+  1217→CREATE POLICY "emergency_qr_admin_delete" ON public.emergency_qr_codes
+  1218→    FOR DELETE USING (is_superadmin());
+  1219→
+  1220→-- ==============================================================
+  1221→-- RLS: subscriptions - Subscriber + superadmin
+  1222→-- ==============================================================
+  1223→CREATE POLICY "subscriptions_subscriber_read" ON public.subscriptions
+  1224→    FOR SELECT USING (
+  1225→        subscriber_id = auth.uid() OR is_superadmin()
+  1226→    );
+  1227→
+  1228→CREATE POLICY "subscriptions_subscriber_insert" ON public.subscriptions
+  1229→    FOR INSERT WITH CHECK (subscriber_id = auth.uid() OR is_superadmin());
+  1230→
+  1231→CREATE POLICY "subscriptions_superadmin_all" ON public.subscriptions
+  1232→    FOR ALL USING (is_superadmin());
+  1233→
+  1234→-- ==============================================================
+  1235→-- RLS: transactions - Superadmin uniquement
+  1236→-- ==============================================================
+  1237→CREATE POLICY "transactions_superadmin_all" ON public.transactions
+  1238→    FOR ALL USING (is_superadmin());
+  1239→
+  1240→-- ==============================================================
+  1241→-- POLITIQUES SPÉCIALES: Pages publiques (/r/[slug])
+  1242→-- Ces politiques utilisent l'anon key côté client, mais les données
+  1243→-- sensibles restent protégées par is_private
+  1244→-- ==============================================================
+  1245→
+  1246→-- Les QR codes publics et actifs sont lisibles par tout le monde (anonymes inclus)
+  1247→CREATE POLICY "qr_codes_public_read" ON public.qr_codes
+  1248→    FOR SELECT USING (NOT is_private AND is_active);
+  1249→
+  1250→-- Les contenus des QR publics sont lisibles par tout le monde
+  1251→CREATE POLICY "qr_contents_public_read" ON public.qr_contents
+  1252→    FOR SELECT USING (
+  1253→        EXISTS (
+  1254→            SELECT 1 FROM public.qr_codes qc
+  1255→            WHERE qc.id = qr_contents.qr_code_id
+  1256→            AND NOT qc.is_private AND qc.is_active
+  1257→        )
+  1258→    );
+  1259→
+  1260→-- ==============================================================
+  1261→-- TRIGGERS SUPPLÉMENTAIRES
+  1262→-- ==============================================================
+  1263→
+  1264→-- Met à jour rating_avg et total_reviews sur les merchants quand un avis est ajouté
+  1265→CREATE OR REPLACE FUNCTION update_merchant_rating()
+  1266→RETURNS TRIGGER AS $$
+  1267→BEGIN
+  1268→    IF TG_OP = 'INSERT' THEN
+  1269→        UPDATE public.merchants 
+  1270→        SET rating_avg = (
+  1271→            SELECT AVG(r.rating) FROM public.reviews r WHERE r.professional_id = NEW.professional_id
+  1272→        ),
+  1273→        total_reviews = (
+  1274→            SELECT COUNT(*) FROM public.reviews r WHERE r.professional_id = NEW.professional_id
+  1275→        )
+  1276→        WHERE id = NEW.professional_id;
+  1277→        RETURN NEW;
+  1278→    ELSIF TG_OP = 'UPDATE' THEN
+  1279→        UPDATE public.merchants 
+  1280→        SET rating_avg = (
+  1281→            SELECT AVG(r.rating) FROM public.reviews r WHERE r.professional_id = NEW.professional_id
+  1282→        ),
+  1283→        total_reviews = (
+  1284→            SELECT COUNT(*) FROM public.reviews r WHERE r.professional_id = NEW.professional_id
+  1285→        )
+  1286→        WHERE id = NEW.professional_id;
+  1287→        RETURN NEW;
+  1288→    ELSIF TG_OP = 'DELETE' THEN
+  1289→        UPDATE public.merchants 
+  1290→        SET rating_avg = (
+  1291→            SELECT AVG(r.rating) FROM public.reviews r WHERE r.professional_id = OLD.professional_id
+  1292→        ),
+  1293→        total_reviews = (
+  1294→            SELECT COUNT(*) FROM public.reviews r WHERE r.professional_id = OLD.professional_id
+  1295→        )
+  1296→        WHERE id = OLD.professional_id;
+  1297→        RETURN OLD;
+  1298→    END IF;
+  1299→    RETURN NULL;
+  1300→END;
+  1301→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1302→
+  1303→CREATE TRIGGER trigger_update_professional_rating
+  1304→    AFTER INSERT OR UPDATE OR DELETE ON public.reviews
+  1305→    FOR EACH ROW EXECUTE FUNCTION update_merchant_rating();
+  1306→
+  1307→-- Met à jour les points du membre quand une corvée est validée
+  1308→CREATE OR REPLACE FUNCTION update_child_points()
+  1309→RETURNS TRIGGER AS $$
+  1310→BEGIN
+  1311→    IF NEW.status = 'validated' AND (OLD.status IS NULL OR OLD.status != 'validated') THEN
+  1312→        UPDATE public.home_members 
+  1313→        SET points = points + NEW.points_earned
+  1314→        WHERE user_id = NEW.child_user_id
+  1315→        AND home_id = (SELECT home_id FROM public.chores WHERE id = NEW.chore_id);
+  1316→    ELSIF NEW.status = 'rejected' AND OLD.status = 'validated' THEN
+  1317→        UPDATE public.home_members 
+  1318→        SET points = points - NEW.points_earned
+  1319→        WHERE user_id = NEW.child_user_id
+  1320→        AND home_id = (SELECT home_id FROM public.chores WHERE id = NEW.chore_id);
+  1321→    END IF;
+  1322→    RETURN NEW;
+  1323→END;
+  1324→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1325→
+  1326→CREATE TRIGGER trigger_update_child_points
+  1327→    AFTER UPDATE ON public.chore_completions
+  1328→    FOR EACH ROW EXECUTE FUNCTION update_child_points();
+  1329→
+  1330→-- Met à jour le stock du produit quand une instance est ajoutée
+  1331→CREATE OR REPLACE FUNCTION update_product_stock()
+  1332→RETURNS TRIGGER AS $$
+  1333→BEGIN
+  1334→    IF TG_OP = 'INSERT' AND NEW.status NOT IN ('expired', 'consumed') THEN
+  1335→        UPDATE public.products 
+  1336→        SET current_stock = current_stock + 1
+  1337→        WHERE id = NEW.product_id;
+  1338→    ELSIF TG_OP = 'UPDATE' THEN
+  1339→        IF (OLD.status NOT IN ('expired', 'consumed')) AND (NEW.status IN ('expired', 'consumed')) THEN
+  1340→            UPDATE public.products SET current_stock = current_stock - 1 WHERE id = NEW.product_id;
+  1341→        ELSIF (OLD.status IN ('expired', 'consumed')) AND (NEW.status NOT IN ('expired', 'consumed')) THEN
+  1342→            UPDATE public.products SET current_stock = current_stock + 1 WHERE id = NEW.product_id;
+  1343→        END IF;
+  1344→    END IF;
+  1345→    RETURN NEW;
+  1346→END;
+  1347→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1348→
+  1349→CREATE TRIGGER trigger_update_product_stock
+  1350→    AFTER INSERT OR UPDATE ON public.product_instances
+  1351→    FOR EACH ROW EXECUTE FUNCTION update_product_stock();
+  1352→
+  1353→-- Incrémente views_count quand une promo est consultée
+  1354→CREATE OR REPLACE FUNCTION increment_promo_views()
+  1355→RETURNS TRIGGER AS $$
+  1356→BEGIN
+  1357→    UPDATE public.promos SET views_count = views_count + 1 WHERE id = NEW.promo_id;
+  1358→    RETURN NEW;
+  1359→END;
+  1360→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1361→
+  1362→CREATE TRIGGER trigger_increment_promo_views
+  1363→    AFTER INSERT ON public.promo_redemptions
+  1364→    FOR EACH ROW EXECUTE FUNCTION increment_promo_views();
+  1365→
+  1366→
+  1367→-- ==============================================================
+  1368→-- DONNÉES DE RÉFÉRENCE (SEED DATA)
+  1369→-- ==============================================================
+  1370→
+  1371→-- Types de QR codes disponibles (référence pour l'application)
+  1372→-- Ceci est un commentaire de référence, les types sont gérés côté applicatif
+  1373→/*
+  1374→Types de modules QR Domotik:
+  1375→
+  1376→V1 - Modules de base:
+  1377→- wifi: Partage Wi-Fi
+  1378→- guestbook: Livre d'or
+  1379→- doorbell: Portier virtuel
+  1380→- emergency: Urgences
+  1381→- note: Notes rapides
+  1382→- contact: Carte de contact
+  1383→
+  1384→V2 - Modules avancés:
+  1385→- shopping_list: Liste de courses
+  1386→- inventory: Inventaire produits
+  1387→- chore: Corvées
+  1388→- checklist: Checklists
+  1389→- timer: Minuterie
+  1390→- recipe: Recettes
+  1391→- medication: Médicaments
+  1392→- pet_info: Info animaux
+  1393→- plant_care: Soins plantes
+  1394→- home_manual: Manuel maison
+  1395→- visitor_info: Info visiteurs
+  1396→- delivery: Instructions livraison
+  1397→- baby_sitter: Info babysitter
+  1398→- house_rules: Règles maison
+  1399→- wifi_reset: Réinitialisation Wi-Fi
+  1400→- appliance_manual: Manuel appareil
+  1401→- energy_monitor: Monitoring énergie
+  1402→- cleaning_schedule: Planning ménage
+  1403→- meal_planner: Planificateur repas
+  1404→- shared_calendar: Calendrier partagé
+  1405→- key_location: Localisation clés
+  1406→- garage_instructions: Instructions garage
+  1407→- laundry_guide: Guide lavage
+  1408→- recycling_info: Info recyclage
+  1409→- utility_shutoff: Coupure utilités
+  1410→- first_aid: Premiers secours
+  1411→- pet_sitter: Info pet-sitter
+  1412→- rental_guest: Info locataire
+  1413→- airbnb_guest: Info Airbnb
+  1414→- emergency_contacts: Contacts d'urgence
+  1415→- package_tracking: Suivi colis
+  1416→- home_network: Réseau maison
+  1417→- entertainment: Divertissement
+  1418→- music_room: Chambre musique
+  1419→- game_room: Salle de jeux
+  1420→- library: Bibliothèque
+  1421→- photo_gallery: Galerie photos
+  1422→- family_board: Tableau famille
+  1423→- announcement: Annonces
+  1424→- mood_tracker: Suivi humeur
+  1425→- habit_tracker: Suivi habitudes
+  1426→- weather_station: Station météo
+  1427→- smart_home_control: Contrôle domotique
+  1428→- voice_assistant: Assistant vocal
+  1429→
+  1430→V3 - Marketplace:
+  1431→- merchant: Fiche commerçant
+  1432→- service_request: Demande de service
+  1433→- promo: Promotion
+  1434→*/
+  1435→
+  1436→-- ==============================================================
+  1437→-- FIN DU SCHÉMA
+  1438→-- ==============================================================
+  1439→-- Résumé:
+  1440→-- 28 tables créées
+  1441→-- 60+ index (dont GIN pour keywords, GiST pour location)
+  1442→-- 50+ politiques RLS
+  1443→-- 4 triggers métier
+  1444→-- 4 fonctions utilitaires RLS
+  1445→-- 1 trigger updated_at sur les tables avec timestamp
+  1446→-- ==============================================================

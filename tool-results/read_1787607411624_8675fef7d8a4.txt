@@ -1,0 +1,734 @@
+     1→     1→'use client';
+     2→     2→
+     3→     3→import { useState, useRef, useEffect, useCallback } from 'react';
+     4→     4→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+     5→     5→import { Button } from '@/components/ui/button';
+     6→     6→import { Input } from '@/components/ui/input';
+     7→     7→import { Label } from '@/components/ui/label';
+     8→     8→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+     9→     9→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    10→    10→import { Badge } from '@/components/ui/badge';
+    11→    11→import { Separator } from '@/components/ui/separator';
+    12→    12→import { toast } from 'sonner';
+    13→    13→import {
+    14→    14→  QrCode,
+    15→    15→  Download,
+    16→    16→  Sparkles,
+    17→    17→  Palette,
+    18→    18→  Layout,
+    19→    19→  ImageIcon,
+    20→    20→  Loader2,
+    21→    21→  Check,
+    22→    22→  Package,
+    23→    23→  RefreshCw,
+    24→    24→  Home,
+    25→    25→  Wifi,
+    26→    26→  List,
+    27→    27→  Bell,
+    28→    28→  ShieldCheck,
+    29→    29→} from 'lucide-react';
+    30→    30→import { generateUniqueCodes } from '@/lib/activation-code';
+    31→    31→import { downloadPdf, type QrCodeForPdf } from '@/lib/pdf-export';
+    32→    32→
+    33→    33→/* ------------------------------------------------------------------ */
+    34→    34→/*  Types                                                              */
+    35→    35→/* ------------------------------------------------------------------ */
+    36→    36→
+    37→    37→export interface DesignConfig {
+    38→    38→  dotsColor: string;
+    39→    39→  backgroundColor: string;
+    40→    40→  dotsType: string;
+    41→    41→  cornersSquareType: string;
+    42→    42→  cornersDotType: string;
+    43→    43→  errorCorrectionLevel: string;
+    44→    44→  logoPreset: string;
+    45→    45→}
+    46→    46→
+    47→    47→const DOT_TYPES = [
+    48→    48→  { value: 'rounded', label: 'Arrondi' },
+    49→    49→  { value: 'dots', label: 'Points' },
+    50→    50→  { value: 'classy', label: 'Classique' },
+    51→    51→  { value: 'classy-rounded', label: 'Classique arrondi' },
+    52→    52→  { value: 'square', label: 'Carré' },
+    53→    53→  { value: 'extra-rounded', label: 'Extra arrondi' },
+    54→    54→];
+    55→    55→
+    56→    56→const CORNER_SQUARE_TYPES = [
+    57→    57→  { value: 'square', label: 'Carré' },
+    58→    58→  { value: 'extra-rounded', label: 'Extra arrondi' },
+    59→    59→];
+    60→    60→
+    61→    61→const CORNER_DOT_TYPES = [
+    62→    62→  { value: 'square', label: 'Carré' },
+    63→    63→  { value: 'dot', label: 'Rond' },
+    64→    64→];
+    65→    65→
+    66→    66→const ERROR_LEVELS = [
+    67→    67→  { value: 'L', label: 'L (7%)' },
+    68→    68→  { value: 'M', label: 'M (15%)' },
+    69→    69→  { value: 'Q', label: 'Q (25%)' },
+    70→    70→  { value: 'H', label: 'H (30%)' },
+    71→    71→];
+    72→    72→
+    73→    73→const LOGO_PRESETS = [
+    74→    74→  { value: '', label: 'Aucun', icon: 'none' },
+    75→    75→  { value: 'wifi', label: 'Wi-Fi', icon: 'wifi' },
+    76→    76→  { value: 'home', label: 'Maison', icon: 'home' },
+    77→    77→  { value: 'list', label: 'Liste', icon: 'list' },
+    78→    78→  { value: 'bell', label: 'Portier', icon: 'bell' },
+    79→    79→  { value: 'shield', label: 'Urgence', icon: 'shield' },
+    80→    80→];
+    81→    81→
+    82→    82→const BATCH_TEMPLATES: Record<string, { label: string; description: string; quantity: number; design: Partial<DesignConfig> }> = {
+    83→    83→  airbnb: {
+    84→    84→    label: 'Pack Airbnb',
+    85→    85→    description: '10 QR codes parfaits pour les hôtes Airbnb',
+    86→    86→    quantity: 10,
+    87→    87→    design: { dotsColor: '#FF5A5F', backgroundColor: '#FFFFFF', dotsType: 'rounded', cornersSquareType: 'extra-rounded', cornersDotType: 'dot', logoPreset: 'home' },
+    88→    88→  },
+    89→    89→  famille: {
+    90→    90→    label: 'Pack Famille',
+    91→    91→    description: '15 QR codes pour organiser la vie de famille',
+    92→    92→    quantity: 15,
+    93→    93→    design: { dotsColor: '#10B981', backgroundColor: '#F0FDF4', dotsType: 'dots', cornersSquareType: 'square', cornersDotType: 'dot', logoPreset: 'home' },
+    94→    94→  },
+    95→    95→  bureau: {
+    96→    96→    label: 'Pack Bureau',
+    97→    97→    description: '10 QR codes professionnels pour le bureau',
+    98→    98→    quantity: 10,
+    99→    99→    design: { dotsColor: '#1E293B', backgroundColor: '#FFFFFF', dotsType: 'classy', cornersSquareType: 'extra-rounded', cornersDotType: 'square', logoPreset: 'wifi' },
+   100→   100→  },
+   101→   101→};
+   102→   102→
+   103→   103→const DEFAULT_DESIGN: DesignConfig = {
+   104→   104→  dotsColor: '#10B981',
+   105→   105→  backgroundColor: '#FFFFFF',
+   106→   106→  dotsType: 'rounded',
+   107→   107→  cornersSquareType: 'extra-rounded',
+   108→   108→  cornersDotType: 'dot',
+   109→   109→  errorCorrectionLevel: 'M',
+   110→   110→  logoPreset: '',
+   111→   111→};
+   112→   112→
+   113→   113→/* ------------------------------------------------------------------ */
+   114→   114→/*  SVG Logo presets (as data URIs)                                    */
+   115→   115→/* ------------------------------------------------------------------ */
+   116→   116→
+   117→   117→function getPresetLogoDataUrl(preset: string): string {
+   118→   118→  const svgs: Record<string, string> = {
+   119→   119→    wifi: `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.859a10 10 0 0 1 14 0"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/></svg>`,
+   120→   120→    home: `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+   121→   121→    list: `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>`,
+   122→   122→    bell: `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`,
+   123→   123→    shield: `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>`,
+   124→   124→  };
+   125→   125→  const svg = svgs[preset];
+   126→   126→  if (!svg) return '';
+   127→   127→  return `data:image/svg+xml;base64,${typeof btoa !== 'undefined' ? btoa(svg) : Buffer.from(svg).toString('base64')}`;
+   128→   128→}
+   129→   129→
+   130→   130→/* ------------------------------------------------------------------ */
+   131→   131→/*  Component                                                          */
+   132→   132→/* ------------------------------------------------------------------ */
+   133→   133→
+   134→   134→export function GenerateBatch() {
+   135→   135→  /* ---- state ---- */
+   136→   136→  const [quantity, setQuantity] = useState(10);
+   137→   137→  const [design, setDesign] = useState<DesignConfig>(DEFAULT_DESIGN);
+   138→   138→  const [batchName, setBatchName] = useState('');
+   139→   139→  const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
+   140→   140→  const [isGenerating, setIsGenerating] = useState(false);
+   141→   141→  const [isExporting, setIsExporting] = useState(false);
+   142→   142→  const [generatedCodes, setGeneratedCodes] = useState<string[]>([]);
+   143→   143→  const [batchId, setBatchId] = useState<string | null>(null);
+   144→   144→
+   145→   145→  /* ---- refs ---- */
+   146→   146→  const previewRef = useRef<HTMLDivElement>(null);
+   147→   147→  const qrInstanceRef = useRef<any>(null);
+   148→   148→
+   149→   149→  /* ---- QR preview ---- */
+   150→   150→  const updateQrPreview = useCallback(async () => {
+   151→   151→    if (!previewRef.current) return;
+   152→   152→    try {
+   153→   153→      const QRCodeStyling = (await import('qr-code-styling')).default;
+   154→   154→
+   155→   155→      const opts: any = {
+   156→   156→        width: 280,
+   157→   157→        height: 280,
+   158→   158→        type: 'canvas',
+   159→   159→        data: 'https://qrdomotik.com/activate/QR-XXXXXXXX',
+   160→   160→        dotsOptions: {
+   161→   161→          color: design.dotsColor,
+   162→   162→          type: design.dotsType,
+   163→   163→        },
+   164→   164→        backgroundOptions: {
+   165→   165→          color: design.backgroundColor,
+   166→   166→        },
+   167→   167→        cornersSquareOptions: {
+   168→   168→          color: design.dotsColor,
+   169→   169→          type: design.cornersSquareType,
+   170→   170→        },
+   171→   171→        cornersDotOptions: {
+   172→   172→          color: design.dotsColor,
+   173→   173→          type: design.cornersDotType,
+   174→   174→        },
+   175→   175→        qrOptions: {
+   176→   176→          errorCorrectionLevel: design.errorCorrectionLevel,
+   177→   177→        },
+   178→   178→        imageOptions: {
+   179→   179→          crossOrigin: 'anonymous',
+   180→   180→          margin: 8,
+   181→   181→          imageSize: 0.35,
+   182→   182→        },
+   183→   183→      };
+   184→   184→
+   185→   185→      if (design.logoPreset) {
+   186→   186→        opts.image = getPresetLogoDataUrl(design.logoPreset);
+   187→   187→      }
+   188→   188→
+   189→   189→      if (qrInstanceRef.current) {
+   190→   190→        qrInstanceRef.current.update(opts);
+   191→   191→      } else {
+   192→   192→        previewRef.current.innerHTML = '';
+   193→   193→        const instance = new QRCodeStyling(opts);
+   194→   194→        instance.append(previewRef.current);
+   195→   195→        qrInstanceRef.current = instance;
+   196→   196→      }
+   197→   197→    } catch (err) {
+   198→   198→      console.error('QR preview error:', err);
+   199→   199→    }
+   200→   200→  }, [design]);
+   201→   201→
+   202→   202→  useEffect(() => {
+   203→   203→    const timer = setTimeout(updateQrPreview, 100);
+   204→   204→    return () => clearTimeout(timer);
+   205→   205→  }, [updateQrPreview]);
+   206→   206→
+   207→   207→  /* ---- template ---- */
+   208→   208→  const applyTemplate = (key: string) => {
+   209→   209→    const tpl = BATCH_TEMPLATES[key];
+   210→   210→    if (!tpl) return;
+   211→   211→    setQuantity(tpl.quantity);
+   212→   212→    setDesign((prev) => ({ ...prev, ...tpl.design }));
+   213→   213→    setActiveTemplate(key);
+   214→   214→    qrInstanceRef.current = null;
+   215→   215→    toast.success(`Template « ${tpl.label} » appliqué`);
+   216→   216→  };
+   217→   217→
+   218→   218→  const resetTemplate = () => {
+   219→   219→    setActiveTemplate(null);
+   220→   220→    setQuantity(10);
+   221→   221→    setDesign(DEFAULT_DESIGN);
+   222→   222→    qrInstanceRef.current = null;
+   223→   223→  };
+   224→   224→
+   225→   225→  /* ---- generate batch ---- */
+   226→   226→  const handleGenerate = async () => {
+   227→   227→    setIsGenerating(true);
+   228→   228→    try {
+   229→   229→      const codes = generateUniqueCodes(quantity);
+   230→   230→      const designConfig = JSON.stringify(design);
+   231→   231→
+   232→   232→      const res = await fetch('/api/admin/batches', {
+   233→   233→        method: 'POST',
+   234→   234→        headers: { 'Content-Type': 'application/json' },
+   235→   235→        body: JSON.stringify({
+   236→   236→          quantity,
+   237→   237→          designConfig,
+   238→   238→          batchName: batchName || undefined,
+   239→   239→          activationCodes: codes,
+   240→   240→        }),
+   241→   241→      });
+   242→   242→
+   243→   243→      if (!res.ok) {
+   244→   244→        const err = await res.json().catch(() => ({}));
+   245→   245→        throw new Error(err.error || 'Erreur lors de la génération');
+   246→   246→      }
+   247→   247→
+   248→   248→      const data = await res.json();
+   249→   249→      setGeneratedCodes(codes);
+   250→   250→      setBatchId(data.batch?.id || null);
+   251→   251→      toast.success(`${quantity} QR codes générés avec succès !`);
+   252→   252→    } catch (err: any) {
+   253→   253→      toast.error(err.message || 'Erreur lors de la génération');
+   254→   254→    } finally {
+   255→   255→      setIsGenerating(false);
+   256→   256→    }
+   257→   257→  };
+   258→   258→
+   259→   259→  /* ---- export PDF ---- */
+   260→   260→  const handleExportPdf = async () => {
+   261→   261→    if (generatedCodes.length === 0) return;
+   262→   262→    setIsExporting(true);
+   263→   263→    try {
+   264→   264→      const QRCodeStyling = (await import('qr-code-styling')).default;
+   265→   265→      const qrCodes: QrCodeForPdf[] = [];
+   266→   266→
+   267→   267→      for (const code of generatedCodes) {
+   268→   268→        const opts: any = {
+   269→   269→          width: 400,
+   270→   270→          height: 400,
+   271→   271→          type: 'canvas',
+   272→   272→          data: `https://qrdomotik.com/activate/${code}`,
+   273→   273→          dotsOptions: { color: design.dotsColor, type: design.dotsType },
+   274→   274→          backgroundOptions: { color: design.backgroundColor },
+   275→   275→          cornersSquareOptions: { color: design.dotsColor, type: design.cornersSquareType },
+   276→   276→          cornersDotOptions: { color: design.dotsColor, type: design.cornersDotType },
+   277→   277→          qrOptions: { errorCorrectionLevel: design.errorCorrectionLevel },
+   278→   278→          imageOptions: { crossOrigin: 'anonymous', margin: 8, imageSize: 0.35 },
+   279→   279→        };
+   280→   280→        if (design.logoPreset) {
+   281→   281→          opts.image = getPresetLogoDataUrl(design.logoPreset);
+   282→   282→        }
+   283→   283→        const qr = new QRCodeStyling(opts);
+   284→   284→        const blob: Blob = await new Promise((resolve, reject) => {
+   285→   285→          qr.download({ name: 'qr', extension: 'png' as any });
+   286→   286→          qr.getRawData('png').then((d: any) => {
+   287→   287→            if (d) resolve(d);
+   288→   288→            else reject(new Error('No data'));
+   289→   289→          }).catch(reject);
+   290→   290→        });
+   291→   291→        const imageUrl = URL.createObjectURL(blob);
+   292→   292→        qrCodes.push({ code, imageUrl });
+   293→   293→      }
+   294→   294→
+   295→   295→      await downloadPdf({
+   296→   296→        qrCodes,
+   297→   297→        format: 'a4',
+   298→   298→        batchName: batchName || `Lot ${batchId?.slice(0, 8)}`,
+   299→   299→      });
+   300→   300→
+   301→   301→      // Cleanup object URLs
+   302→   302→      qrCodes.forEach((qr) => URL.revokeObjectURL(qr.imageUrl));
+   303→   303→      toast.success('PDF téléchargé !');
+   304→   304→    } catch (err: any) {
+   305→   305→      toast.error('Erreur lors de l\'export PDF');
+   306→   306→      console.error(err);
+   307→   307→    } finally {
+   308→   308→      setIsExporting(false);
+   309→   309→    }
+   310→   310→  };
+   311→   311→
+   312→   312→  /* ---- design updaters ---- */
+   313→   313→  const updateDesign = (partial: Partial<DesignConfig>) => {
+   314→   314→    setDesign((prev) => ({ ...prev, ...partial }));
+   315→   315→    qrInstanceRef.current = null;
+   316→   316→  };
+   317→   317→
+   318→   318→  const presetIcon = (icon: string) => {
+   319→   319→    switch (icon) {
+   320→   320→      case 'wifi': return <Wifi className="h-4 w-4" />;
+   321→   321→      case 'home': return <Home className="h-4 w-4" />;
+   322→   322→      case 'list': return <List className="h-4 w-4" />;
+   323→   323→      case 'bell': return <Bell className="h-4 w-4" />;
+   324→   324→      case 'shield': return <ShieldCheck className="h-4 w-4" />;
+   325→   325→      default: return <ImageIcon className="h-4 w-4" />;
+   326→   326→    }
+   327→   327→  };
+   328→   328→
+   329→   329→  /* ================================================================ */
+   330→   330→  /*  RENDER                                                            */
+   331→   331→  /* ================================================================ */
+   332→   332→  return (
+   333→   333→    <div className="space-y-6">
+   334→   334→      {/* Header */}
+   335→   335→      <div>
+   336→   336→        <h2 className="text-2xl font-bold tracking-tight">Générer un lot de QR codes</h2>
+   337→   337→        <p className="text-muted-foreground">
+   338→   338→          Créez un lot de QR codes physiques avec un design personnalisé, puis exportez-les en PDF pour l'impression.
+   339→   339→        </p>
+   340→   340→      </div>
+   341→   341→
+   342→   342→      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+   343→   343→        {/* ====== LEFT: FORM ====== */}
+   344→   344→        <div className="lg:col-span-3 space-y-6">
+   345→   345→          {/* Templates */}
+   346→   346→          <Card>
+   347→   347→            <CardHeader className="pb-3">
+   348→   348→              <CardTitle className="flex items-center gap-2 text-base">
+   349→   349→                <Sparkles className="h-4 w-4 text-amber-500" />
+   350→   350→                Templates prêts à l'emploi
+   351→   351→              </CardTitle>
+   352→   352→              <CardDescription>Choisissez un template pour pré-remplir la configuration</CardDescription>
+   353→   353→            </CardHeader>
+   354→   354→            <CardContent>
+   355→   355→              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+   356→   356→                {Object.entries(BATCH_TEMPLATES).map(([key, tpl]) => (
+   357→   357→                  <button
+   358→   358→                    key={key}
+   359→   359→                    onClick={() => applyTemplate(key)}
+   360→   360→                    className={`relative flex flex-col items-start gap-1 rounded-lg border-2 p-4 text-left transition-all hover:shadow-md ${
+   361→   361→                      activeTemplate === key
+   362→   362→                        ? 'border-primary bg-primary/5'
+   363→   363→                        : 'border-border hover:border-primary/40'
+   364→   364→                    }`}
+   365→   365→                  >
+   366→   366→                    {activeTemplate === key && (
+   367→   367→                      <div className="absolute top-2 right-2">
+   368→   368→                        <Check className="h-4 w-4 text-primary" />
+   369→   369→                      </div>
+   370→   370→                    )}
+   371→   371→                    <span className="font-semibold text-sm">{tpl.label}</span>
+   372→   372→                    <span className="text-xs text-muted-foreground">{tpl.description}</span>
+   373→   373→                    <Badge variant="secondary" className="mt-1 w-fit text-xs">
+   374→   374→                      {tpl.quantity} codes
+   375→   375→                    </Badge>
+   376→   376→                  </button>
+   377→   377→                ))}
+   378→   378→              </div>
+   379→   379→              {activeTemplate && (
+   380→   380→                <Button variant="ghost" size="sm" className="mt-3" onClick={resetTemplate}>
+   381→   381→                  <RefreshCw className="mr-1 h-3 w-3" />
+   382→   382→                  Réinitialiser
+   383→   383→                </Button>
+   384→   384→              )}
+   385→   385→            </CardContent>
+   386→   386→          </Card>
+   387→   387→
+   388→   388→          {/* Configuration Form */}
+   389→   389→          <Card>
+   390→   390→            <CardHeader className="pb-3">
+   391→   391→              <CardTitle className="flex items-center gap-2 text-base">
+   392→   392→                <Layout className="h-4 w-4" />
+   393→   393→                Configuration du lot
+   394→   394→              </CardTitle>
+   395→   395→            </CardHeader>
+   396→   396→            <CardContent className="space-y-5">
+   397→   397→              <div className="grid grid-cols-2 gap-4">
+   398→   398→                <div className="space-y-2">
+   399→   399→                  <Label htmlFor="quantity">Quantité</Label>
+   400→   400→                  <Select value={String(quantity)} onValueChange={(v) => setQuantity(Number(v))}>
+   401→   401→                    <SelectTrigger id="quantity">
+   402→   402→                      <SelectValue />
+   403→   403→                    </SelectTrigger>
+   404→   404→                    <SelectContent>
+   405→   405→                      <SelectItem value="10">10 QR codes</SelectItem>
+   406→   406→                      <SelectItem value="15">15 QR codes</SelectItem>
+   407→   407→                      <SelectItem value="20">20 QR codes</SelectItem>
+   408→   408→                    </SelectContent>
+   409→   409→                  </Select>
+   410→   410→                </div>
+   411→   411→                <div className="space-y-2">
+   412→   412→                  <Label htmlFor="batchName">Nom du lot (optionnel)</Label>
+   413→   413→                  <Input
+   414→   414→                    id="batchName"
+   415→   415→                    placeholder="ex: Pack Dakar Jan 2026"
+   416→   416→                    value={batchName}
+   417→   417→                    onChange={(e) => setBatchName(e.target.value)}
+   418→   418→                  />
+   419→   419→                </div>
+   420→   420→              </div>
+   421→   421→            </CardContent>
+   422→   422→          </Card>
+   423→   423→
+   424→   424→          {/* Design Form */}
+   425→   425→          <Card>
+   426→   426→            <CardHeader className="pb-3">
+   427→   427→              <CardTitle className="flex items-center gap-2 text-base">
+   428→   428→                <Palette className="h-4 w-4" />
+   429→   429→                Design du QR Code
+   430→   430→              </CardTitle>
+   431→   431→              <CardDescription>Personnalisez l'apparence de vos QR codes</CardDescription>
+   432→   432→            </CardHeader>
+   433→   433→            <CardContent>
+   434→   434→              <Tabs defaultValue="style" className="w-full">
+   435→   435→                <TabsList className="grid w-full grid-cols-2">
+   436→   436→                  <TabsTrigger value="style">Style & Couleurs</TabsTrigger>
+   437→   437→                  <TabsTrigger value="logo">Logo central</TabsTrigger>
+   438→   438→                </TabsList>
+   439→   439→
+   440→   440→                <TabsContent value="style" className="space-y-5 mt-4">
+   441→   441→                  {/* Colors */}
+   442→   442→                  <div className="grid grid-cols-2 gap-4">
+   443→   443→                    <div className="space-y-2">
+   444→   444→                      <Label>Couleur des points</Label>
+   445→   445→                      <div className="flex items-center gap-3">
+   446→   446→                        <input
+   447→   447→                          type="color"
+   448→   448→                          value={design.dotsColor}
+   449→   449→                          onChange={(e) => updateDesign({ dotsColor: e.target.value })}
+   450→   450→                          className="h-10 w-14 cursor-pointer rounded-md border border-input bg-transparent"
+   451→   451→                        />
+   452→   452→                        <Input
+   453→   453→                          value={design.dotsColor}
+   454→   454→                          onChange={(e) => updateDesign({ dotsColor: e.target.value })}
+   455→   455→                          className="font-mono text-sm"
+   456→   456→                          maxLength={7}
+   457→   457→                        />
+   458→   458→                      </div>
+   459→   459→                    </div>
+   460→   460→                    <div className="space-y-2">
+   461→   461→                      <Label>Couleur de fond</Label>
+   462→   462→                      <div className="flex items-center gap-3">
+   463→   463→                        <input
+   464→   464→                          type="color"
+   465→   465→                          value={design.backgroundColor}
+   466→   466→                          onChange={(e) => updateDesign({ backgroundColor: e.target.value })}
+   467→   467→                          className="h-10 w-14 cursor-pointer rounded-md border border-input bg-transparent"
+   468→   468→                        />
+   469→   469→                        <Input
+   470→   470→                          value={design.backgroundColor}
+   471→   471→                          onChange={(e) => updateDesign({ backgroundColor: e.target.value })}
+   472→   472→                          className="font-mono text-sm"
+   473→   473→                          maxLength={7}
+   474→   474→                        />
+   475→   475→                      </div>
+   476→   476→                    </div>
+   477→   477→                  </div>
+   478→   478→
+   479→   479→                  <Separator />
+   480→   480→
+   481→   481→                  {/* Dot style */}
+   482→   482→                  <div className="space-y-2">
+   483→   483→                    <Label>Style des points</Label>
+   484→   484→                    <div className="grid grid-cols-3 gap-2">
+   485→   485→                      {DOT_TYPES.map((t) => (
+   486→   486→                        <button
+   487→   487→                          key={t.value}
+   488→   488→                          onClick={() => updateDesign({ dotsType: t.value })}
+   489→   489→                          className={`rounded-md border-2 px-3 py-2 text-xs font-medium transition-all ${
+   490→   490→                            design.dotsType === t.value
+   491→   491→                              ? 'border-primary bg-primary/10 text-primary'
+   492→   492→                              : 'border-border hover:border-primary/40'
+   493→   493→                          }`}
+   494→   494→                        >
+   495→   495→                          {t.label}
+   496→   496→                        </button>
+   497→   497→                      ))}
+   498→   498→                    </div>
+   499→   499→                  </div>
+   500→   500→
+   501→   501→                  {/* Corner styles */}
+   502→   502→                  <div className="grid grid-cols-2 gap-4">
+   503→   503→                    <div className="space-y-2">
+   504→   504→                      <Label>Style des coins</Label>
+   505→   505→                      <Select
+   506→   506→                        value={design.cornersSquareType}
+   507→   507→                        onValueChange={(v) => updateDesign({ cornersSquareType: v })}
+   508→   508→                      >
+   509→   509→                        <SelectTrigger>
+   510→   510→                          <SelectValue />
+   511→   511→                        </SelectTrigger>
+   512→   512→                        <SelectContent>
+   513→   513→                          {CORNER_SQUARE_TYPES.map((t) => (
+   514→   514→                            <SelectItem key={t.value} value={t.value}>
+   515→   515→                              {t.label}
+   516→   516→                            </SelectItem>
+   517→   517→                          ))}
+   518→   518→                        </SelectContent>
+   519→   519→                      </Select>
+   520→   520→                    </div>
+   521→   521→                    <div className="space-y-2">
+   522→   522→                      <Label>Style points de coin</Label>
+   523→   523→                      <Select
+   524→   524→                        value={design.cornersDotType}
+   525→   525→                        onValueChange={(v) => updateDesign({ cornersDotType: v })}
+   526→   526→                      >
+   527→   527→                        <SelectTrigger>
+   528→   528→                          <SelectValue />
+   529→   529→                        </SelectTrigger>
+   530→   530→                        <SelectContent>
+   531→   531→                          {CORNER_DOT_TYPES.map((t) => (
+   532→   532→                            <SelectItem key={t.value} value={t.value}>
+   533→   533→                              {t.label}
+   534→   534→                            </SelectItem>
+   535→   535→                          ))}
+   536→   536→                        </SelectContent>
+   537→   537→                      </Select>
+   538→   538→                    </div>
+   539→   539→                  </div>
+   540→   540→
+   541→   541→                  {/* Error correction */}
+   542→   542→                  <div className="space-y-2">
+   543→   543→                    <Label>Correction d'erreur</Label>
+   544→   544→                    <Select
+   545→   545→                      value={design.errorCorrectionLevel}
+   546→   546→                      onValueChange={(v) => updateDesign({ errorCorrectionLevel: v })}
+   547→   547→                    >
+   548→   548→                      <SelectTrigger className="w-full sm:w-1/2">
+   549→   549→                        <SelectValue />
+   550→   550→                      </SelectTrigger>
+   551→   551→                      <SelectContent>
+   552→   552→                        {ERROR_LEVELS.map((l) => (
+   553→   553→                          <SelectItem key={l.value} value={l.value}>
+   554→   554→                            {l.label}
+   555→   555→                          </SelectItem>
+   556→   556→                        ))}
+   557→   557→                      </SelectContent>
+   558→   558→                    </Select>
+   559→   559→                  </div>
+   560→   560→                </TabsContent>
+   561→   561→
+   562→   562→                <TabsContent value="logo" className="space-y-4 mt-4">
+   563→   563→                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+   564→   564→                    {LOGO_PRESETS.map((preset) => (
+   565→   565→                      <button
+   566→   566→                        key={preset.value}
+   567→   567→                        onClick={() => updateDesign({ logoPreset: preset.value })}
+   568→   568→                        className={`flex items-center gap-3 rounded-lg border-2 px-4 py-3 transition-all ${
+   569→   569→                          design.logoPreset === preset.value
+   570→   570→                            ? 'border-primary bg-primary/5'
+   571→   571→                            : 'border-border hover:border-primary/40'
+   572→   572→                        }`}
+   573→   573→                      >
+   574→   574→                        {presetIcon(preset.icon)}
+   575→   575→                        <span className="text-sm font-medium">{preset.label}</span>
+   576→   576→                      </button>
+   577→   577→                    ))}
+   578→   578→                  </div>
+   579→   579→                  <p className="text-xs text-muted-foreground">
+   580→   580→                    Le logo sera affiché au centre du QR code. Utilisez un niveau de correction H pour un meilleur résultat avec logo.
+   581→   581→                  </p>
+   582→   582→                </TabsContent>
+   583→   583→              </Tabs>
+   584→   584→            </CardContent>
+   585→   585→          </Card>
+   586→   586→
+   587→   587→          {/* Generate Button */}
+   588→   588→          <div className="flex flex-col sm:flex-row gap-3">
+   589→   589→            <Button
+   590→   590→              size="lg"
+   591→   591→              className="flex-1"
+   592→   592→              onClick={handleGenerate}
+   593→   593→              disabled={isGenerating || generatedCodes.length > 0}
+   594→   594→            >
+   595→   595→              {isGenerating ? (
+   596→   596→                <>
+   597→   597→                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   598→   598→                  Génération en cours...
+   599→   599→                </>
+   600→   600→              ) : generatedCodes.length > 0 ? (
+   601→   601→                <>
+   602→   602→                  <Check className="mr-2 h-4 w-4" />
+   603→   603→                  Lot généré ({generatedCodes.length} codes)
+   604→   604→                </>
+   605→   605→              ) : (
+   606→   606→                <>
+   607→   607→                  <QrCode className="mr-2 h-4 w-4" />
+   608→   608→                  Générer {quantity} QR codes
+   609→   609→                </>
+   610→   610→              )}
+   611→   611→            </Button>
+   612→   612→
+   613→   613→            {generatedCodes.length > 0 && (
+   614→   614→              <>
+   615→   615→                <Button
+   616→   616→                  size="lg"
+   617→   617→                  variant="outline"
+   618→   618→                  onClick={handleExportPdf}
+   619→   619→                  disabled={isExporting}
+   620→   620→                >
+   621→   621→                  {isExporting ? (
+   622→   622→                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+   623→   623→                  ) : (
+   624→   624→                    <Download className="mr-2 h-4 w-4" />
+   625→   625→                  )}
+   626→   626→                  Télécharger PDF (A4)
+   627→   627→                </Button>
+   628→   628→                <Button
+   629→   629→                  size="lg"
+   630→   630→                  variant="ghost"
+   631→   631→                  onClick={() => {
+   632→   632→                    setGeneratedCodes([]);
+   633→   633→                    setBatchId(null);
+   634→   634→                  }}
+   635→   635→                >
+   636→   636→                  <RefreshCw className="mr-2 h-4 w-4" />
+   637→   637→                  Nouveau lot
+   638→   638→                </Button>
+   639→   639→              </>
+   640→   640→            )}
+   641→   641→          </div>
+   642→   642→
+   643→   643→          {/* Generated Codes List */}
+   644→   644→          {generatedCodes.length > 0 && (
+   645→   645→            <Card>
+   646→   646→              <CardHeader className="pb-3">
+   647→   647→                <CardTitle className="flex items-center gap-2 text-base">
+   648→   648→                  <Package className="h-4 w-4" />
+   649→   649→                  Codes générés ({generatedCodes.length})
+   650→   650→                </CardTitle>
+   651→   651→                <CardDescription>
+   652→   652→                  Ces codes d'activation sont prêts à être imprimés et distribués.
+   653→   653→                </CardDescription>
+   654→   654→              </CardHeader>
+   655→   655→              <CardContent>
+   656→   656→                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 max-h-72 overflow-y-auto">
+   657→   657→                  {generatedCodes.map((code, i) => (
+   658→   658→                    <div
+   659→   659→                      key={code}
+   660→   660→                      className="flex items-center justify-between rounded-md border bg-muted/50 px-3 py-2"
+   661→   661→                    >
+   662→   662→                      <span className="font-mono text-xs font-semibold">{code}</span>
+   663→   663→                      <Button
+   664→   664→                        variant="ghost"
+   665→   665→                        size="icon"
+   666→   666→                        className="h-6 w-6"
+   667→   667→                        onClick={() => {
+   668→   668→                          navigator.clipboard.writeText(code);
+   669→   669→                          toast.success(`Code ${code} copié !`);
+   670→   670→                        }}
+   671→   671→                      >
+   672→   672→                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+   673→   673→                      </Button>
+   674→   674→                    </div>
+   675→   675→                  ))}
+   676→   676→                </div>
+   677→   677→              </CardContent>
+   678→   678→            </Card>
+   679→   679→          )}
+   680→   680→        </div>
+   681→   681→
+   682→   682→        {/* ====== RIGHT: QR PREVIEW ====== */}
+   683→   683→        <div className="lg:col-span-2">
+   684→   684→          <Card className="sticky top-6">
+   685→   685→            <CardHeader className="pb-3">
+   686→   686→              <CardTitle className="flex items-center gap-2 text-base">
+   687→   687→                <QrCode className="h-4 w-4" />
+   688→   688→                Aperçu en temps réel
+   689→   689→              </CardTitle>
+   690→   690→              <CardDescription>
+   691→   691→                Le QR code se met à jour automatiquement avec vos réglages.
+   692→   692→              </CardDescription>
+   693→   693→            </CardHeader>
+   694→   694→            <CardContent>
+   695→   695→              <div className="flex flex-col items-center gap-4">
+   696→   696→                {/* QR Preview Container */}
+   697→   697→                <div
+   698→   698→                  className="rounded-xl border-2 border-dashed border-muted-foreground/20 bg-white p-4"
+   699→   699→                  style={{ backgroundColor: design.backgroundColor }}
+   700→   700→                >
+   701→   701→                  <div
+   702→   702→                    ref={previewRef}
+   703→   703→                    className="flex items-center justify-center"
+   704→   704→                    style={{ width: 280, height: 280 }}
+   705→   705→                  />
+   706→   706→                </div>
+   707→   707→
+   708→   708→                {/* Design Summary */}
+   709→   709→                <div className="w-full space-y-2 rounded-lg bg-muted/50 p-3 text-xs">
+   710→   710→                  <div className="flex justify-between">
+   711→   711→                    <span className="text-muted-foreground">Points</span>
+   712→   712→                    <span className="font-medium">{DOT_TYPES.find((t) => t.value === design.dotsType)?.label}</span>
+   713→   713→                  </div>
+   714→   714→                  <div className="flex justify-between">
+   715→   715→                    <span className="text-muted-foreground">Coins</span>
+   716→   716→                    <span className="font-medium">{CORNER_SQUARE_TYPES.find((t) => t.value === design.cornersSquareType)?.label}</span>
+   717→   717→                  </div>
+   718→   718→                  <div className="flex justify-between">
+   719→   719→                    <span className="text-muted-foreground">Correction</span>
+   720→   720→                    <span className="font-medium">{design.errorCorrectionLevel}</span>
+   721→   721→                  </div>
+   722→   722→                  <div className="flex justify-between">
+   723→   723→                    <span className="text-muted-foreground">Logo</span>
+   724→   724→                    <span className="font-medium">{LOGO_PRESETS.find((p) => p.value === design.logoPreset)?.label || 'Aucun'}</span>
+   725→   725→                  </div>
+   726→   726→                </div>
+   727→   727→              </div>
+   728→   728→            </CardContent>
+   729→   729→          </Card>
+   730→   730→        </div>
+   731→   731→      </div>
+   732→   732→    </div>
+   733→   733→  );
+   734→   734→}
