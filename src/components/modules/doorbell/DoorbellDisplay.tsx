@@ -34,6 +34,7 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
   const [sending, setSending] = useState(false);
 
   const isPresent = content.mode === 'present';
+  const safeInstructions = Array.isArray(content.instructions) ? content.instructions : typeof content.instructions === 'string' ? content.instructions.split('\n').filter(Boolean) : [];
   const bgColor = isPresent
     ? 'from-green-50 to-white dark:from-green-950/20 dark:to-background'
     : 'from-amber-50 to-white dark:from-amber-950/20 dark:to-background';
@@ -135,7 +136,7 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
           </div>
 
           <div className="space-y-3 mb-8">
-            {content.instructions.map((inst, i) => (
+            {safeInstructions.map((inst, i) => (
               <div key={i} className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm">
                 <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-${accentColor}-100 dark:bg-${accentColor}-900/30 text-sm font-bold text-${accentColor}-700 dark:text-${accentColor}-400`}>
                   {i + 1}

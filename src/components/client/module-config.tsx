@@ -70,10 +70,13 @@ export function ModuleConfigPage() {
         return;
       }
       const res = await fetch(`/api/client/qr-codes?homeId=${home.id}`);
-      const data = await res.json();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const data = JSON.parse(text);
       setQrCodes(data.qrCodes || []);
-    } catch {
-      toast.error('Erreur de chargement');
+    } catch (err) {
+      console.error('[ModuleConfig fetchQrCodes]', err);
+      toast.error('Erreur de chargement des QR codes');
     } finally {
       setLoading(false);
     }

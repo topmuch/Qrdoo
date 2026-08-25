@@ -181,7 +181,7 @@ function getDefaultContent(moduleType: string): Record<string, unknown> {
     case 'home_manual':
       return { title: '', body: '' };
     case 'doorbell':
-      return { mode: 'absent', instructions: '', allowMessages: true, allowDoorbell: true, presentMessage: '', absentMessage: '' };
+      return { mode: 'absent', instructions: [], allowMessages: true, allowDoorbell: true, presentMessage: '', absentMessage: '' };
     case 'emergency':
       return { title: '', body: '', contacts: [] };
     case 'note':

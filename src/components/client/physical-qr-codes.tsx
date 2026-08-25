@@ -119,7 +119,7 @@ interface QrCodeItem {
   id: string;
   name: string;
   type: string;
-  publicSlug: string;
+  publicSlug: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -235,6 +235,9 @@ export function PhysicalQrCodes() {
   // ---- Rooms cache ----
   const [rooms, setRooms] = useState<RoomResponse[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
+  const [newRoomName, setNewRoomName] = useState('');
+  const [showNewRoom, setShowNewRoom] = useState(false);
+  const [creatingRoom, setCreatingRoom] = useState(false);
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -275,6 +278,27 @@ export function PhysicalQrCodes() {
     fetchRooms();
   }, [selectedHomeId]);
 
+  const handleCreateRoom = async () => {
+    if (!newRoomName.trim() || !selectedHomeId) return;
+    setCreatingRoom(true);
+    try {
+      const res = await fetch('/api/client/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ homeId: selectedHomeId, name: newRoomName.trim() }),
+      });
+      const data = await res.json();
+      if (data.id) {
+        setRooms((prev) => [...prev, { id: data.id, name: data.name, icon: data.icon, _count: { qrCodes: 0 } }]);
+        setSelectedRoomId(data.id);
+        setNewRoomName('');
+        setShowNewRoom(false);
+        toast.success(`Pièce « ${data.name} » créée`);
+      }
+    } catch { toast.error('Erreur lors de la création'); }
+    finally { setCreatingRoom(false); }
+  };
+
   // ---- Fetch QR codes for Tab 3 ----
   useEffect(() => {
     if (!selectedHomeId) return;
@@ -282,9 +306,12 @@ export function PhysicalQrCodes() {
       setLoadingCodes(true);
       try {
         const res = await fetch(`/api/client/qr-codes?homeId=${selectedHomeId}`);
-        const data = await res.json();
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        const data = JSON.parse(text);
         setQrCodes(data.qrCodes ?? []);
-      } catch {
+      } catch (err) {
+        console.error('[fetchQrCodes]', err);
         toast.error('Erreur lors du chargement des QR codes');
       } finally {
         setLoadingCodes(false);
@@ -862,12 +889,32 @@ export function PhysicalQrCodes() {
                     <Label className="text-sm font-medium">Pièce</Label>
                     {loadingRooms ? (
                       <Skeleton className="h-10 w-full" />
-                    ) : rooms.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center">
-                        Aucune pièce — le QR sera associé à votre maison
-                      </p>
+                    ) : rooms.length === 0 && !showNewRoom ? (
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Aucune pièce — le QR sera associé à votre maison
+                        </p>
+                        <Button variant="outline" size="sm" onClick={() => setShowNewRoom(true)}>
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Créer une pièce
+                        </Button>
+                      </div>
+                    ) : showNewRoom ? (
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Nom de la pièce"
+                          value={newRoomName}
+                          onChange={(e) => setNewRoomName(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
+                        />
+                        <Button size="sm" onClick={handleCreateRoom} disabled={!newRoomName.trim() || creatingRoom}>
+                          {creatingRoom ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setShowNewRoom(false)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     ) : (
-                      <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
+                      <Select value={selectedRoomId || '_'} onValueChange={(v) => { if (v === '__new__') { setShowNewRoom(true); } else { setSelectedRoomId(v); } }}>
                         <SelectTrigger>
                           <SelectValue placeholder="Sélectionner une pièce" />
                         </SelectTrigger>
@@ -877,6 +924,9 @@ export function PhysicalQrCodes() {
                               {room.icon ? `${room.icon} ` : ''}{room.name}
                             </SelectItem>
                           ))}
+                          <SelectItem value="__new__" className="text-primary">
+                            <Plus className="h-3.5 w-3.5 mr-1 inline" /> Créer une nouvelle pièce...
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     )}
@@ -1343,6 +1393,7 @@ export function PhysicalQrCodes() {
                       <TableBody>
                         {paginatedQrCodes.map((qr) => {
                           const physicalQr = qr.physicalQrCodes[0];
+                          const publicUrl = qr.publicSlug ? `${window.location.origin}/view/${qr.publicSlug}` : null;
                           return (
                             <TableRow key={qr.id} className="group">
                               <TableCell className="font-mono text-xs">
@@ -1377,6 +1428,17 @@ export function PhysicalQrCodes() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {publicUrl && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      title="Copier le lien de scan"
+                                      onClick={() => { navigator.clipboard.writeText(publicUrl); toast.success('Lien copié !'); }}
+                                    >
+                                      <Link className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
                                   <Button
                                     variant="ghost"
                                     size="icon"
