@@ -132,3 +132,36 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// DELETE: Delete a home and all its data (cascade)
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const homeId = searchParams.get('id');
+
+    if (!homeId) {
+      return NextResponse.json(
+        { error: "L'id de la maison est requis" },
+        { status: 400 }
+      );
+    }
+
+    // Verify home exists
+    const home = await db.home.findUnique({ where: { id: homeId } });
+    if (!home) {
+      return NextResponse.json(
+        { error: 'Maison introuvable' },
+        { status: 404 }
+      );
+    }
+
+    // Delete the home — cascade will handle rooms, qrCodes, content, etc.
+    await db.home.delete({ where: { id: homeId } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('[homes DELETE] Error:', error);
+    const message = error instanceof Error ? error.message : 'Erreur interne du serveur';
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

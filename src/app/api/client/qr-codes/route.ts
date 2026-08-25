@@ -89,11 +89,12 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, name, isActive, roomId } = body as {
+    const { id, name, isActive, roomId, content } = body as {
       id: string;
       name?: string;
       isActive?: boolean;
       roomId?: string;
+      content?: Record<string, string>;
     };
 
     if (!id) {
@@ -107,6 +108,24 @@ export async function PATCH(request: NextRequest) {
     if (name !== undefined) updateData.name = name;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (roomId !== undefined) updateData.roomId = roomId;
+
+    // Update content if provided
+    if (content) {
+      const existingContent = await db.qrContent.findUnique({
+        where: { qrCodeId: id },
+      });
+
+      if (existingContent) {
+        await db.qrContent.update({
+          where: { qrCodeId: id },
+          data: { contentJson: JSON.stringify(content) },
+        });
+      } else {
+        await db.qrContent.create({
+          data: { qrCodeId: id, contentJson: JSON.stringify(content) },
+        });
+      }
+    }
 
     const qrCode = await db.qrCode.update({
       where: { id },

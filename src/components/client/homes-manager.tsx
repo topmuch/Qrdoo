@@ -43,6 +43,7 @@ export function HomesManager() {
   const [inviteRole, setInviteRole] = useState('member');
   const [inviting, setInviting] = useState(false);
   const [deleteHome, setDeleteHome] = useState<HomeData | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchHomes = () => {
     fetch('/api/client/homes')
@@ -100,10 +101,22 @@ export function HomesManager() {
 
   const handleDelete = async () => {
     if (!deleteHome) return;
-    // Simplified: just remove from UI
-    setHomes((h) => h.filter((x) => x.id !== deleteHome.id));
-    toast.success('Maison supprimée');
-    setDeleteHome(null);
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/client/homes?id=${deleteHome.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.error) {
+        toast.error(data.error);
+      } else {
+        toast.success(`Maison « ${deleteHome.name} » supprimée`);
+        setHomes((h) => h.filter((x) => x.id !== deleteHome.id));
+      }
+    } catch {
+      toast.error('Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
+      setDeleteHome(null);
+    }
   };
 
   const roleBadge = (role: string) => {
@@ -193,7 +206,7 @@ export function HomesManager() {
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteHome} onOpenChange={() => setDeleteHome(null)}>
-        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer cette maison ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Tous les QR codes et données associés seront perdus.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Supprimer</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Supprimer cette maison ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible. Tous les QR codes, pièces et données associés seront définitivement supprimés.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel disabled={deleting}>Annuler</AlertDialogCancel><AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground">{deleting ? 'Suppression...' : 'Supprimer'}</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
     </div>
   );

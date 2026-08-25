@@ -189,3 +189,22 @@ Stage Summary:
 - New sidebar section 'Intégrations' with Domotique and Webhooks items
 - Webhook test dispatch with HMAC signing functional
 - Dev server running clean on port 3000
+
+---
+Task ID: 1
+Agent: main
+Task: Fix home deletion + QR code content editing
+
+Work Log:
+- Added DELETE method to /api/client/homes/route.ts (accepts ?id= param, uses db.home.delete with cascade)
+- Updated homes-manager.tsx handleDelete to call DELETE API with loading state
+- Updated qr-codes PATCH API to accept content field and update QrContent.contentJson
+- Updated physical-qr-codes.tsx edit dialog to show ModuleContentFields when QR type has content
+- Added editContent + editContentErrors state, parse existing contentJson on dialog open
+- handleSaveEdit now validates and sends content alongside name
+
+Stage Summary:
+- Home deletion now works end-to-end (API + frontend)
+- QR code edit dialog now shows content fields (e.g. note title+body, wifi ssid+password, etc.)
+- All 17 module types with content fields are editable
+- Lint passes clean

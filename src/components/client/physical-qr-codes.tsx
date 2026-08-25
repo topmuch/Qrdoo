@@ -230,6 +230,8 @@ export function PhysicalQrCodes() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingQr, setEditingQr] = useState<QrCodeItem | null>(null);
   const [editName, setEditName] = useState('');
+  const [editContent, setEditContent] = useState<Record<string, string>>({});
+  const [editContentErrors, setEditContentErrors] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
   const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
   const [deactivatingQr, setDeactivatingQr] = useState<QrCodeItem | null>(null);
@@ -567,17 +569,41 @@ export function PhysicalQrCodes() {
   function openEditDialog(qr: QrCodeItem) {
     setEditingQr(qr);
     setEditName(qr.name);
+    setEditContentErrors([]);
+    // Parse existing content
+    if (qr.content?.contentJson) {
+      try {
+        const parsed = JSON.parse(qr.content.contentJson);
+        setEditContent(typeof parsed === 'object' && parsed !== null ? parsed as Record<string, string> : {});
+      } catch {
+        setEditContent({});
+      }
+    } else {
+      setEditContent({});
+    }
     setEditDialogOpen(true);
   }
 
   async function handleSaveEdit() {
     if (!editingQr || !editName.trim()) return;
+    // Validate content if module has fields
+    if (editingQr.type && moduleHasContentFields(editingQr.type)) {
+      const errors = validateModuleContent(editingQr.type, editContent);
+      if (errors.length > 0) {
+        setEditContentErrors(errors);
+        return;
+      }
+    }
     setEditSaving(true);
     try {
+      const payload: Record<string, unknown> = { id: editingQr.id, name: editName.trim() };
+      if (editingQr.type && moduleHasContentFields(editingQr.type)) {
+        payload.content = editContent;
+      }
       const res = await fetch('/api/client/qr-codes', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editingQr.id, name: editName.trim() }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.error) {
@@ -1547,22 +1573,49 @@ export function PhysicalQrCodes() {
       {/*  Edit Dialog                                                        */}
       {/* ================================================================== */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Modifier le QR code</DialogTitle>
             <DialogDescription>
-              Changez le nom de votre QR code &quot;{editingQr?.name}&quot;
+              Modifiez le nom et le contenu de &quot;{editingQr?.name}&quot;
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="edit-name">Nouveau nom</Label>
-            <Input
-              id="edit-name"
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="mt-2"
-              placeholder="Nouveau nom"
-            />
+          <div className="py-4 space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Nom du QR code</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Nom du QR code"
+              />
+            </div>
+
+            {/* Module content editing */}
+            {editingQr?.type && moduleHasContentFields(editingQr.type) && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">
+                      {(QR_MODULE_LABELS as Record<string, string>)[editingQr.type] ?? editingQr.type}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">Contenu du module</span>
+                  </div>
+                  {editContentErrors.length > 0 && (
+                    <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/5 p-2.5 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>Remplissez : {editContentErrors.join(', ')}</span>
+                    </div>
+                  )}
+                  <ModuleContentFields
+                    moduleType={editingQr.type}
+                    content={editContent}
+                    onChange={(c) => { setEditContent(c); setEditContentErrors([]); }}
+                  />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
