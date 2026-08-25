@@ -87,6 +87,18 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const handleLogout = () => { signOut({ redirect: false }); onLogout(); };
 
+  // Listen for programmatic navigation from child components
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<string>).detail;
+      if (detail && (detail as string).startsWith('client-')) {
+        onPageChange(detail as ClientPage);
+      }
+    };
+    window.addEventListener('navigate', handler);
+    return () => window.removeEventListener('navigate', handler);
+  }, [onPageChange]);
+
   // Register service worker for PWA
   useEffect(() => {
     if ('serviceWorker' in navigator) {
