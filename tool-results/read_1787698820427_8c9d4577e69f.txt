@@ -1,0 +1,1718 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useCallback, useRef } from 'react';
+     4→import { toast } from 'sonner';
+     5→import { format } from 'date-fns';
+     6→import { fr } from 'date-fns/locale';
+     7→
+     8→import { QR_MODULE_LABELS, ALL_QR_MODULE_TYPES } from '@/types/database';
+     9→import { ModuleContentFields, moduleHasContentFields, validateModuleContent, MODULE_ACTIVATION_CONFIG } from '@/components/client/module-content-fields';
+    10→
+    11→import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+    12→import { Button } from '@/components/ui/button';
+    13→import { Input } from '@/components/ui/input';
+    14→import { Label } from '@/components/ui/label';
+    15→import { Textarea } from '@/components/ui/textarea';
+    16→import { Badge } from '@/components/ui/badge';
+    17→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    18→import {
+    19→  Select,
+    20→  SelectTrigger,
+    21→  SelectValue,
+    22→  SelectContent,
+    23→  SelectItem,
+    24→} from '@/components/ui/select';
+    25→import {
+    26→  Table,
+    27→  TableHeader,
+    28→  TableBody,
+    29→  TableRow,
+    30→  TableHead,
+    31→  TableCell,
+    32→} from '@/components/ui/table';
+    33→import {
+    34→  Dialog,
+    35→  DialogContent,
+    36→  DialogHeader,
+    37→  DialogTitle,
+    38→  DialogDescription,
+    39→  DialogFooter,
+    40→} from '@/components/ui/dialog';
+    41→import {
+    42→  AlertDialog,
+    43→  AlertDialogAction,
+    44→  AlertDialogCancel,
+    45→  AlertDialogContent,
+    46→  AlertDialogDescription,
+    47→  AlertDialogFooter,
+    48→  AlertDialogHeader,
+    49→  AlertDialogTitle,
+    50→} from '@/components/ui/alert-dialog';
+    51→import { Skeleton } from '@/components/ui/skeleton';
+    52→import { Progress } from '@/components/ui/progress';
+    53→import { Separator } from '@/components/ui/separator';
+    54→
+    55→import { QrCodeDisplay } from '@/components/client/qr-code-display';
+    56→
+    57→import {
+    58→  QrCode,
+    59→  ScanLine,
+    60→  Upload,
+    61→  FileText,
+    62→  Check,
+    63→  X,
+    64→  Loader2,
+    65→  Search,
+    66→  Filter,
+    67→  Plus,
+    68→  Trash2,
+    69→  Edit,
+    70→  Eye,
+    71→  Copy,
+    72→  RefreshCw,
+    73→  Home,
+    74→  Wifi,
+    75→  Bell,
+    76→  List,
+    77→  ShieldAlert,
+    78→  Package,
+    79→  Zap,
+    80→  ArrowRight,
+    81→  ArrowLeft,
+    82→  ChevronRight,
+    83→  AlertCircle,
+    84→  CheckCircle2,
+    85→  XCircle,
+    86→  Clock,
+    87→  User,
+    88→  Link,
+    89→  UtensilsCrossed,
+    90→  Pill,
+    91→  KeyRound,
+    92→  Sparkles,
+    93→  Palette,
+    94→} from 'lucide-react';
+    95→
+    96→// ---------------------------------------------------------------------------
+    97→//  TypeScript interfaces for API response shapes
+    98→// ---------------------------------------------------------------------------
+    99→
+   100→interface HomeResponse {
+   101→  id: string;
+   102→  name: string;
+   103→  address: string | null;
+   104→  isActive: boolean;
+   105→  _count: { rooms: number; members: number; qrCodes: number };
+   106→}
+   107→
+   108→interface RoomResponse {
+   109→  id: string;
+   110→  name: string;
+   111→  icon: string | null;
+   112→  _count: { qrCodes: number };
+   113→}
+   114→
+   115→interface CheckCodeResponse {
+   116→  valid: boolean;
+   117→  status: 'inactive' | 'active' | 'lost' | 'cancelled' | 'not_found';
+   118→  physicalQr?: { id: string; activationCode: string; status: string; designConfig: unknown };
+   119→}
+   120→
+   121→interface QrCodeItem {
+   122→  id: string;
+   123→  name: string;
+   124→  type: string;
+   125→  publicSlug: string | null;
+   126→  isActive: boolean;
+   127→  createdAt: string;
+   128→  updatedAt: string;
+   129→  room: { id: string; name: string; icon: string | null } | null;
+   130→  content: { id: string; contentJson: string; updatedAt: string } | null;
+   131→  physicalQrCodes: { id: string; activationCode: string; status: string }[];
+   132→}
+   133→
+   134→// ---------------------------------------------------------------------------
+   135→//  Constants
+   136→// ---------------------------------------------------------------------------
+   137→
+   138→const POPULAR_MODULES = [
+   139→  'wifi',
+   140→  'external_link',
+   141→  'home_manual',
+   142→  'note',
+   143→  'meal_planner',
+   144→  'guestbook',
+   145→  'doorbell',
+   146→  'emergency',
+   147→  'contact',
+   148→  'shopping_list',
+   149→  'checklist',
+   150→  'medication',
+   151→  'energy_monitor',
+   152→  'key_location',
+   153→  'cleaning_schedule',
+   154→  'inventory',
+   155→  'chore',
+   156→  'timer',
+   157→  'recipe',
+   158→] as const;
+   159→
+   160→const MODULE_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+   161→  wifi: Wifi,
+   162→  guestbook: FileText,
+   163→  doorbell: Bell,
+   164→  emergency: ShieldAlert,
+   165→  note: FileText,
+   166→  contact: User,
+   167→  shopping_list: List,
+   168→  inventory: Package,
+   169→  chore: CheckCircle2,
+   170→  checklist: List,
+   171→  timer: Clock,
+   172→  recipe: FileText,
+   173→  external_link: Link,
+   174→  home_manual: FileText,
+   175→  meal_planner: UtensilsCrossed,
+   176→  medication: Pill,
+   177→  energy_monitor: Zap,
+   178→  key_location: KeyRound,
+   179→  cleaning_schedule: Sparkles,
+   180→};
+   181→
+   182→const ITEMS_PER_PAGE = 10;
+   183→
+   184→// ---------------------------------------------------------------------------
+   185→//  Component
+   186→// ---------------------------------------------------------------------------
+   187→
+   188→export function PhysicalQrCodes() {
+   189→  // ---- Global state ----
+   190→  const [homes, setHomes] = useState<HomeResponse[]>([]);
+   191→  const [selectedHomeId, setSelectedHomeId] = useState<string>('');
+   192→  const [loadingHomes, setLoadingHomes] = useState(true);
+   193→
+   194→  // ---- Tab 1 state (single activation) ----
+   195→  const [wizardStep, setWizardStep] = useState(1);
+   196→  const [codeInput, setCodeInput] = useState('');
+   197→  const [codeStatus, setCodeStatus] = useState<CheckCodeResponse | null>(null);
+   198→  const [codeChecking, setCodeChecking] = useState(false);
+   199→  const [selectedModuleType, setSelectedModuleType] = useState('');
+   200→  const [selectedRoomId, setSelectedRoomId] = useState('');
+   201→  const [qrName, setQrName] = useState('');
+   202→  const [activating, setActivating] = useState(false);
+   203→  const [moduleSearch, setModuleSearch] = useState('');
+   204→  const [moduleContent, setModuleContent] = useState<Record<string, string>>({});
+   205→  const [contentErrors, setContentErrors] = useState<string[]>([]);
+   206→
+   207→  // ---- Tab 2 state (batch activation) ----
+   208→  const [batchCodes, setBatchCodes] = useState('');
+   209→  const [batchValidated, setBatchValidated] = useState(false);
+   210→  const [batchValidCodes, setBatchValidCodes] = useState<string[]>([]);
+   211→  const [batchInvalidCodes, setBatchInvalidCodes] = useState<string[]>([]);
+   212→  const [batchValidating, setBatchValidating] = useState(false);
+   213→  const [batchModuleType, setBatchModuleType] = useState('');
+   214→  const [batchRoomId, setBatchRoomId] = useState('');
+   215→  const [batchNamePrefix, setBatchNamePrefix] = useState('');
+   216→  const [batchActivating, setBatchActivating] = useState(false);
+   217→  const [batchProgress, setBatchProgress] = useState(0);
+   218→  const [batchResult, setBatchResult] = useState<{ activated: number; failed: number; errors: string[] } | null>(null);
+   219→
+   220→  // ---- Tab 3 state (my codes) ----
+   221→  const [qrCodes, setQrCodes] = useState<QrCodeItem[]>([]);
+   222→  const [loadingCodes, setLoadingCodes] = useState(false);
+   223→  const [filterSearch, setFilterSearch] = useState('');
+   224→  const [filterModule, setFilterModule] = useState<string>('all');
+   225→  const [filterRoom, setFilterRoom] = useState<string>('all');
+   226→  const [filterStatus, setFilterStatus] = useState<string>('all');
+   227→  const [currentPage, setCurrentPage] = useState(1);
+   228→
+   229→  // ---- Dialogs ----
+   230→  const [editDialogOpen, setEditDialogOpen] = useState(false);
+   231→  const [editingQr, setEditingQr] = useState<QrCodeItem | null>(null);
+   232→  const [editName, setEditName] = useState('');
+   233→  const [editSaving, setEditSaving] = useState(false);
+   234→  const [deactivateDialogOpen, setDeactivateDialogOpen] = useState(false);
+   235→  const [deactivatingQr, setDeactivatingQr] = useState<QrCodeItem | null>(null);
+   236→  const [deactivating, setDeactivating] = useState(false);
+   237→
+   238→  // ---- Rooms cache ----
+   239→  const [rooms, setRooms] = useState<RoomResponse[]>([]);
+   240→  const [loadingRooms, setLoadingRooms] = useState(false);
+   241→  const [newRoomName, setNewRoomName] = useState('');
+   242→  const [showNewRoom, setShowNewRoom] = useState(false);
+   243→  const [creatingRoom, setCreatingRoom] = useState(false);
+   244→
+   245→  // ---- QR Preview Dialog state ----
+   246→  const [qrPreviewOpen, setQrPreviewOpen] = useState(false);
+   247→  const [previewQr, setPreviewQr] = useState<QrCodeItem | null>(null);
+   248→  const [qrStyle, setQrStyle] = useState('classic');
+   249→  const [qrFgColor, setQrFgColor] = useState('#1e1b4b');
+   250→  const [qrBgColor, setQrBgColor] = useState('#ffffff');
+   251→
+   252→  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+   253→
+   254→  // ---- Fetch homes on mount ----
+   255→  useEffect(() => {
+   256→    async function fetchHomes() {
+   257→      try {
+   258→        const res = await fetch('/api/client/homes');
+   259→        const data = await res.json();
+   260→        if (data.homes && data.homes.length > 0) {
+   261→          setHomes(data.homes);
+   262→          setSelectedHomeId(data.homes[0].id);
+   263→        }
+   264→      } catch {
+   265→        toast.error('Erreur lors du chargement des maisons');
+   266→      } finally {
+   267→        setLoadingHomes(false);
+   268→      }
+   269→    }
+   270→    fetchHomes();
+   271→  }, []);
+   272→
+   273→  // ---- Fetch rooms when home changes ----
+   274→  useEffect(() => {
+   275→    if (!selectedHomeId) return;
+   276→    async function fetchRooms() {
+   277→      setLoadingRooms(true);
+   278→      try {
+   279→        const res = await fetch(`/api/client/rooms?homeId=${selectedHomeId}`);
+   280→        const data = await res.json();
+   281→        setRooms(data.rooms ?? []);
+   282→      } catch {
+   283→        toast.error('Erreur lors du chargement des pièces');
+   284→      } finally {
+   285→        setLoadingRooms(false);
+   286→      }
+   287→    }
+   288→    fetchRooms();
+   289→  }, [selectedHomeId]);
+   290→
+   291→  const handleCreateRoom = async () => {
+   292→    if (!newRoomName.trim() || !selectedHomeId) return;
+   293→    setCreatingRoom(true);
+   294→    try {
+   295→      const res = await fetch('/api/client/rooms', {
+   296→        method: 'POST',
+   297→        headers: { 'Content-Type': 'application/json' },
+   298→        body: JSON.stringify({ homeId: selectedHomeId, name: newRoomName.trim() }),
+   299→      });
+   300→      const data = await res.json();
+   301→      if (data.id) {
+   302→        setRooms((prev) => [...prev, { id: data.id, name: data.name, icon: data.icon, _count: { qrCodes: 0 } }]);
+   303→        setSelectedRoomId(data.id);
+   304→        setNewRoomName('');
+   305→        setShowNewRoom(false);
+   306→        toast.success(`Pièce « ${data.name} » créée`);
+   307→      }
+   308→    } catch { toast.error('Erreur lors de la création'); }
+   309→    finally { setCreatingRoom(false); }
+   310→  };
+   311→
+   312→  // ---- Fetch QR codes for Tab 3 ----
+   313→  useEffect(() => {
+   314→    if (!selectedHomeId) return;
+   315→    async function fetchQrCodes() {
+   316→      setLoadingCodes(true);
+   317→      try {
+   318→        const res = await fetch(`/api/client/qr-codes?homeId=${selectedHomeId}`);
+   319→        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+   320→        const text = await res.text();
+   321→        const data = JSON.parse(text);
+   322→        setQrCodes(data.qrCodes ?? []);
+   323→      } catch (err) {
+   324→        console.error('[fetchQrCodes]', err);
+   325→        toast.error('Erreur lors du chargement des QR codes');
+   326→      } finally {
+   327→        setLoadingCodes(false);
+   328→      }
+   329→    }
+   330→    fetchQrCodes();
+   331→  }, [selectedHomeId]);
+   332→
+   333→  // ---- Debounced code check ----
+   334→  const checkCode = useCallback(
+   335→    async (code: string) => {
+   336→      if (code.length < 10) {
+   337→        setCodeStatus(null);
+   338→        return;
+   339→      }
+   340→      setCodeChecking(true);
+   341→      try {
+   342→        const res = await fetch(`/api/client/check-code?code=${encodeURIComponent(code)}`);
+   343→        const data: CheckCodeResponse = await res.json();
+   344→        setCodeStatus(data);
+   345→      } catch {
+   346→        setCodeStatus({ valid: false, status: 'not_found' });
+   347→      } finally {
+   348→        setCodeChecking(false);
+   349→      }
+   350→    },
+   351→    []
+   352→  );
+   353→
+   354→  // Debounce the code input
+   355→  useEffect(() => {
+   356→    if (debounceRef.current) clearTimeout(debounceRef.current);
+   357→    if (!codeInput) {
+   358→      setCodeStatus(null);
+   359→      return;
+   360→    }
+   361→    debounceRef.current = setTimeout(() => {
+   362→      checkCode(codeInput);
+   363→    }, 300);
+   364→    return () => {
+   365→      if (debounceRef.current) clearTimeout(debounceRef.current);
+   366→    };
+   367→  }, [codeInput, checkCode]);
+   368→
+   369→  // ---- Handlers ----
+   370→
+   371→  function formatCodeInput(value: string) {
+   372→    const cleaned = value.replace(/[^a-zA-Z0-9-]/g, '').toUpperCase();
+   373→    return cleaned;
+   374→  }
+   375→
+   376→  function handleCodeChange(value: string) {
+   377→    const formatted = formatCodeInput(value);
+   378→    setCodeInput(formatted);
+   379→    setCodeStatus(null);
+   380→  }
+   381→
+   382→  function getStatusIcon(status: string) {
+   383→    switch (status) {
+   384→      case 'inactive':
+   385→        return <CheckCircle2 className="h-5 w-5 text-emerald-500" />;
+   386→      case 'active':
+   387→        return <AlertCircle className="h-5 w-5 text-amber-500" />;
+   388→      case 'lost':
+   389→      case 'cancelled':
+   390→        return <XCircle className="h-5 w-5 text-red-500" />;
+   391→      default:
+   392→        return <XCircle className="h-5 w-5 text-red-500" />;
+   393→    }
+   394→  }
+   395→
+   396→  function getStatusLabel(status: string) {
+   397→    switch (status) {
+   398→      case 'inactive':
+   399→        return 'Prêt à activer';
+   400→      case 'active':
+   401→        return 'Déjà activé';
+   402→      case 'lost':
+   403→        return 'Perdu';
+   404→      case 'cancelled':
+   405→        return 'Annulé';
+   406→      default:
+   407→        return 'Introuvable';
+   408→    }
+   409→  }
+   410→
+   411→  function getStatusColor(status: string) {
+   412→    switch (status) {
+   413→      case 'inactive':
+   414→        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+   415→      case 'active':
+   416→        return 'bg-amber-50 text-amber-700 border-amber-200';
+   417→      case 'lost':
+   418→      case 'cancelled':
+   419→      case 'not_found':
+   420→        return 'bg-red-50 text-red-700 border-red-200';
+   421→      default:
+   422→        return 'bg-red-50 text-red-700 border-red-200';
+   423→    }
+   424→  }
+   425→
+   426→  async function handleSingleActivate() {
+   427→    if (!selectedHomeId || !codeInput || !selectedModuleType || !qrName) return;
+   428→
+   429→    // Validate content fields
+   430→    const errors = validateModuleContent(selectedModuleType, moduleContent);
+   431→    if (errors.length > 0) {
+   432→      setContentErrors(errors);
+   433→      toast.error(`Champs requis : ${errors.join(', ')}`);
+   434→      return;
+   435→    }
+   436→
+   437→    setActivating(true);
+   438→    try {
+   439→      const hasContent = moduleHasContentFields(selectedModuleType) && Object.keys(moduleContent).length > 0;
+   440→      const res = await fetch('/api/client/activate', {
+   441→        method: 'POST',
+   442→        headers: { 'Content-Type': 'application/json' },
+   443→        body: JSON.stringify({
+   444→          code: codeInput,
+   445→          moduleType: selectedModuleType,
+   446→          name: qrName,
+   447→          homeId: selectedHomeId,
+   448→          content: hasContent ? moduleContent : undefined,
+   449→        }),
+   450→      });
+   451→      const data = await res.json();
+   452→      if (data.error) {
+   453→        toast.error(data.error);
+   454→      } else {
+   455→        toast.success('QR code activé avec succès !');
+   456→        resetWizard();
+   457→        // Refresh QR codes list and switch to "Mes QR codes activés" tab
+   458→        const qrRes = await fetch(`/api/client/qr-codes?homeId=${selectedHomeId}`);
+   459→        const qrData = await qrRes.json();
+   460→        setQrCodes(qrData.qrCodes ?? []);
+   461→        // Switch to the activated QR codes tab so the user can see their QR
+   462→        const tabsList = document.querySelector('[role="tablist"]');
+   463→        const myCodesTab = tabsList?.querySelector('[value="my-codes"]') as HTMLElement;
+   464→        myCodesTab?.click();
+   465→      }
+   466→    } catch {
+   467→      toast.error('Erreur lors de l\'activation');
+   468→    } finally {
+   469→      setActivating(false);
+   470→    }
+   471→  }
+   472→
+   473→  function resetWizard() {
+   474→    setWizardStep(1);
+   475→    setCodeInput('');
+   476→    setCodeStatus(null);
+   477→    setSelectedModuleType('');
+   478→    setSelectedRoomId('');
+   479→    setQrName('');
+   480→    setModuleContent({});
+   481→    setContentErrors([]);
+   482→  }
+   483→
+   484→  // ---- Batch validation ----
+   485→  async function handleBatchValidate() {
+   486→    const raw = batchCodes.trim();
+   487→    if (!raw) return;
+   488→    const codes = raw
+   489→      .split(/[\n,]/)
+   490→      .map((c) => c.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''))
+   491→      .filter((c) => c.length > 0);
+   492→
+   493→    setBatchValidating(true);
+   494→    setBatchValidCodes([]);
+   495→    setBatchInvalidCodes([]);
+   496→
+   497→    const valid: string[] = [];
+   498→    const invalid: string[] = [];
+   499→
+   500→    // Check each code sequentially
+   501→    for (const code of codes) {
+   502→      try {
+   503→        const res = await fetch(`/api/client/check-code?code=${encodeURIComponent(code)}`);
+   504→        const data: CheckCodeResponse = await res.json();
+   505→        if (data.valid) {
+   506→          valid.push(code);
+   507→        } else {
+   508→          invalid.push(code);
+   509→        }
+   510→      } catch {
+   511→        invalid.push(code);
+   512→      }
+   513→    }
+   514→
+   515→    setBatchValidCodes(valid);
+   516→    setBatchInvalidCodes(invalid);
+   517→    setBatchValidated(true);
+   518→    setBatchValidating(false);
+   519→  }
+   520→
+   521→  async function handleBatchActivate() {
+   522→    if (!selectedHomeId || batchValidCodes.length === 0 || !batchModuleType || !batchRoomId || !batchNamePrefix) return;
+   523→    setBatchActivating(true);
+   524→    setBatchProgress(0);
+   525→    setBatchResult(null);
+   526→
+   527→    try {
+   528→      const res = await fetch('/api/client/activate-batch', {
+   529→        method: 'POST',
+   530→        headers: { 'Content-Type': 'application/json' },
+   531→        body: JSON.stringify({
+   532→          codes: batchValidCodes,
+   533→          moduleType: batchModuleType,
+   534→          roomId: batchRoomId,
+   535→          name: batchNamePrefix,
+   536→          homeId: selectedHomeId,
+   537→        }),
+   538→      });
+   539→
+   540→      // Simulate progress while waiting
+   541→      const progressInterval = setInterval(() => {
+   542→        setBatchProgress((prev) => Math.min(prev + 10, 90));
+   543→      }, 200);
+   544→
+   545→      const data = await res.json();
+   546→      clearInterval(progressInterval);
+   547→      setBatchProgress(100);
+   548→
+   549→      if (data.error) {
+   550→        toast.error(data.error);
+   551→      } else {
+   552→        setBatchResult({ activated: data.activated, failed: data.failed, errors: data.errors });
+   553→        toast.success(`${data.activated} QR code(s) activé(s) avec succès !`);
+   554→        // Refresh QR codes
+   555→        const qrRes = await fetch(`/api/client/qr-codes?homeId=${selectedHomeId}`);
+   556→        const qrData = await qrRes.json();
+   557→        setQrCodes(qrData.qrCodes ?? []);
+   558→      }
+   559→    } catch {
+   560→      toast.error('Erreur lors de l\'activation du lot');
+   561→    } finally {
+   562→      setBatchActivating(false);
+   563→    }
+   564→  }
+   565→
+   566→  // ---- Edit QR code ----
+   567→  function openEditDialog(qr: QrCodeItem) {
+   568→    setEditingQr(qr);
+   569→    setEditName(qr.name);
+   570→    setEditDialogOpen(true);
+   571→  }
+   572→
+   573→  async function handleSaveEdit() {
+   574→    if (!editingQr || !editName.trim()) return;
+   575→    setEditSaving(true);
+   576→    try {
+   577→      const res = await fetch('/api/client/qr-codes', {
+   578→        method: 'PATCH',
+   579→        headers: { 'Content-Type': 'application/json' },
+   580→        body: JSON.stringify({ id: editingQr.id, name: editName.trim() }),
+   581→      });
+   582→      const data = await res.json();
+   583→      if (data.error) {
+   584→        toast.error(data.error);
+   585→      } else {
+   586→        toast.success('QR code modifié avec succès');
+   587→        setEditDialogOpen(false);
+   588→        // Refresh
+   589→        const qrRes = await fetch(`/api/client/qr-codes?homeId=${selectedHomeId}`);
+   590→        const qrData = await qrRes.json();
+   591→        setQrCodes(qrData.qrCodes ?? []);
+   592→      }
+   593→    } catch {
+   594→      toast.error('Erreur lors de la modification');
+   595→    } finally {
+   596→      setEditSaving(false);
+   597→    }
+   598→  }
+   599→
+   600→  // ---- Deactivate QR code ----
+   601→  function openDeactivateDialog(qr: QrCodeItem) {
+   602→    setDeactivatingQr(qr);
+   603→    setDeactivateDialogOpen(true);
+   604→  }
+   605→
+   606→  async function handleDeactivate() {
+   607→    if (!deactivatingQr) return;
+   608→    setDeactivating(true);
+   609→    try {
+   610→      const physicalQr = deactivatingQr.physicalQrCodes[0];
+   611→      if (!physicalQr) {
+   612→        toast.error('Code physique introuvable');
+   613→        return;
+   614→      }
+   615→      const res = await fetch('/api/client/qr-codes', {
+   616→        method: 'DELETE',
+   617→        headers: { 'Content-Type': 'application/json' },
+   618→        body: JSON.stringify({ id: deactivatingQr.id, physicalQrCodeId: physicalQr.id }),
+   619→      });
+   620→      const data = await res.json();
+   621→      if (data.error) {
+   622→        toast.error(data.error);
+   623→      } else {
+   624→        toast.success('QR code désactivé');
+   625→        setDeactivateDialogOpen(false);
+   626→        // Refresh
+   627→        const qrRes = await fetch(`/api/client/qr-codes?homeId=${selectedHomeId}`);
+   628→        const qrData = await qrRes.json();
+   629→        setQrCodes(qrData.qrCodes ?? []);
+   630→      }
+   631→    } catch {
+   632→      toast.error('Erreur lors de la désactivation');
+   633→    } finally {
+   634→      setDeactivating(false);
+   635→    }
+   636→  }
+   637→
+   638→  // ---- Filtered QR codes for Tab 3 ----
+   639→  const filteredQrCodes = qrCodes.filter((qr) => {
+   640→    if (filterSearch && !qr.name.toLowerCase().includes(filterSearch.toLowerCase()) && !qr.physicalQrCodes.some((p) => p.activationCode.toLowerCase().includes(filterSearch.toLowerCase()))) {
+   641→      return false;
+   642→    }
+   643→    if (filterModule !== 'all' && qr.type !== filterModule) return false;
+   644→    if (filterRoom !== 'all' && qr.room?.id !== filterRoom) return false;
+   645→    if (filterStatus !== 'all') {
+   646→      if (filterStatus === 'active' && !qr.isActive) return false;
+   647→      if (filterStatus === 'inactive' && qr.isActive) return false;
+   648→    }
+   649→    return true;
+   650→  });
+   651→
+   652→  const totalPages = Math.max(1, Math.ceil(filteredQrCodes.length / ITEMS_PER_PAGE));
+   653→  const paginatedQrCodes = filteredQrCodes.slice(
+   654→    (currentPage - 1) * ITEMS_PER_PAGE,
+   655→    currentPage * ITEMS_PER_PAGE
+   656→  );
+   657→
+   658→  // ---- Filtered module types for grid ----
+   659→  const filteredModules = POPULAR_MODULES.filter((m) => {
+   660→    if (!moduleSearch) return true;
+   661→    const label = (QR_MODULE_LABELS as Record<string, string>)[m] ?? m;
+   662→    return label.toLowerCase().includes(moduleSearch.toLowerCase()) || m.toLowerCase().includes(moduleSearch.toLowerCase());
+   663→  });
+   664→
+   665→  // ---- No home state ----
+   666→  if (loadingHomes) {
+   667→    return (
+   668→      <div className="space-y-4">
+   669→        <Skeleton className="h-10 w-64" />
+   670→        <Skeleton className="h-[500px] w-full" />
+   671→      </div>
+   672→    );
+   673→  }
+   674→
+   675→  if (homes.length === 0) {
+   676→    return (
+   677→      <Card className="border-dashed">
+   678→        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+   679→          <div className="rounded-full bg-primary/10 p-4 mb-4">
+   680→            <Home className="h-10 w-10 text-primary" />
+   681→          </div>
+   682→          <h3 className="text-lg font-semibold mb-2">Aucune maison configurée</h3>
+   683→          <p className="text-muted-foreground text-sm max-w-sm">
+   684→            Vous devez d'abord créer une maison avant de pouvoir activer des QR codes physiques.
+   685→          </p>
+   686→          <Button className="mt-6" onClick={async () => {
+   687→            const res = await fetch('/api/client/homes', {
+   688→              method: 'POST',
+   689→              headers: { 'Content-Type': 'application/json' },
+   690→              body: JSON.stringify({ name: 'Ma Maison', address: '' }),
+   691→            });
+   692→            const data = await res.json();
+   693→            if (data.id) {
+   694→              setHomes([data]);
+   695→              setSelectedHomeId(data.id);
+   696→              toast.success('Maison créée avec succès !');
+   697→            }
+   698→          }}>
+   699→            <Plus className="h-4 w-4 mr-2" />
+   700→            Créer ma première maison
+   701→          </Button>
+   702→        </CardContent>
+   703→      </Card>
+   704→    );
+   705→  }
+   706→
+   707→  return (
+   708→    <div className="space-y-6">
+   709→      {/* Home selector header */}
+   710→      <div className="flex items-center justify-between">
+   711→        <div className="flex items-center gap-3">
+   712→          <div className="rounded-lg bg-primary/10 p-2">
+   713→            <QrCode className="h-6 w-6 text-primary" />
+   714→          </div>
+   715→          <div>
+   716→            <h2 className="text-2xl font-bold tracking-tight">QR Codes Physiques</h2>
+   717→            <p className="text-muted-foreground text-sm">Activez et gérez vos QR codes imprimés</p>
+   718→          </div>
+   719→        </div>
+   720→        {homes.length > 1 && (
+   721→          <Select value={selectedHomeId} onValueChange={setSelectedHomeId}>
+   722→            <SelectTrigger className="w-56">
+   723→              <Home className="h-4 w-4 mr-2" />
+   724→              <SelectValue placeholder="Sélectionner une maison" />
+   725→            </SelectTrigger>
+   726→            <SelectContent>
+   727→              {homes.map((h) => (
+   728→                <SelectItem key={h.id} value={h.id}>
+   729→                  {h.name}
+   730→                </SelectItem>
+   731→              ))}
+   732→            </SelectContent>
+   733→          </Select>
+   734→        )}
+   735→      </div>
+   736→
+   737→      <Tabs defaultValue="activate-single" className="w-full">
+   738→        <TabsList className="grid w-full grid-cols-3">
+   739→          <TabsTrigger value="activate-single" className="gap-2">
+   740→            <ScanLine className="h-4 w-4 hidden sm:inline-block" />
+   741→            Activer un QR code
+   742→          </TabsTrigger>
+   743→          <TabsTrigger value="activate-batch" className="gap-2">
+   744→            <Zap className="h-4 w-4 hidden sm:inline-block" />
+   745→            Activer un lot
+   746→          </TabsTrigger>
+   747→          <TabsTrigger value="my-codes" className="gap-2">
+   748→            <List className="h-4 w-4 hidden sm:inline-block" />
+   749→            Mes QR codes activés
+   750→          </TabsTrigger>
+   751→        </TabsList>
+   752→
+   753→        {/* ================================================================== */}
+   754→        {/*  TAB 1 — Activate single                                           */}
+   755→        {/* ================================================================== */}
+   756→        <TabsContent value="activate-single">
+   757→          <Card>
+   758→            <CardHeader className="pb-4">
+   759→              <CardTitle className="flex items-center gap-2">
+   760→                <ScanLine className="h-5 w-5" />
+   761→                Activer un QR code
+   762→              </CardTitle>
+   763→              <CardDescription>Suivez les 3 étapes pour activer un QR code physique</CardDescription>
+   764→            </CardHeader>
+   765→            <CardContent>
+   766→              {/* Step indicator */}
+   767→              <div className="flex items-center justify-center mb-8">
+   768→                <div className="flex items-center gap-2">
+   769→                  {[1, 2, 3].map((step) => (
+   770→                    <div key={step} className="flex items-center">
+   771→                      <div
+   772→                        className={`flex items-center justify-center w-9 h-9 rounded-full text-sm font-semibold transition-all duration-300 ${
+   773→                          wizardStep >= step
+   774→                            ? 'bg-primary text-primary-foreground shadow-md'
+   775→                            : 'bg-muted text-muted-foreground'
+   776→                        }`}
+   777→                      >
+   778→                        {wizardStep > step ? <Check className="h-4 w-4" /> : step}
+   779→                      </div>
+   780→                      {step < 3 && (
+   781→                        <div
+   782→                          className={`w-16 sm:w-24 h-0.5 mx-1 transition-colors duration-300 ${
+   783→                            wizardStep > step ? 'bg-primary' : 'bg-muted'
+   784→                          }`}
+   785→                        />
+   786→                      )}
+   787→                    </div>
+   788→                  ))}
+   789→                </div>
+   790→              </div>
+   791→
+   792→              {/* Step 1: Code input */}
+   793→              {wizardStep === 1 && (
+   794→                <div className="max-w-md mx-auto space-y-6">
+   795→                  <div className="text-center">
+   796→                    <h3 className="text-lg font-semibold mb-1">Étape 1 — Saisissez le code</h3>
+   797→                    <p className="text-sm text-muted-foreground">
+   798→                      Entrez le code d'activation imprimé sur votre QR code (format QR-XXXXXXXX)
+   799→                    </p>
+   800→                  </div>
+   801→
+   802→                  <div className="relative">
+   803→                    <Input
+   804→                      placeholder="QR-XXXXXXXX"
+   805→                      value={codeInput}
+   806→                      onChange={(e) => handleCodeChange(e.target.value)}
+   807→                      className={`h-12 text-center text-lg font-mono tracking-widest ${
+   808→                        codeStatus
+   809→                          ? codeStatus.status === 'inactive'
+   810→                            ? 'border-emerald-500 focus-visible:ring-emerald-500'
+   811→                            : codeStatus.status === 'active'
+   812→                              ? 'border-amber-500 focus-visible:ring-amber-500'
+   813→                              : 'border-red-500 focus-visible:ring-red-500'
+   814→                          : ''
+   815→                      }`}
+   816→                      maxLength={20}
+   817→                    />
+   818→                    {codeChecking && (
+   819→                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin text-muted-foreground" />
+   820→                    )}
+   821→                  </div>
+   822→
+   823→                  {/* Status feedback */}
+   824→                  {codeStatus && !codeChecking && (
+   825→                    <div
+   826→                      className={`flex items-center gap-3 p-3 rounded-lg border ${getStatusColor(codeStatus.status)}`}
+   827→                    >
+   828→                      {getStatusIcon(codeStatus.status)}
+   829→                      <span className="text-sm font-medium">{getStatusLabel(codeStatus.status)}</span>
+   830→                    </div>
+   831→                  )}
+   832→
+   833→                  <Button
+   834→                    className="w-full h-11"
+   835→                    disabled={!codeStatus || !codeStatus.valid}
+   836→                    onClick={() => setWizardStep(2)}
+   837→                  >
+   838→                    Suivant
+   839→                    <ArrowRight className="ml-2 h-4 w-4" />
+   840→                  </Button>
+   841→                </div>
+   842→              )}
+   843→
+   844→              {/* Step 2: Module type + room + name */}
+   845→              {wizardStep === 2 && (
+   846→                <div className="space-y-8">
+   847→                  <div className="text-center">
+   848→                    <h3 className="text-lg font-semibold mb-1">Étape 2 — Configuration</h3>
+   849→                    <p className="text-sm text-muted-foreground">
+   850→                      Choisissez le type de module, la pièce et un nom pour votre QR code
+   851→                    </p>
+   852→                  </div>
+   853→
+   854→                  {/* Module type search */}
+   855→                  <div className="relative max-w-sm mx-auto">
+   856→                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   857→                    <Input
+   858→                      placeholder="Rechercher un module..."
+   859→                      value={moduleSearch}
+   860→                      onChange={(e) => setModuleSearch(e.target.value)}
+   861→                      className="pl-10"
+   862→                    />
+   863→                  </div>
+   864→
+   865→                  {/* Module type grid */}
+   866→                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-2xl mx-auto">
+   867→                    {filteredModules.map((moduleKey) => {
+   868→                      const IconComponent = MODULE_ICON_MAP[moduleKey] ?? QrCode;
+   869→                      const label = (QR_MODULE_LABELS as Record<string, string>)[moduleKey] ?? moduleKey;
+   870→                      const isSelected = selectedModuleType === moduleKey;
+   871→                      return (
+   872→                        <button
+   873→                          key={moduleKey}
+   874→                          type="button"
+   875→                          onClick={() => {
+   876→                            setSelectedModuleType(moduleKey);
+   877→                            setModuleContent({});
+   878→                            setContentErrors([]);
+   879→                          }}
+   880→                          className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md ${
+   881→                            isSelected
+   882→                              ? 'border-primary bg-primary/5 shadow-md'
+   883→                              : 'border-border hover:border-primary/40'
+   884→                          }`}
+   885→                        >
+   886→                          <IconComponent className={`h-7 w-7 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+   887→                          <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+   888→                            {label}
+   889→                          </span>
+   890→                        </button>
+   891→                      );
+   892→                    })}
+   893→                  </div>
+   894→
+   895→                  <Separator />
+   896→
+   897→                  {/* Room selector */}
+   898→                  <div className="max-w-sm mx-auto space-y-3">
+   899→                    <Label className="text-sm font-medium">Pièce</Label>
+   900→                    {loadingRooms ? (
+   901→                      <Skeleton className="h-10 w-full" />
+   902→                    ) : rooms.length === 0 && !showNewRoom ? (
+   903→                      <div className="text-center">
+   904→                        <p className="text-xs text-muted-foreground mb-2">
+   905→                          Aucune pièce — le QR sera associé à votre maison
+   906→                        </p>
+   907→                        <Button variant="outline" size="sm" onClick={() => setShowNewRoom(true)}>
+   908→                          <Plus className="h-3.5 w-3.5 mr-1" /> Créer une pièce
+   909→                        </Button>
+   910→                      </div>
+   911→                    ) : showNewRoom ? (
+   912→                      <div className="flex gap-2">
+   913→                        <Input
+   914→                          placeholder="Nom de la pièce"
+   915→                          value={newRoomName}
+   916→                          onChange={(e) => setNewRoomName(e.target.value)}
+   917→                          onKeyDown={(e) => e.key === 'Enter' && handleCreateRoom()}
+   918→                        />
+   919→                        <Button size="sm" onClick={handleCreateRoom} disabled={!newRoomName.trim() || creatingRoom}>
+   920→                          {creatingRoom ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+   921→                        </Button>
+   922→                        <Button variant="ghost" size="sm" onClick={() => setShowNewRoom(false)}>
+   923→                          <X className="h-4 w-4" />
+   924→                        </Button>
+   925→                      </div>
+   926→                    ) : (
+   927→                      <Select value={selectedRoomId || '_'} onValueChange={(v) => { if (v === '__new__') { setShowNewRoom(true); } else { setSelectedRoomId(v); } }}>
+   928→                        <SelectTrigger>
+   929→                          <SelectValue placeholder="Sélectionner une pièce" />
+   930→                        </SelectTrigger>
+   931→                        <SelectContent>
+   932→                          {rooms.map((room) => (
+   933→                            <SelectItem key={room.id} value={room.id}>
+   934→                              {room.icon ? `${room.icon} ` : ''}{room.name}
+   935→                            </SelectItem>
+   936→                          ))}
+   937→                          <SelectItem value="__new__" className="text-primary">
+   938→                            <Plus className="h-3.5 w-3.5 mr-1 inline" /> Créer une nouvelle pièce...
+   939→                          </SelectItem>
+   940→                        </SelectContent>
+   941→                      </Select>
+   942→                    )}
+   943→                  </div>
+   944→
+   945→                  {/* Name input */}
+   946→                  <div className="max-w-sm mx-auto space-y-3">
+   947→                    <Label className="text-sm font-medium">Nom du QR code</Label>
+   948→                    <Input
+   949→                      placeholder="ex: Wi-Fi Invités"
+   950→                      value={qrName}
+   951→                      onChange={(e) => setQrName(e.target.value)}
+   952→                    />
+   953→                  </div>
+   954→
+   955→                  {/* Module content fields (conditional) */}
+   956→                  {selectedModuleType && moduleHasContentFields(selectedModuleType) && (
+   957→                    <>
+   958→                      <Separator />
+   959→                      <div className="max-w-sm mx-auto">
+   960→                        <p className="text-sm font-semibold mb-3">Configuration du module</p>
+   961→                        {contentErrors.length > 0 && (
+   962→                          <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/5 p-2.5 mb-3 text-sm text-destructive">
+   963→                            <AlertCircle className="h-4 w-4 shrink-0" />
+   964→                            <span>Remplissez : {contentErrors.join(', ')}</span>
+   965→                          </div>
+   966→                        )}
+   967→                        <ModuleContentFields
+   968→                          moduleType={selectedModuleType}
+   969→                          content={moduleContent}
+   970→                          onChange={(c) => { setModuleContent(c); setContentErrors([]); }}
+   971→                        />
+   972→                      </div>
+   973→                    </>
+   974→                  )}
+   975→
+   976→                  {/* Navigation */}
+   977→                  <div className="flex gap-3 justify-center">
+   978→                    <Button variant="outline" onClick={() => setWizardStep(1)}>
+   979→                      <ArrowLeft className="mr-2 h-4 w-4" />
+   980→                      Retour
+   981→                    </Button>
+   982→                    <Button
+   983→                      disabled={!selectedModuleType || !qrName.trim()}
+   984→                      onClick={() => setWizardStep(3)}
+   985→                    >
+   986→                      Suivant
+   987→                      <ArrowRight className="ml-2 h-4 w-4" />
+   988→                    </Button>
+   989→                  </div>
+   990→                </div>
+   991→              )}
+   992→
+   993→              {/* Step 3: Confirmation */}
+   994→              {wizardStep === 3 && (
+   995→                <div className="max-w-md mx-auto space-y-6">
+   996→                  <div className="text-center">
+   997→                    <h3 className="text-lg font-semibold mb-1">Étape 3 — Confirmation</h3>
+   998→                    <p className="text-sm text-muted-foreground">
+   999→                      Vérifiez les informations avant d'activer
+  1000→                    </p>
+  1001→                  </div>
+  1002→
+  1003→                  <div className="space-y-3 rounded-xl border p-5 bg-muted/20">
+  1004→                    <div className="flex justify-between items-center">
+  1005→                      <span className="text-sm text-muted-foreground">Code</span>
+  1006→                      <span className="font-mono font-semibold text-sm">{codeInput}</span>
+  1007→                    </div>
+  1008→                    <Separator />
+  1009→                    <div className="flex justify-between items-center">
+  1010→                      <span className="text-sm text-muted-foreground">Module</span>
+  1011→                      <Badge variant="secondary">
+  1012→                        {(QR_MODULE_LABELS as Record<string, string>)[selectedModuleType] ?? selectedModuleType}
+  1013→                      </Badge>
+  1014→                    </div>
+  1015→                    {selectedRoomId && (<>
+  1016→                    <Separator />
+  1017→                    <div className="flex justify-between items-center">
+  1018→                      <span className="text-sm text-muted-foreground">Pièce</span>
+  1019→                      <span className="text-sm font-medium">
+  1020→                        {rooms.find((r) => r.id === selectedRoomId)?.name ?? '—'}
+  1021→                      </span>
+  1022→                    </div>
+  1023→                    </>)}
+  1024→                    <Separator />
+  1025→                    <div className="flex justify-between items-center">
+  1026→                      <span className="text-sm text-muted-foreground">Nom</span>
+  1027→                      <span className="text-sm font-medium">{qrName}</span>
+  1028→                    </div>
+  1029→                    {selectedModuleType && moduleHasContentFields(selectedModuleType) && Object.keys(moduleContent).length > 0 && (
+  1030→                      <>
+  1031→                        <Separator />
+  1032→                        <div className="space-y-1.5">
+  1033→                          <span className="text-sm text-muted-foreground">Contenu du module</span>
+  1034→                          {Object.entries(moduleContent).map(([key, val]) => {
+  1035→                            const fieldDef = MODULE_ACTIVATION_CONFIG[selectedModuleType]?.fields.find(f => f.key === key);
+  1036→                            return val ? (
+  1037→                              <div key={key} className="flex justify-between text-sm">
+  1038→                                <span className="text-muted-foreground">{fieldDef?.label ?? key}</span>
+  1039→                                <span className="font-medium text-right max-w-[60%] truncate">
+  1040→                                  {key === 'password' ? '••••••••' : val}
+  1041→                                </span>
+  1042→                              </div>
+  1043→                            ) : null;
+  1044→                          })}
+  1045→                        </div>
+  1046→                      </>
+  1047→                    )}
+  1048→                  </div>
+  1049→
+  1050→                  <div className="flex gap-3">
+  1051→                    <Button variant="outline" className="flex-1" onClick={() => setWizardStep(2)}>
+  1052→                      <ArrowLeft className="mr-2 h-4 w-4" />
+  1053→                      Retour
+  1054→                    </Button>
+  1055→                    <Button
+  1056→                      className="flex-1"
+  1057→                      disabled={activating}
+  1058→                      onClick={handleSingleActivate}
+  1059→                    >
+  1060→                      {activating ? (
+  1061→                        <>
+  1062→                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+  1063→                          Activation...
+  1064→                        </>
+  1065→                      ) : (
+  1066→                        <>
+  1067→                          <Check className="mr-2 h-4 w-4" />
+  1068→                          Activer maintenant
+  1069→                        </>
+  1070→                      )}
+  1071→                    </Button>
+  1072→                  </div>
+  1073→                </div>
+  1074→              )}
+  1075→            </CardContent>
+  1076→          </Card>
+  1077→        </TabsContent>
+  1078→
+  1079→        {/* ================================================================== */}
+  1080→        {/*  TAB 2 — Activate batch                                             */}
+  1081→        {/* ================================================================== */}
+  1082→        <TabsContent value="activate-batch">
+  1083→          <div className="grid gap-6 lg:grid-cols-2">
+  1084→            {/* Method 1: Manual entry */}
+  1085→            <Card>
+  1086→              <CardHeader>
+  1087→                <CardTitle className="text-base flex items-center gap-2">
+  1088→                  <FileText className="h-4 w-4" />
+  1089→                  Méthode 1 — Saisie manuelle
+  1090→                </CardTitle>
+  1091→                <CardDescription>Collez vos codes d'activation (un par ligne ou séparés par des virgules)</CardDescription>
+  1092→              </CardHeader>
+  1093→              <CardContent className="space-y-4">
+  1094→                <Textarea
+  1095→                  placeholder={"QR-AAAAAAAA\nQR-BBBBBBBB\nQR-CCCCCCCC"}
+  1096→                  value={batchCodes}
+  1097→                  onChange={(e) => {
+  1098→                    setBatchCodes(e.target.value);
+  1099→                    setBatchValidated(false);
+  1100→                  }}
+  1101→                  rows={6}
+  1102→                  className="font-mono text-sm"
+  1103→                />
+  1104→                <Button
+  1105→                  variant="outline"
+  1106→                  className="w-full"
+  1107→                  disabled={!batchCodes.trim() || batchValidating}
+  1108→                  onClick={handleBatchValidate}
+  1109→                >
+  1110→                  {batchValidating ? (
+  1111→                    <>
+  1112→                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+  1113→                      Vérification en cours...
+  1114→                    </>
+  1115→                  ) : (
+  1116→                    <>
+  1117→                      <Check className="mr-2 h-4 w-4" />
+  1118→                      Valider les codes
+  1119→                    </>
+  1120→                  )}
+  1121→                </Button>
+  1122→
+  1123→                {/* Validation results */}
+  1124→                {batchValidated && (
+  1125→                  <div className="space-y-3">
+  1126→                    <div className="flex items-center gap-2">
+  1127→                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+  1128→                      <span className="text-sm font-medium text-emerald-600">
+  1129→                        {batchValidCodes.length} code(s) valide(s)
+  1130→                      </span>
+  1131→                    </div>
+  1132→                    {batchInvalidCodes.length > 0 && (
+  1133→                      <div className="space-y-2">
+  1134→                        <div className="flex items-center gap-2">
+  1135→                          <XCircle className="h-4 w-4 text-red-500" />
+  1136→                          <span className="text-sm font-medium text-red-600">
+  1137→                            {batchInvalidCodes.length} code(s) invalide(s)
+  1138→                          </span>
+  1139→                        </div>
+  1140→                        <div className="max-h-24 overflow-y-auto rounded-lg border border-red-200 bg-red-50 p-2">
+  1141→                          {batchInvalidCodes.map((code) => (
+  1142→                            <div key={code} className="font-mono text-xs text-red-600 py-0.5">
+  1143→                              {code}
+  1144→                            </div>
+  1145→                          ))}
+  1146→                        </div>
+  1147→                      </div>
+  1148→                    )}
+  1149→                  </div>
+  1150→                )}
+  1151→              </CardContent>
+  1152→            </Card>
+  1153→
+  1154→            {/* Method 2: File import */}
+  1155→            <Card>
+  1156→              <CardHeader>
+  1157→                <CardTitle className="text-base flex items-center gap-2">
+  1158→                  <Upload className="h-4 w-4" />
+  1159→                  Méthode 2 — Import fichier
+  1160→                </CardTitle>
+  1161→                <CardDescription>Importez un fichier CSV ou TXT contenant vos codes</CardDescription>
+  1162→              </CardHeader>
+  1163→              <CardContent>
+  1164→                <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/10 py-12 px-6 text-center transition-colors hover:border-primary/40 hover:bg-primary/5">
+  1165→                  <Upload className="h-10 w-10 text-muted-foreground mb-3" />
+  1166→                  <p className="text-sm font-medium">Glissez un fichier CSV ou TXT ici</p>
+  1167→                  <p className="text-xs text-muted-foreground mt-1">ou cliquez pour parcourir</p>
+  1168→                </div>
+  1169→              </CardContent>
+  1170→            </Card>
+  1171→          </div>
+  1172→
+  1173→          {/* Batch configuration (shared) */}
+  1174→          <Card className="mt-6">
+  1175→            <CardHeader>
+  1176→              <CardTitle className="text-base">Configuration du lot</CardTitle>
+  1177→              <CardDescription>Paramètres appliqués à tous les QR codes du lot</CardDescription>
+  1178→            </CardHeader>
+  1179→            <CardContent>
+  1180→              <div className="grid gap-6 sm:grid-cols-3">
+  1181→                {/* Module type */}
+  1182→                <div className="space-y-2">
+  1183→                  <Label>Type de module</Label>
+  1184→                  <Select value={batchModuleType} onValueChange={setBatchModuleType}>
+  1185→                    <SelectTrigger>
+  1186→                      <SelectValue placeholder="Sélectionner" />
+  1187→                    </SelectTrigger>
+  1188→                    <SelectContent>
+  1189→                      {POPULAR_MODULES.map((m) => (
+  1190→                        <SelectItem key={m} value={m}>
+  1191→                          {(QR_MODULE_LABELS as Record<string, string>)[m] ?? m}
+  1192→                        </SelectItem>
+  1193→                      ))}
+  1194→                    </SelectContent>
+  1195→                  </Select>
+  1196→                </div>
+  1197→
+  1198→                {/* Room */}
+  1199→                <div className="space-y-2">
+  1200→                  <Label>Pièce</Label>
+  1201→                  {loadingRooms ? (
+  1202→                    <Skeleton className="h-10 w-full" />
+  1203→                  ) : (
+  1204→                    <Select value={batchRoomId} onValueChange={setBatchRoomId}>
+  1205→                      <SelectTrigger>
+  1206→                        <SelectValue placeholder="Sélectionner" />
+  1207→                      </SelectTrigger>
+  1208→                      <SelectContent>
+  1209→                        {rooms.map((room) => (
+  1210→                          <SelectItem key={room.id} value={room.id}>
+  1211→                            {room.icon ? `${room.icon} ` : ''}{room.name}
+  1212→                          </SelectItem>
+  1213→                        ))}
+  1214→                      </SelectContent>
+  1215→                    </Select>
+  1216→                  )}
+  1217→                </div>
+  1218→
+  1219→                {/* Name prefix */}
+  1220→                <div className="space-y-2">
+  1221→                  <Label>Préfixe du nom</Label>
+  1222→                  <Input
+  1223→                    placeholder="ex: QR Cuisine-"
+  1224→                    value={batchNamePrefix}
+  1225→                    onChange={(e) => setBatchNamePrefix(e.target.value)}
+  1226→                  />
+  1227→                </div>
+  1228→              </div>
+  1229→
+  1230→              {/* Progress bar */}
+  1231→              {batchActivating && (
+  1232→                <div className="mt-6 space-y-2">
+  1233→                  <div className="flex justify-between text-sm">
+  1234→                    <span className="text-muted-foreground">Activation en cours...</span>
+  1235→                    <span className="font-medium">{batchProgress}%</span>
+  1236→                  </div>
+  1237→                  <Progress value={batchProgress} className="h-2" />
+  1238→                </div>
+  1239→              )}
+  1240→
+  1241→              {/* Batch results */}
+  1242→              {batchResult && (
+  1243→                <div className="mt-6 rounded-lg border p-4 space-y-3">
+  1244→                  <div className="flex items-center gap-4">
+  1245→                    <div className="flex items-center gap-2">
+  1246→                      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+  1247→                      <span className="text-sm font-semibold text-emerald-600">
+  1248→                        {batchResult.activated} activé(s)
+  1249→                      </span>
+  1250→                    </div>
+  1251→                    {batchResult.failed > 0 && (
+  1252→                      <div className="flex items-center gap-2">
+  1253→                        <XCircle className="h-5 w-5 text-red-500" />
+  1254→                        <span className="text-sm font-semibold text-red-600">
+  1255→                          {batchResult.failed} échoué(s)
+  1256→                        </span>
+  1257→                      </div>
+  1258→                    )}
+  1259→                  </div>
+  1260→                  {batchResult.errors.length > 0 && (
+  1261→                    <div className="max-h-24 overflow-y-auto rounded border border-red-200 bg-red-50 p-2">
+  1262→                      {batchResult.errors.map((err, i) => (
+  1263→                        <p key={i} className="text-xs text-red-600 font-mono py-0.5">{err}</p>
+  1264→                      ))}
+  1265→                    </div>
+  1266→                  )}
+  1267→                </div>
+  1268→              )}
+  1269→
+  1270→              {/* Activate button */}
+  1271→              <div className="mt-6 flex justify-end">
+  1272→                <Button
+  1273→                  disabled={
+  1274→                    batchValidCodes.length === 0 ||
+  1275→                    !batchModuleType ||
+  1276→                    !batchRoomId ||
+  1277→                    !batchNamePrefix.trim() ||
+  1278→                    batchActivating
+  1279→                  }
+  1280→                  onClick={handleBatchActivate}
+  1281→                >
+  1282→                  {batchActivating ? (
+  1283→                    <>
+  1284→                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+  1285→                      Activation en cours...
+  1286→                    </>
+  1287→                  ) : (
+  1288→                    <>
+  1289→                      <Zap className="mr-2 h-4 w-4" />
+  1290→                      Activer le lot ({batchValidCodes.length} code{batchValidCodes.length > 1 ? 's' : ''})
+  1291→                    </>
+  1292→                  )}
+  1293→                </Button>
+  1294→              </div>
+  1295→            </CardContent>
+  1296→          </Card>
+  1297→        </TabsContent>
+  1298→
+  1299→        {/* ================================================================== */}
+  1300→        {/*  TAB 3 — My activated QR codes                                     */}
+  1301→        {/* ================================================================== */}
+  1302→        <TabsContent value="my-codes">
+  1303→          <Card>
+  1304→            <CardHeader>
+  1305→              <CardTitle className="flex items-center gap-2">
+  1306→                <List className="h-5 w-5" />
+  1307→                Mes QR codes activés
+  1308→              </CardTitle>
+  1309→              <CardDescription>Consultez et gérez tous vos QR codes activés</CardDescription>
+  1310→            </CardHeader>
+  1311→            <CardContent className="space-y-4">
+  1312→              {/* Filter bar */}
+  1313→              <div className="flex flex-col sm:flex-row gap-3">
+  1314→                <div className="relative flex-1">
+  1315→                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+  1316→                  <Input
+  1317→                    placeholder="Rechercher par nom ou code..."
+  1318→                    value={filterSearch}
+  1319→                    onChange={(e) => {
+  1320→                      setFilterSearch(e.target.value);
+  1321→                      setCurrentPage(1);
+  1322→                    }}
+  1323→                    className="pl-10"
+  1324→                  />
+  1325→                </div>
+  1326→                <div className="flex gap-2 flex-wrap">
+  1327→                  <Select value={filterModule} onValueChange={(v) => { setFilterModule(v); setCurrentPage(1); }}>
+  1328→                    <SelectTrigger className="w-[160px]">
+  1329→                      <Filter className="h-4 w-4 mr-2" />
+  1330→                      <SelectValue placeholder="Module" />
+  1331→                    </SelectTrigger>
+  1332→                    <SelectContent>
+  1333→                      <SelectItem value="all">Tous les modules</SelectItem>
+  1334→                      {POPULAR_MODULES.map((m) => (
+  1335→                        <SelectItem key={m} value={m}>
+  1336→                          {(QR_MODULE_LABELS as Record<string, string>)[m] ?? m}
+  1337→                        </SelectItem>
+  1338→                      ))}
+  1339→                    </SelectContent>
+  1340→                  </Select>
+  1341→
+  1342→                  <Select value={filterRoom} onValueChange={(v) => { setFilterRoom(v); setCurrentPage(1); }}>
+  1343→                    <SelectTrigger className="w-[140px]">
+  1344→                      <SelectValue placeholder="Pièce" />
+  1345→                    </SelectTrigger>
+  1346→                    <SelectContent>
+  1347→                      <SelectItem value="all">Toutes les pièces</SelectItem>
+  1348→                      {rooms.map((room) => (
+  1349→                        <SelectItem key={room.id} value={room.id}>
+  1350→                          {room.name}
+  1351→                        </SelectItem>
+  1352→                      ))}
+  1353→                    </SelectContent>
+  1354→                  </Select>
+  1355→
+  1356→                  <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setCurrentPage(1); }}>
+  1357→                    <SelectTrigger className="w-[120px]">
+  1358→                      <SelectValue placeholder="Statut" />
+  1359→                    </SelectTrigger>
+  1360→                    <SelectContent>
+  1361→                      <SelectItem value="all">Tous</SelectItem>
+  1362→                      <SelectItem value="active">Actif</SelectItem>
+  1363→                      <SelectItem value="inactive">Inactif</SelectItem>
+  1364→                    </SelectContent>
+  1365→                  </Select>
+  1366→                </div>
+  1367→              </div>
+  1368→
+  1369→              {/* Table */}
+  1370→              {loadingCodes ? (
+  1371→                <div className="space-y-3">
+  1372→                  {Array.from({ length: 5 }).map((_, i) => (
+  1373→                    <div key={i} className="flex gap-4">
+  1374→                      <Skeleton className="h-10 flex-1" />
+  1375→                    </div>
+  1376→                  ))}
+  1377→                </div>
+  1378→              ) : filteredQrCodes.length === 0 ? (
+  1379→                <div className="flex flex-col items-center justify-center py-16 text-center">
+  1380→                  <div className="rounded-full bg-muted p-4 mb-4">
+  1381→                    <QrCode className="h-10 w-10 text-muted-foreground" />
+  1382→                  </div>
+  1383→                  <h3 className="text-lg font-semibold mb-1">Aucun QR code activé</h3>
+  1384→                  <p className="text-sm text-muted-foreground">
+  1385→                    Commencez par activer un QR code physique dans l'onglet &quot;Activer un QR code&quot;.
+  1386→                  </p>
+  1387→                </div>
+  1388→              ) : (
+  1389→                <>
+  1390→                  <div className="rounded-lg border overflow-hidden">
+  1391→                    <Table>
+  1392→                      <TableHeader>
+  1393→                        <TableRow className="bg-muted/50">
+  1394→                          <TableHead className="w-[140px]">Code</TableHead>
+  1395→                          <TableHead>Type</TableHead>
+  1396→                          <TableHead>Pièce</TableHead>
+  1397→                          <TableHead>Nom</TableHead>
+  1398→                          <TableHead className="w-[100px]">Statut</TableHead>
+  1399→                          <TableHead className="w-[120px] hidden md:table-cell">Date</TableHead>
+  1400→                          <TableHead className="w-[120px] text-right">Actions</TableHead>
+  1401→                        </TableRow>
+  1402→                      </TableHeader>
+  1403→                      <TableBody>
+  1404→                        {paginatedQrCodes.map((qr) => {
+  1405→                          const physicalQr = qr.physicalQrCodes[0];
+  1406→                          const publicUrl = qr.publicSlug ? `${window.location.origin}/view/${qr.publicSlug}` : null;
+  1407→                          return (
+  1408→                            <TableRow key={qr.id} className="group">
+  1409→                              <TableCell className="font-mono text-xs">
+  1410→                                {physicalQr?.activationCode ?? '—'}
+  1411→                              </TableCell>
+  1412→                              <TableCell>
+  1413→                                <Badge variant="secondary" className="text-xs">
+  1414→                                  {(QR_MODULE_LABELS as Record<string, string>)[qr.type] ?? qr.type}
+  1415→                                </Badge>
+  1416→                              </TableCell>
+  1417→                              <TableCell className="text-sm">
+  1418→                                {qr.room?.name ?? '—'}
+  1419→                              </TableCell>
+  1420→                              <TableCell className="text-sm font-medium">
+  1421→                                {qr.name}
+  1422→                              </TableCell>
+  1423→                              <TableCell>
+  1424→                                {qr.isActive ? (
+  1425→                                  <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
+  1426→                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+  1427→                                    Actif
+  1428→                                  </Badge>
+  1429→                                ) : (
+  1430→                                  <Badge variant="secondary" className="text-muted-foreground">
+  1431→                                    <XCircle className="h-3 w-3 mr-1" />
+  1432→                                    Inactif
+  1433→                                  </Badge>
+  1434→                                )}
+  1435→                              </TableCell>
+  1436→                              <TableCell className="text-xs text-muted-foreground hidden md:table-cell">
+  1437→                                {format(new Date(qr.createdAt), "dd MMM yyyy", { locale: fr })}
+  1438→                              </TableCell>
+  1439→                              <TableCell className="text-right">
+  1440→                                <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+  1441→                                  {qr.publicSlug && (
+  1442→                                    <Button
+  1443→                                      variant="ghost"
+  1444→                                      size="icon"
+  1445→                                      className="h-8 w-8"
+  1446→                                      title="Voir le QR code"
+  1447→                                      onClick={() => {
+  1448→                                        setPreviewQr(qr);
+  1449→                                        setQrStyle('classic');
+  1450→                                        setQrFgColor('#1e1b4b');
+  1451→                                        setQrBgColor('#ffffff');
+  1452→                                        setQrPreviewOpen(true);
+  1453→                                      }}
+  1454→                                    >
+  1455→                                      <Eye className="h-3.5 w-3.5" />
+  1456→                                    </Button>
+  1457→                                  )}
+  1458→                                  {publicUrl && (
+  1459→                                    <Button
+  1460→                                      variant="ghost"
+  1461→                                      size="icon"
+  1462→                                      className="h-8 w-8"
+  1463→                                      title="Copier le lien de scan"
+  1464→                                      onClick={() => { navigator.clipboard.writeText(publicUrl); toast.success('Lien copié !'); }}
+  1465→                                    >
+  1466→                                      <Link className="h-3.5 w-3.5" />
+  1467→                                    </Button>
+  1468→                                  )}
+  1469→                                  <Button
+  1470→                                    variant="ghost"
+  1471→                                    size="icon"
+  1472→                                    className="h-8 w-8"
+  1473→                                    onClick={() => openEditDialog(qr)}
+  1474→                                    title="Modifier"
+  1475→                                  >
+  1476→                                    <Edit className="h-3.5 w-3.5" />
+  1477→                                  </Button>
+  1478→                                  <Button
+  1479→                                    variant="ghost"
+  1480→                                    size="icon"
+  1481→                                    className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+  1482→                                    onClick={() => openDeactivateDialog(qr)}
+  1483→                                    title="Désactiver"
+  1484→                                    disabled={!qr.isActive}
+  1485→                                  >
+  1486→                                    <Trash2 className="h-3.5 w-3.5" />
+  1487→                                  </Button>
+  1488→                                </div>
+  1489→                              </TableCell>
+  1490→                            </TableRow>
+  1491→                          );
+  1492→                        })}
+  1493→                      </TableBody>
+  1494→                    </Table>
+  1495→                  </div>
+  1496→
+  1497→                  {/* Pagination */}
+  1498→                  {totalPages > 1 && (
+  1499→                    <div className="flex items-center justify-between">
+  1500→                      <p className="text-sm text-muted-foreground">
+  1501→                        {filteredQrCodes.length} résultat{filteredQrCodes.length > 1 ? 's' : ''} — Page {currentPage} sur {totalPages}
+  1502→                      </p>
+  1503→                      <div className="flex items-center gap-1">
+  1504→                        <Button
+  1505→                          variant="outline"
+  1506→                          size="icon"
+  1507→                          className="h-8 w-8"
+  1508→                          disabled={currentPage <= 1}
+  1509→                          onClick={() => setCurrentPage((p) => p - 1)}
+  1510→                        >
+  1511→                          <ArrowLeft className="h-4 w-4" />
+  1512→                        </Button>
+  1513→                        {Array.from({ length: totalPages }).map((_, i) => {
+  1514→                          const page = i + 1;
+  1515→                          return (
+  1516→                            <Button
+  1517→                              key={page}
+  1518→                              variant={currentPage === page ? 'default' : 'outline'}
+  1519→                              size="icon"
+  1520→                              className="h-8 w-8"
+  1521→                              onClick={() => setCurrentPage(page)}
+  1522→                            >
+  1523→                              {page}
+  1524→                            </Button>
+  1525→                          );
+  1526→                        })}
+  1527→                        <Button
+  1528→                          variant="outline"
+  1529→                          size="icon"
+  1530→                          className="h-8 w-8"
+  1531→                          disabled={currentPage >= totalPages}
+  1532→                          onClick={() => setCurrentPage((p) => p + 1)}
+  1533→                        >
+  1534→                          <ArrowRight className="h-4 w-4" />
+  1535→                        </Button>
+  1536→                      </div>
+  1537→                    </div>
+  1538→                  )}
+  1539→                </>
+  1540→              )}
+  1541→            </CardContent>
+  1542→          </Card>
+  1543→        </TabsContent>
+  1544→      </Tabs>
+  1545→
+  1546→      {/* ================================================================== */}
+  1547→      {/*  Edit Dialog                                                        */}
+  1548→      {/* ================================================================== */}
+  1549→      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+  1550→        <DialogContent>
+  1551→          <DialogHeader>
+  1552→            <DialogTitle>Modifier le QR code</DialogTitle>
+  1553→            <DialogDescription>
+  1554→              Changez le nom de votre QR code &quot;{editingQr?.name}&quot;
+  1555→            </DialogDescription>
+  1556→          </DialogHeader>
+  1557→          <div className="py-4">
+  1558→            <Label htmlFor="edit-name">Nouveau nom</Label>
+  1559→            <Input
+  1560→              id="edit-name"
+  1561→              value={editName}
+  1562→              onChange={(e) => setEditName(e.target.value)}
+  1563→              className="mt-2"
+  1564→              placeholder="Nouveau nom"
+  1565→            />
+  1566→          </div>
+  1567→          <DialogFooter>
+  1568→            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+  1569→              Annuler
+  1570→            </Button>
+  1571→            <Button disabled={editSaving || !editName.trim()} onClick={handleSaveEdit}>
+  1572→              {editSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+  1573→              Enregistrer
+  1574→            </Button>
+  1575→          </DialogFooter>
+  1576→        </DialogContent>
+  1577→      </Dialog>
+  1578→
+  1579→      {/* ================================================================== */}
+  1580→      {/*  Deactivate AlertDialog                                              */}
+  1581→      {/* ================================================================== */}
+  1582→      <AlertDialog open={deactivateDialogOpen} onOpenChange={setDeactivateDialogOpen}>
+  1583→        <AlertDialogContent>
+  1584→          <AlertDialogHeader>
+  1585→            <AlertDialogTitle>Désactiver ce QR code ?</AlertDialogTitle>
+  1586→            <AlertDialogDescription>
+  1587→              Le QR code &quot;{deactivatingQr?.name}&quot; sera désactivé. Le code physique pourra être
+  1588→              réutilisé pour une nouvelle activation.
+  1589→            </AlertDialogDescription>
+  1590→          </AlertDialogHeader>
+  1591→          <AlertDialogFooter>
+  1592→            <AlertDialogCancel disabled={deactivating}>Annuler</AlertDialogCancel>
+  1593→            <AlertDialogAction
+  1594→              onClick={handleDeactivate}
+  1595→              disabled={deactivating}
+  1596→              className="bg-red-600 hover:bg-red-700 text-white"
+  1597→            >
+  1598→              {deactivating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+  1599→              Désactiver
+  1600→            </AlertDialogAction>
+  1601→          </AlertDialogFooter>
+  1602→        </AlertDialogContent>
+  1603→      </AlertDialog>
+  1604→
+  1605→      {/* ================================================================== */}
+  1606→      {/*  QR Preview Dialog                                                  */}
+  1607→      {/* ================================================================== */}
+  1608→      <Dialog open={qrPreviewOpen} onOpenChange={setQrPreviewOpen}>
+  1609→        <DialogContent className="sm:max-w-lg">
+  1610→          <DialogHeader>
+  1611→            <DialogTitle className="flex items-center gap-2">
+  1612→              <Eye className="h-5 w-5" />
+  1613→              QR Code personnalisé
+  1614→            </DialogTitle>
+  1615→            <DialogDescription>
+  1616→              {previewQr?.name ?? 'QR code'}
+  1617→            </DialogDescription>
+  1618→          </DialogHeader>
+  1619→
+  1620→          {previewQr?.publicSlug && (
+  1621→            <div className="space-y-6">
+  1622→              {/* QR Code display */}
+  1623→              <div className="flex justify-center">
+  1624→                <QrCodeDisplay
+  1625→                  value={`https://qrdomotik.roomscan.pro/view/${previewQr.publicSlug}`}
+  1626→                  size={220}
+  1627→                  style={qrStyle}
+  1628→                  fgColor={qrFgColor}
+  1629→                  bgColor={qrBgColor}
+  1630→                />
+  1631→              </div>
+  1632→
+  1633→              {/* Public URL with copy */}
+  1634→              <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+  1635→                <Link className="h-4 w-4 text-muted-foreground shrink-0" />
+  1636→                <span className="text-sm font-mono truncate flex-1">
+  1637→                  https://qrdomotik.roomscan.pro/view/{previewQr.publicSlug}
+  1638→                </span>
+  1639→                <Button
+  1640→                  variant="ghost"
+  1641→                  size="sm"
+  1642→                  className="h-8 shrink-0"
+  1643→                  onClick={() => {
+  1644→                    navigator.clipboard.writeText(`https://qrdomotik.roomscan.pro/view/${previewQr.publicSlug}`);
+  1645→                    toast.success('Lien copié !');
+  1646→                  }}
+  1647→                >
+  1648→                  <Copy className="h-3.5 w-3.5 mr-1" />
+  1649→                  Copier
+  1650→                </Button>
+  1651→              </div>
+  1652→
+  1653→              <Separator />
+  1654→
+  1655→              {/* Style selector */}
+  1656→              <div className="space-y-3">
+  1657→                <Label className="text-sm font-medium flex items-center gap-2">
+  1658→                  <Palette className="h-4 w-4" />
+  1659→                  Style du QR code
+  1660→                </Label>
+  1661→                <div className="grid grid-cols-4 gap-2">
+  1662→                  {[
+  1663→                    { value: 'classic', label: 'Classique' },
+  1664→                    { value: 'rounded', label: 'Arrondi' },
+  1665→                    { value: 'dots', label: 'Points' },
+  1666→                    { value: 'classy', label: 'Élégant' },
+  1667→                  ].map((s) => (
+  1668→                    <button
+  1669→                      key={s.value}
+  1670→                      type="button"
+  1671→                      onClick={() => setQrStyle(s.value)}
+  1672→                      className={`rounded-lg border-2 px-3 py-2 text-xs font-medium transition-all ${
+  1673→                        qrStyle === s.value
+  1674→                          ? 'border-primary bg-primary/5 text-primary'
+  1675→                          : 'border-border hover:border-primary/40'
+  1676→                      }`}
+  1677→                    >
+  1678→                      {s.label}
+  1679→                    </button>
+  1680→                  ))}
+  1681→                </div>
+  1682→              </div>
+  1683→
+  1684→              {/* Color pickers */}
+  1685→              <div className="grid grid-cols-2 gap-4">
+  1686→                <div className="space-y-2">
+  1687→                  <Label className="text-sm">Couleur de premier plan</Label>
+  1688→                  <div className="flex items-center gap-2">
+  1689→                    <input
+  1690→                      type="color"
+  1691→                      value={qrFgColor}
+  1692→                      onChange={(e) => setQrFgColor(e.target.value)}
+  1693→                      className="h-9 w-12 rounded-lg border cursor-pointer"
+  1694→                    />
+  1695→                    <span className="text-xs font-mono text-muted-foreground">{qrFgColor}</span>
+  1696→                  </div>
+  1697→                </div>
+  1698→                <div className="space-y-2">
+  1699→                  <Label className="text-sm">Couleur de fond</Label>
+  1700→                  <div className="flex items-center gap-2">
+  1701→                    <input
+  1702→                      type="color"
+  1703→                      value={qrBgColor}
+  1704→                      onChange={(e) => setQrBgColor(e.target.value)}
+  1705→                      className="h-9 w-12 rounded-lg border cursor-pointer"
+  1706→                    />
+  1707→                    <span className="text-xs font-mono text-muted-foreground">{qrBgColor}</span>
+  1708→                  </div>
+  1709→                </div>
+  1710→              </div>
+  1711→            </div>
+  1712→          )}
+  1713→        </DialogContent>
+  1714→      </Dialog>
+  1715→    </div>
+  1716→  );
+  1717→}
+  1718→
