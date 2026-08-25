@@ -21,3 +21,26 @@ Stage Summary:
 - Client dashboard KPIs now use colorful gradient cards
 - Client sidebar now uses violet/purple gradient theme
 - Lint passes clean, compilation succeeds
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Coolify build prerender error and QR activation flow
+
+Work Log:
+- Diagnosed build error: `useSearchParams()` in client components causes prerender failure during `bun run build`
+- Wrapped `AppContent` in `<Suspense>` in page.tsx
+- Wrapped `ActivatePageContent` in `<Suspense>` in activate/[code]/page.tsx
+- Wrapped `DemoPageContent` in `<Suspense>` in demo/[id]/page.tsx
+- Changed activation flow from auto-redirect to explicit buttons ("Creer un compte et activer" + "Se connecter")
+- Changed `router.replace` to `window.location.href` for full page reload (fixes useState not picking up new searchParams)
+- Fixed activate API to auto-resolve homeId/roomId from authenticated user session
+- Made homeId/roomId optional in activation form
+- Added default content templates per module type in activate API
+- Verified all flows with Agent Browser
+- Pushed to GitHub
+
+Stage Summary:
+- Build error fixed by wrapping useSearchParams() in Suspense boundaries
+- Activation flow: scan QR → signup page → back to activate page with code pre-filled → choose module → activate
+- Activate API no longer requires hardcoded homeId/roomId, resolves from user session
+- All 5 files modified, committed and pushed to main
