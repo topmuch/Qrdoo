@@ -52,6 +52,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 
+import { QrCodeDisplay } from '@/components/client/qr-code-display';
+
 import {
   QrCode,
   ScanLine,
@@ -88,6 +90,7 @@ import {
   Pill,
   KeyRound,
   Sparkles,
+  Palette,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -238,6 +241,13 @@ export function PhysicalQrCodes() {
   const [newRoomName, setNewRoomName] = useState('');
   const [showNewRoom, setShowNewRoom] = useState(false);
   const [creatingRoom, setCreatingRoom] = useState(false);
+
+  // ---- QR Preview Dialog state ----
+  const [qrPreviewOpen, setQrPreviewOpen] = useState(false);
+  const [previewQr, setPreviewQr] = useState<QrCodeItem | null>(null);
+  const [qrStyle, setQrStyle] = useState('classic');
+  const [qrFgColor, setQrFgColor] = useState('#1e1b4b');
+  const [qrBgColor, setQrBgColor] = useState('#ffffff');
 
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -1428,6 +1438,23 @@ export function PhysicalQrCodes() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {qr.publicSlug && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      title="Voir le QR code"
+                                      onClick={() => {
+                                        setPreviewQr(qr);
+                                        setQrStyle('classic');
+                                        setQrFgColor('#1e1b4b');
+                                        setQrBgColor('#ffffff');
+                                        setQrPreviewOpen(true);
+                                      }}
+                                    >
+                                      <Eye className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
                                   {publicUrl && (
                                     <Button
                                       variant="ghost"
@@ -1574,6 +1601,117 @@ export function PhysicalQrCodes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ================================================================== */}
+      {/*  QR Preview Dialog                                                  */}
+      {/* ================================================================== */}
+      <Dialog open={qrPreviewOpen} onOpenChange={setQrPreviewOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              QR Code personnalisé
+            </DialogTitle>
+            <DialogDescription>
+              {previewQr?.name ?? 'QR code'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {previewQr?.publicSlug && (
+            <div className="space-y-6">
+              {/* QR Code display */}
+              <div className="flex justify-center">
+                <QrCodeDisplay
+                  value={`https://qrdomotik.roomscan.pro/view/${previewQr.publicSlug}`}
+                  size={220}
+                  style={qrStyle}
+                  fgColor={qrFgColor}
+                  bgColor={qrBgColor}
+                />
+              </div>
+
+              {/* Public URL with copy */}
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2">
+                <Link className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-sm font-mono truncate flex-1">
+                  https://qrdomotik.roomscan.pro/view/{previewQr.publicSlug}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 shrink-0"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`https://qrdomotik.roomscan.pro/view/${previewQr.publicSlug}`);
+                    toast.success('Lien copié !');
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5 mr-1" />
+                  Copier
+                </Button>
+              </div>
+
+              <Separator />
+
+              {/* Style selector */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  Style du QR code
+                </Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { value: 'classic', label: 'Classique' },
+                    { value: 'rounded', label: 'Arrondi' },
+                    { value: 'dots', label: 'Points' },
+                    { value: 'classy', label: 'Élégant' },
+                  ].map((s) => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setQrStyle(s.value)}
+                      className={`rounded-lg border-2 px-3 py-2 text-xs font-medium transition-all ${
+                        qrStyle === s.value
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'border-border hover:border-primary/40'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Color pickers */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm">Couleur de premier plan</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={qrFgColor}
+                      onChange={(e) => setQrFgColor(e.target.value)}
+                      className="h-9 w-12 rounded-lg border cursor-pointer"
+                    />
+                    <span className="text-xs font-mono text-muted-foreground">{qrFgColor}</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm">Couleur de fond</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={qrBgColor}
+                      onChange={(e) => setQrBgColor(e.target.value)}
+                      className="h-9 w-12 rounded-lg border cursor-pointer"
+                    />
+                    <span className="text-xs font-mono text-muted-foreground">{qrBgColor}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -30,6 +30,31 @@ import { ModuleConfigPage } from '@/components/client/module-config';
 import { ModulePreviewPage } from '@/components/client/module-preview';
 import { ChoresManager } from '@/components/client/chores-manager';
 import { NotificationCenter } from '@/components/client/notifications-center';
+import { ScanAnalytics } from '@/components/client/scan-analytics';
+import { AutomationsManager } from '@/components/client/automations-manager';
+import { WebhooksManager } from '@/components/client/webhooks-manager';
+
+function ScanAnalyticsWrapper() {
+  const [homeId, setHomeId] = useState('');
+  useEffect(() => {
+    async function fetchHomes() {
+      try {
+        const res = await fetch('/api/client/homes');
+        const data = await res.json();
+        if (data.homes?.length > 0) setHomeId(data.homes[0].id);
+      } catch { /* empty */ }
+    }
+    fetchHomes();
+  }, []);
+  if (!homeId) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-8 w-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+  return <ScanAnalytics homeId={homeId} />;
+}
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -154,6 +179,9 @@ function AppContent() {
       case 'client-activity': return <ActivityLogViewer />;
       case 'client-chores': return <ChoresManager />;
       case 'client-notifications': return <NotificationCenter />;
+      case 'client-analytics': return <ScanAnalyticsWrapper />;
+      case 'client-automations': return <AutomationsManager />;
+      case 'client-webhooks': return <WebhooksManager />;
       case 'activation-public': return <ActivationPage />;
       case 'module-config': return <ModuleConfigPage />;
       case 'module-preview': return <ModulePreviewPage />;

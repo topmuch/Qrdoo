@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import {
@@ -10,6 +9,7 @@ import {
   Home, Eye, Send, X, Clock, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from '@/lib/i18n';
 
 export interface DoorbellContent {
   mode: 'present' | 'absent';
@@ -32,6 +32,7 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
   const [view, setView] = useState<VisitorView>('home');
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
+  const { t } = useTranslation();
 
   const isPresent = content.mode === 'present';
   const safeInstructions = Array.isArray(content.instructions) ? content.instructions : typeof content.instructions === 'string' ? content.instructions.split('\n').filter(Boolean) : [];
@@ -52,7 +53,7 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
       }
       setView('success-ring');
     } catch {
-      toast.error('Erreur, veuillez réessayer');
+      toast.error(t('retry'));
     } finally {
       setSending(false);
     }
@@ -60,7 +61,7 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
 
   const handleSendMessage = async () => {
     if (!messageText.trim()) {
-      toast.error('Veuillez écrire un message');
+      toast.error(t('write_a_message'));
       return;
     }
     setSending(true);
@@ -74,7 +75,7 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
       }
       setView('success-message');
     } catch {
-      toast.error('Erreur, veuillez réessayer');
+      toast.error(t('retry'));
     } finally {
       setSending(false);
     }
@@ -88,10 +89,10 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 mb-6 animate-in zoom-in-50 duration-300">
             <CheckCircle2 className="h-10 w-10 text-green-600" />
           </div>
-          <h1 className="text-2xl font-bold text-center mb-2">Sonnette envoyée !</h1>
-          <p className="text-muted-foreground text-center mb-8">L'habitant a été notifié de votre passage.</p>
+          <h1 className="text-2xl font-bold text-center mb-2">{t('ring_sent')}</h1>
+          <p className="text-muted-foreground text-center mb-8">{t('notified')}</p>
           <Button variant="outline" onClick={() => setView('home')} className="gap-2">
-            Retour
+            {t('back')}
           </Button>
         </div>
       </div>
@@ -105,10 +106,10 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
           <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 mb-6 animate-in zoom-in-50 duration-300">
             <CheckCircle2 className="h-10 w-10 text-blue-600" />
           </div>
-          <h1 className="text-2xl font-bold text-center mb-2">Message envoyé !</h1>
-          <p className="text-muted-foreground text-center mb-8">Votre message a bien été transmis.</p>
+          <h1 className="text-2xl font-bold text-center mb-2">{t('message_sent')}</h1>
+          <p className="text-muted-foreground text-center mb-8">{t('notified')}</p>
           <Button variant="outline" onClick={() => { setView('home'); setMessageText(''); }} className="gap-2">
-            Retour
+            {t('back')}
           </Button>
         </div>
       </div>
@@ -124,14 +125,14 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
             onClick={() => setView('home')}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
           >
-            <X className="h-4 w-4" /> Retour
+            <X className="h-4 w-4" /> {t('back')}
           </button>
 
           <div className="text-center mb-8">
             <div className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-${accentColor}-500 shadow-lg shadow-${accentColor}-500/25`}>
               <Package className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold">Consignes</h1>
+            <h1 className="text-2xl font-bold">{t('instructions')}</h1>
             {qrName && <p className="mt-1 text-sm text-muted-foreground">{qrName}</p>}
           </div>
 
@@ -148,13 +149,9 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
 
           <div className="flex justify-center">
             <Button variant="outline" onClick={() => setView('home')} className="gap-2">
-              <X className="h-4 w-4" /> Fermer les consignes
+              <X className="h-4 w-4" /> {t('close_instructions')}
             </Button>
           </div>
-
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            QR Domotik &middot; Scannez le QR pour accéder
-          </p>
         </div>
       </div>
     );
@@ -169,20 +166,20 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
             onClick={() => setView('home')}
             className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
           >
-            <X className="h-4 w-4" /> Retour
+            <X className="h-4 w-4" /> {t('back')}
           </button>
 
           <div className="text-center mb-8">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500 shadow-lg shadow-blue-500/25">
               <MessageSquare className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold">Laisser un message</h1>
-            <p className="mt-1 text-sm text-muted-foreground">Votre message sera envoyé à l'habitant</p>
+            <h1 className="text-2xl font-bold">{t('write_your_message')}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{t('your_message_will_be_sent')}</p>
           </div>
 
           <div className="space-y-4">
             <Textarea
-              placeholder="Votre message..."
+              placeholder={t('your_message')}
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
               rows={5}
@@ -196,13 +193,9 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
               size="lg"
             >
               {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-              Envoyer le message
+              {t('send_message')}
             </Button>
           </div>
-
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            QR Domotik &middot; Scannez le QR pour accéder
-          </p>
         </div>
       </div>
     );
@@ -218,7 +211,7 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
             {isPresent ? <Home className="h-8 w-8 text-white" /> : <Eye className="h-8 w-8 text-white" />}
           </div>
           <h1 className="text-2xl font-bold">
-            {isPresent ? 'Présent' : 'Absent'}
+            {isPresent ? t('present') : t('absent')}
           </h1>
           {qrName && <p className="mt-1 text-sm text-muted-foreground">{qrName}</p>}
         </div>
@@ -247,7 +240,7 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
             onClick={() => setView('instructions')}
           >
             <Package className="h-6 w-6" />
-            Consignes
+            {t('instructions')}
           </Button>
 
           {/* Doorbell button */}
@@ -259,7 +252,7 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
               disabled={sending}
             >
               {sending ? <Loader2 className="h-6 w-6 animate-spin" /> : <BellRing className="h-6 w-6" />}
-              {isPresent ? 'Sonner' : 'Me notifier'}
+              {isPresent ? t('ring') : t('notify_me')}
             </Button>
           )}
 
@@ -271,14 +264,10 @@ export function DoorbellDisplay({ content, qrCodeId, qrName }: DoorbellDisplayPr
               onClick={() => setView('message')}
             >
               <MessageSquare className="h-6 w-6" />
-              Laisser un message
+              {t('leave_message')}
             </Button>
           )}
         </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          QR Domotik &middot; Scannez le QR pour accéder
-        </p>
       </div>
     </div>
   );

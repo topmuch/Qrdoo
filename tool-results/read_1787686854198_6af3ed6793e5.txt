@@ -1,0 +1,663 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useCallback } from 'react';
+     4→import {
+     5→  Server,
+     6→  Wifi,
+     7→  Plug,
+     8→  Zap,
+     9→  RefreshCw,
+    10→  Plus,
+    11→  Trash2,
+    12→  CheckCircle2,
+    13→  XCircle,
+    14→  Power,
+    15→  PowerOff,
+    16→  ChevronDown,
+    17→  ChevronUp,
+    18→  Loader2,
+    19→  Eye,
+    20→} from 'lucide-react';
+    21→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+    22→import { Button } from '@/components/ui/button';
+    23→import { Input } from '@/components/ui/input';
+    24→import { Badge } from '@/components/ui/badge';
+    25→import { Switch } from '@/components/ui/switch';
+    26→import { Label } from '@/components/ui/label';
+    27→import {
+    28→  Dialog,
+    29→  DialogContent,
+    30→  DialogHeader,
+    31→  DialogTitle,
+    32→  DialogDescription,
+    33→  DialogFooter,
+    34→} from '@/components/ui/dialog';
+    35→import {
+    36→  Select,
+    37→  SelectContent,
+    38→  SelectItem,
+    39→  SelectTrigger,
+    40→  SelectValue,
+    41→} from '@/components/ui/select';
+    42→
+    43→interface Home {
+    44→  id: string;
+    45→  name: string;
+    46→}
+    47→
+    48→interface Automation {
+    49→  id: string;
+    50→  homeId: string;
+    51→  name: string;
+    52→  provider: string;
+    53→  baseUrl: string;
+    54→  apiToken: string | null;
+    55→  isActive: boolean;
+    56→  createdAt: string;
+    57→  updatedAt: string;
+    58→  home: Home;
+    59→}
+    60→
+    61→interface HACEntity {
+    62→  entity_id: string;
+    63→  state: string;
+    64→  attributes: {
+    65→    friendly_name?: string;
+    66→    [key: string]: unknown;
+    67→  };
+    68→}
+    69→
+    70→type ConnectionStatus = 'idle' | 'testing' | 'connected' | 'disconnected' | 'error';
+    71→
+    72→type ActionType = 'toggle' | 'turn_on' | 'turn_off' | 'get_state';
+    73→
+    74→export function AutomationsManager() {
+    75→  const [automations, setAutomations] = useState<Automation[]>([]);
+    76→  const [homes, setHomes] = useState<Home[]>([]);
+    77→  const [loading, setLoading] = useState(true);
+    78→  const [dialogOpen, setDialogOpen] = useState(false);
+    79→  const [saving, setSaving] = useState(false);
+    80→  const [selectedHomeId, setSelectedHomeId] = useState('');
+    81→  const [newName, setNewName] = useState('');
+    82→  const [newProvider, setNewProvider] = useState('home_assistant');
+    83→  const [newBaseUrl, setNewBaseUrl] = useState('');
+    84→  const [newApiToken, setNewApiToken] = useState('');
+    85→  // Connection status per automation id
+    86→  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, ConnectionStatus>>({});
+    87→  const [connectionMessages, setConnectionMessages] = useState<Record<string, string>>({});
+    88→  const [expandedAutomation, setExpandedAutomation] = useState<string | null>(null);
+    89→  const [entities, setEntities] = useState<Record<string, HACEntity[]>>({});
+    90→  const [loadingEntities, setLoadingEntities] = useState<Record<string, boolean>>({});
+    91→  const [triggeringEntity, setTriggeringEntity] = useState<string | null>(null);
+    92→  const [triggerMessage, setTriggerMessage] = useState<Record<string, string>>({});
+    93→
+    94→  const fetchAutomations = useCallback(async () => {
+    95→    try {
+    96→      const res = await fetch('/api/client/automations');
+    97→      const data = await res.json();
+    98→      setAutomations(data.automations || []);
+    99→    } catch {
+   100→      // empty
+   101→    }
+   102→    setLoading(false);
+   103→  }, []);
+   104→
+   105→  const fetchHomes = useCallback(async () => {
+   106→    try {
+   107→      const res = await fetch('/api/client/homes');
+   108→      const data = await res.json();
+   109→      setHomes(data.homes || []);
+   110→      if (data.homes?.length > 0 && !selectedHomeId) {
+   111→        setSelectedHomeId(data.homes[0].id);
+   112→      }
+   113→    } catch {
+   114→      // empty
+   115→    }
+   116→  }, [selectedHomeId]);
+   117→
+   118→  useEffect(() => {
+   119→    fetchHomes();
+   120→    fetchAutomations();
+   121→  }, [fetchHomes, fetchAutomations]);
+   122→
+   123→  const handleCreate = async () => {
+   124→    if (!newName || !newBaseUrl) return;
+   125→    setSaving(true);
+   126→    try {
+   127→      const res = await fetch('/api/client/automations', {
+   128→        method: 'POST',
+   129→        headers: { 'Content-Type': 'application/json' },
+   130→        body: JSON.stringify({
+   131→          homeId: selectedHomeId,
+   132→          name: newName,
+   133→          provider: newProvider,
+   134→          baseUrl: newBaseUrl,
+   135→          apiToken: newApiToken || undefined,
+   136→        }),
+   137→      });
+   138→      if (res.ok) {
+   139→        setDialogOpen(false);
+   140→        setNewName('');
+   141→        setNewBaseUrl('');
+   142→        setNewApiToken('');
+   143→        fetchAutomations();
+   144→      }
+   145→    } catch {
+   146→      // empty
+   147→    }
+   148→    setSaving(false);
+   149→  };
+   150→
+   151→  const handleDelete = async (id: string) => {
+   152→    if (!confirm('Supprimer cette automatisation ?')) return;
+   153→    try {
+   154→      await fetch(`/api/client/automations/${id}`, { method: 'DELETE' });
+   155→      fetchAutomations();
+   156→    } catch {
+   157→      // empty
+   158→    }
+   159→  };
+   160→
+   161→  const handleToggleActive = async (automation: Automation) => {
+   162→    try {
+   163→      await fetch(`/api/client/automations/${automation.id}`, {
+   164→        method: 'PUT',
+   165→        headers: { 'Content-Type': 'application/json' },
+   166→        body: JSON.stringify({ isActive: !automation.isActive }),
+   167→      });
+   168→      fetchAutomations();
+   169→    } catch {
+   170→      // empty
+   171→    }
+   172→  };
+   173→
+   174→  const handleTestConnection = async (automation: Automation) => {
+   175→    setConnectionStatuses((prev) => ({ ...prev, [automation.id]: 'testing' }));
+   176→    setConnectionMessages((prev) => ({ ...prev, [automation.id]: 'Test en cours...' }));
+   177→    try {
+   178→      const res = await fetch(`/api/client/automations/${automation.id}/test`, {
+   179→        method: 'POST',
+   180→      });
+   181→      const data = await res.json();
+   182→      setConnectionStatuses((prev) => ({
+   183→        ...prev,
+   184→        [automation.id]: data.success ? 'connected' : 'disconnected',
+   185→      }));
+   186→      setConnectionMessages((prev) => ({ ...prev, [automation.id]: data.message }));
+   187→    } catch {
+   188→      setConnectionStatuses((prev) => ({ ...prev, [automation.id]: 'error' }));
+   189→      setConnectionMessages((prev) => ({ ...prev, [automation.id]: 'Erreur réseau' }));
+   190→    }
+   191→  };
+   192→
+   193→  const fetchEntities = async (automation: Automation) => {
+   194→    if (automation.provider !== 'home_assistant') return;
+   195→    setLoadingEntities((prev) => ({ ...prev, [automation.id]: true }));
+   196→    try {
+   197→      const controller = new AbortController();
+   198→      const timeout = setTimeout(() => controller.abort(), 10000);
+   199→      const res = await fetch(`${automation.baseUrl}/api/states`, {
+   200→        headers: {
+   201→          Authorization: `Bearer ${automation.apiToken}`,
+   202→          'Content-Type': 'application/json',
+   203→        },
+   204→        signal: controller.signal,
+   205→      });
+   206→      clearTimeout(timeout);
+   207→      if (res.ok) {
+   208→        const data = await res.json();
+   209→        setEntities((prev) => ({ ...prev, [automation.id]: data.slice(0, 50) }));
+   210→      }
+   211→    } catch {
+   212→      // CORS may block direct fetch
+   213→    }
+   214→    setLoadingEntities((prev) => ({ ...prev, [automation.id]: false }));
+   215→  };
+   216→
+   217→  const handleToggleExpand = async (automation: Automation) => {
+   218→    if (expandedAutomation === automation.id) {
+   219→      setExpandedAutomation(null);
+   220→    } else {
+   221→      setExpandedAutomation(automation.id);
+   222→      if (automation.provider === 'home_assistant' && !entities[automation.id]) {
+   223→        // Try fetching entities via our API proxy (trigger with get_state action)
+   224→        // For HA we can list states via test or we try direct
+   225→        fetchEntities(automation);
+   226→      }
+   227→    }
+   228→  };
+   229→
+   230→  const handleTriggerEntity = async (automation: Automation, entityId: string, action: ActionType) => {
+   231→    const key = `${automation.id}-${entityId}`;
+   232→    setTriggeringEntity(key);
+   233→    setTriggerMessage((prev) => ({ ...prev, [key]: 'Exécution...' }));
+   234→    try {
+   235→      const res = await fetch(`/api/client/automations/${automation.id}/trigger`, {
+   236→        method: 'POST',
+   237→        headers: { 'Content-Type': 'application/json' },
+   238→        body: JSON.stringify({ entityId, action }),
+   239→      });
+   240→      const data = await res.json();
+   241→      setTriggerMessage((prev) => ({ ...prev, [key]: data.message }));
+   242→      // Refresh entities after action
+   243→      if (automation.provider === 'home_assistant') {
+   244→        fetchEntities(automation);
+   245→      }
+   246→    } catch {
+   247→      setTriggerMessage((prev) => ({ ...prev, [key]: 'Erreur réseau' }));
+   248→    }
+   249→    setTriggeringEntity(null);
+   250→  };
+   251→
+   252→  const getConnectionIcon = (automationId: string) => {
+   253→    const status = connectionStatuses[automationId];
+   254→    switch (status) {
+   255→      case 'connected':
+   256→        return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+   257→      case 'disconnected':
+   258→      case 'error':
+   259→        return <XCircle className="h-4 w-4 text-red-500" />;
+   260→      case 'testing':
+   261→        return <Loader2 className="h-4 w-4 text-amber-500 animate-spin" />;
+   262→      default:
+   263→        return <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />;
+   264→    }
+   265→  };
+   266→
+   267→  if (loading) {
+   268→    return (
+   269→      <div className="flex items-center justify-center py-20">
+   270→        <div className="h-8 w-8 border-2 border-violet-300/30 border-t-violet-500 rounded-full animate-spin" />
+   271→      </div>
+   272→    );
+   273→  }
+   274→
+   275→  return (
+   276→    <div className="space-y-6">
+   277→      {/* Header */}
+   278→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   279→        <div>
+   280→          <h3 className="text-lg font-semibold">Domotique (Home Assistant / Jeedom)</h3>
+   281→          <p className="text-sm text-muted-foreground">
+   282→            Connectez et contrôlez vos appareils domotiques
+   283→          </p>
+   284→        </div>
+   285→        <Button
+   286→          onClick={() => setDialogOpen(true)}
+   287→          className="bg-violet-600 hover:bg-violet-700"
+   288→          disabled={homes.length === 0}
+   289→        >
+   290→          <Plus className="h-4 w-4 mr-2" />
+   291→          Ajouter une automatisation
+   292→        </Button>
+   293→      </div>
+   294→
+   295→      {homes.length === 0 && (
+   296→        <Card>
+   297→          <CardContent className="p-6 text-center">
+   298→            <p className="text-muted-foreground">Créez d'abord une maison pour ajouter des automatisations.</p>
+   299→          </CardContent>
+   300→        </Card>
+   301→      )}
+   302→
+   303→      {/* Automations list */}
+   304→      {automations.length === 0 && homes.length > 0 && (
+   305→        <Card>
+   306→          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+   307→          <div className="rounded-2xl bg-violet-100 dark:bg-violet-500/10 p-4">
+   308→            <Plug className="h-8 w-8 text-violet-600" />
+   309→          </div>
+   310→          <div className="text-center">
+   311→            <p className="font-medium">Aucune automatisation configurée</p>
+   312→            <p className="text-sm text-muted-foreground mt-1">
+   313→              Connectez Home Assistant ou Jeedom pour commencer
+   314→            </p>
+   315→          </div>
+   316→          </CardContent>
+   317→        </Card>
+   318→      )}
+   319→
+   320→      <div className="grid gap-4">
+   321→        {automations.map((automation) => {
+   322→          const isExpanded = expandedAutomation === automation.id;
+   323→          const haEntities = entities[automation.id] || [];
+   324→
+   325→          return (
+   326→            <Card key={automation.id} className={!automation.isActive ? 'opacity-60' : ''}>
+   327→              <CardContent className="p-4">
+   328→                <div className="flex items-center gap-3">
+   329→                  {/* Provider icon */}
+   330→                  <div className={`rounded-lg p-2 ${
+   331→                    automation.provider === 'home_assistant'
+   332→                      ? 'bg-sky-100 dark:bg-sky-500/10'
+   333→                      : 'bg-amber-100 dark:bg-amber-500/10'
+   334→                  }`>
+   335→                    {automation.provider === 'home_assistant' ? (
+   336→                      <HomeAssistantLogo className="h-6 w-6 text-sky-600" />
+   337→                    ) : (
+   338→                      <JeedomLogo className="h-6 w-6 text-amber-600" />
+   339→                    )}
+   340→                  </div>
+   341→
+   342→                  {/* Info */}
+   343→                  <div className="flex-1 min-w-0">
+   344→                    <div className="flex items-center gap-2">
+   345→                      <h4 className="font-medium truncate">{automation.name}</h4>
+   346→                      {getConnectionIcon(automation.id)}
+   347→                    </div>
+   348→                    <div className="flex items-center gap-2 mt-0.5">
+   349→                      <span className="text-xs text-muted-foreground truncate">
+   350→                        {automation.home.name}
+   351→                      </span>
+   352→                      <span className="text-xs text-muted-foreground">·</span>
+   353→                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+   354→                        {automation.provider === 'home_assistant' ? 'HA' : 'Jeedom'}
+   355→                      </Badge>
+   356→                      <span className="text-xs text-muted-foreground truncate">
+   357→                        {automation.baseUrl}
+   358→                      </span>
+   359→                    </div>
+   360→                    {connectionMessages[automation.id] && connectionStatuses[automation.id] !== 'idle' && (
+   361→                      <p className={`text-xs mt-1 ${
+   362→                        connectionStatuses[automation.id] === 'connected'
+   363→                          ? 'text-emerald-600'
+   364→                          : 'text-red-500'
+   365→                      }`}>
+   366→                        {connectionMessages[automation.id]}
+   367→                      </p>
+   368→                    )}
+   369→                  </div>
+   370→
+   371→                  {/* Actions */}
+   372→                  <div className="flex items-center gap-1">
+   373→                    <Button
+   374→                      variant="ghost"
+   375→                      size="icon"
+   376→                      className="h-8 w-8"
+   377→                      onClick={() => handleTestConnection(automation)}
+   378→                      disabled={connectionStatuses[automation.id] === 'testing'}
+   379→                      title="Tester la connexion"
+   380→                    >
+   381→                      <Wifi className="h-4 w-4" />
+   382→                    </Button>
+   383→                    {automation.provider === 'home_assistant' && (
+   384→                      <Button
+   385→                        variant="ghost"
+   386→                        size="icon"
+   387→                        className="h-8 w-8"
+   388→                        onClick={() => handleToggleExpand(automation)}
+   389→                        title="Parcourir les entités"
+   390→                      >
+   391→                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   392→                      </Button>
+   393→                    )}
+   394→                    <Switch
+   395→                      checked={automation.isActive}
+   396→                      onCheckedChange={() => handleToggleActive(automation)}
+   397→                    />
+   398→                    <Button
+   399→                      variant="ghost"
+   400→                      size="icon"
+   401→                      className="h-8 w-8 text-red-400 hover:text-red-600"
+   402→                      onClick={() => handleDelete(automation.id)}
+   403→                    >
+   404→                      <Trash2 className="h-4 w-4" />
+   405→                    </Button>
+   406→                  </div>
+   407→                </div>
+   408→
+   409→                {/* Expanded entity browser for HA */}
+   410→                {isExpanded && automation.provider === 'home_assistant' && (
+   411→                  <div className="mt-4 border-t pt-4">
+   412→                    <div className="flex items-center justify-between mb-3">
+   413→                      <h5 className="text-sm font-medium flex items-center gap-2">
+   414→                        <Server className="h-4 w-4" />
+   415→                        Entités ({haEntities.length})
+   416→                      </h5>
+   417→                      <Button
+   418→                        variant="outline"
+   419→                        size="sm"
+   420→                        onClick={() => fetchEntities(automation)}
+   421→                        disabled={loadingEntities[automation.id]}
+   422→                      >
+   423→                        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loadingEntities[automation.id] ? 'animate-spin' : ''}`} />
+   424→                        Rafraîchir
+   425→                      </Button>
+   426→                    </div>
+   427→
+   428→                    {loadingEntities[automation.id] ? (
+   429→                      <div className="flex items-center justify-center py-8">
+   430→                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+   431→                      </div>
+   432→                    ) : haEntities.length === 0 ? (
+   433→                      <div className="flex items-center justify-center py-8">
+   434→                        <p className="text-sm text-muted-foreground">
+   435→                          Aucune entité trouvée. Assurez-vous que l'API est accessible.
+   436→                        </p>
+   437→                      </div>
+   438→                    ) : (
+   439→                      <div className="max-h-96 overflow-y-auto space-y-2 pr-1">
+   440→                        {haEntities.map((entity) => {
+   441→                          const triggerKey = `${automation.id}-${entity.entity_id}`;
+   442→                          const isOn = ['on', 'open', 'unlocked'].includes(entity.state);
+   443→                          const domain = entity.entity_id.split('.')[0];
+   444→                          const showToggle = ['light', 'switch', 'fan', 'binary_sensor', 'cover', 'lock'].includes(domain);
+   445→
+   446→                          return (
+   447→                            <div
+   448→                              key={entity.entity_id}
+   449→                              className="flex items-center gap-2 rounded-lg border p-2.5 text-sm"
+   450→                            >
+   451→                              <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${
+   452→                                isOn ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+   453→                              }`} />
+   454→                              <div className="flex-1 min-w-0">
+   455→                                <p className="font-medium truncate">
+   456→                                  {entity.attributes.friendly_name || entity.entity_id}
+   457→                                </p>
+   458→                                <p className="text-xs text-muted-foreground truncate">
+   459→                                  {entity.entity_id} · {entity.state}
+   460→                                </p>
+   461→                              </div>
+   462→                              <div className="flex items-center gap-1 shrink-0">
+   463→                                {showToggle && (
+   464→                                  <Button
+   465→                                    variant="outline"
+   466→                                    size="sm"
+   467→                                    className="h-7 text-xs"
+   468→                                    onClick={() => handleTriggerEntity(automation, entity.entity_id, 'toggle')}
+   469→                                    disabled={triggeringEntity === triggerKey}
+   470→                                  >
+   471→                                    {triggeringEntity === triggerKey ? (
+   472→                                      <Loader2 className="h-3 w-3 animate-spin" />
+   473→                                    ) : isOn ? (
+   474→                                      <PowerOff className="h-3 w-3" />
+   475→                                    ) : (
+   476→                                      <Power className="h-3 w-3" />
+   477→                                    )}
+   478→                                  </Button>
+   479→                                )}
+   480→                                <Button
+   481→                                  variant="ghost"
+   482→                                  size="sm"
+   483→                                  className="h-7 text-xs"
+   484→                                  onClick={() => handleTriggerEntity(automation, entity.entity_id, 'get_state')}
+   485→                                  disabled={triggeringEntity === triggerKey}
+   486→                                >
+   487→                                  <Eye className="h-3 w-3" />
+   488→                                </Button>
+   489→                              </div>
+   490→                              {triggerMessage[triggerKey] && (
+   491→                                <p className="text-[10px] text-muted-foreground max-w-[120px] truncate">
+   492→                                  {triggerMessage[triggerKey]}
+   493→                                </p>
+   494→                              )}
+   495→                            </div>
+   496→                          );
+   497→                        })}
+   498→                      </div>
+   499→                    )}
+   500→                  </div>
+   501→                )}
+   502→              </CardContent>
+   503→            </Card>
+   504→          );
+   505→        })}
+   506→      </div>
+   507→
+   508→      {/* Create Dialog */}
+   509→      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+   510→        <DialogContent className="sm:max-w-md">
+   511→          <DialogHeader>
+   512→            <DialogTitle>Nouvelle automatisation</DialogTitle>
+   513→            <DialogDescription>
+   514→              Connectez Home Assistant ou Jeedom à votre maison
+   515→            </DialogDescription>
+   516→          </DialogHeader>
+   517→
+   518→          <div className="space-y-4 py-2">
+   519→            {/* Home selector */}
+   520→            <div className="space-y-2">
+   521→              <Label>Maison</Label>
+   522→              <Select value={selectedHomeId} onValueChange={setSelectedHomeId}>
+   523→                <SelectTrigger>
+   524→                  <SelectValue placeholder="Sélectionner une maison" />
+   525→                </SelectTrigger>
+   526→                <SelectContent>
+   527→                  {homes.map((home) => (
+   528→                    <SelectItem key={home.id} value={home.id}>
+   529→                      {home.name}
+   530→                    </SelectItem>
+   531→                  ))}
+   532→                </SelectContent>
+   533→              </Select>
+   534→            </div>
+   535→
+   536→            {/* Provider selector with logos */}
+   537→            <div className="space-y-2">
+   538→              <Label>Fournisseur</Label>
+   539→              <div className="grid grid-cols-2 gap-3">
+   540→                <button
+   541→                  type="button"
+   542→                  onClick={() => setNewProvider('home_assistant')}
+   543→                  className={`flex items-center gap-3 rounded-lg border-2 p-3 transition-all ${
+   544→                    newProvider === 'home_assistant'
+   545→                      ? 'border-sky-500 bg-sky-50 dark:bg-sky-500/10'
+   546→                      : 'border-muted hover:border-muted-foreground/30'
+   547→                  }`}
+   548→                >
+   549→                  <HomeAssistantLogo className={`h-8 w-8 ${
+   550→                    newProvider === 'home_assistant' ? 'text-sky-600' : 'text-muted-foreground'
+   551→                  }`} />
+   552→                  <div className="text-left">
+   553→                    <p className="text-sm font-medium">Home Assistant</p>
+   554→                    <p className="text-[11px] text-muted-foreground">HA</p>
+   555→                  </div>
+   556→                </button>
+   557→                <button
+   558→                  type="button"
+   559→                  onClick={() => setNewProvider('jeedom')}
+   560→                  className={`flex items-center gap-3 rounded-lg border-2 p-3 transition-all ${
+   561→                    newProvider === 'jeedom'
+   562→                      ? 'border-amber-500 bg-amber-50 dark:bg-amber-500/10'
+   563→                      : 'border-muted hover:border-muted-foreground/30'
+   564→                  }`}
+   565→                >
+   566→                  <JeedomLogo className={`h-8 w-8 ${
+   567→                    newProvider === 'jeedom' ? 'text-amber-600' : 'text-muted-foreground'
+   568→                  }`} />
+   569→                  <div className="text-left">
+   570→                    <p className="text-sm font-medium">Jeedom</p>
+   571→                    <p className="text-[11px] text-muted-foreground">Smart Home</p>
+   572→                  </div>
+   573→                </button>
+   574→              </div>
+   575→            </div>
+   576→
+   577→            {/* Name */}
+   578→            <div className="space-y-2">
+   579→              <Label>Nom</Label>
+   580→              <Input
+   581→                placeholder="Mon installation domotique"
+   582→                value={newName}
+   583→                onChange={(e) => setNewName(e.target.value)}
+   584→              />
+   585→            </div>
+   586→
+   587→            {/* Base URL */}
+   588→            <div className="space-y-2">
+   589→              <Label>URL de base</Label>
+   590→              <Input
+   591→                placeholder={
+   592→                  newProvider === 'home_assistant'
+   593→                    ? 'https://homeassistant.local:8123'
+   594→                    : 'http://jeedom.local:80'
+   595→                }
+   596→                value={newBaseUrl}
+   597→                onChange={(e) => setNewBaseUrl(e.target.value)}
+   598→              />
+   599→              <p className="text-[11px] text-muted-foreground">
+   600→                {newProvider === 'home_assistant'
+   601→                  ? 'URL de votre instance Home Assistant'
+   602→                  : 'URL de votre instance Jeedom'}
+   603→              </p>
+   604→            </div>
+   605→
+   606→            {/* API Token */}
+   607→            <div className="space-y-2">
+   608→              <Label>Token API</Label>
+   609→              <Input
+   610→                type="password"
+   611→                placeholder={
+   612→                  newProvider === 'home_assistant'
+   613→                    ? 'Long-lived access token'
+   614→                    : 'Clé API Jeedom'
+   615→                }
+   616→                value={newApiToken}
+   617→                onChange={(e) => setNewApiToken(e.target.value)}
+   618→              />
+   619→              <p className="text-[11px] text-muted-foreground">
+   620→                {newProvider === 'home_assistant'
+   621→                  ? 'Créé dans Profile > Security > Long-Lived Access Tokens'
+   622→                  : 'Disponible dans Configuration > API > Clés API'}
+   623→              </p>
+   624→            </div>
+   625→          </div>
+   626→
+   627→          <DialogFooter>
+   628→            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+   629→              Annuler
+   630→            </Button>
+   631→            <Button
+   632→              onClick={handleCreate}
+   633→              disabled={saving || !newName || !newBaseUrl || !selectedHomeId}
+   634→              className="bg-violet-600 hover:bg-violet-700"
+   635→            >
+   636→              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+   637→              Créer
+   638→            </Button>
+   639→          </DialogFooter>
+   640→        </DialogContent>
+   641→      </Dialog>
+   642→    </div>
+   643→  );
+   644→}
+   645→
+   646→// Home Assistant Logo SVG Component
+   647→function HomeAssistantLogo({ className }: { className?: string }) {
+   648→  return (
+   649→    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+   650→      <path d="M13.865 2.733l-2.995 5.202h5.992l-2.997-5.202zm-6.252 10.83l2.994-5.198H1.612l2.995 5.198h3.006zm1.499 2.596L6.118 22.267l8.993.025-2.998-6.033h-2.001zm7.25-2.596l2.995-5.198H10.363l2.997 5.198h2.002zm0 0" />
+   651→    </svg>
+   652→  );
+   653→}
+   654→
+   655→// Jeedom Logo SVG Component
+   656→function JeedomLogo({ className }: { className?: string }) {
+   657→  return (
+   658→    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+   659→      <path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.18l8 4v8l-8 4-8-4v-8l8-4zM11 8v8h2V8h-2zm-3 2v4h2v-4H8zm6 0v4h2v-4h-2z" />
+   660→    </svg>
+   661→  );
+   662→}
+   663→

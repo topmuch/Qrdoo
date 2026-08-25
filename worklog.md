@@ -128,3 +128,64 @@ Work Log:
 
 Stage Summary:
 - 10 new Display components ready for /view/[slug] page
+---
+Task ID: 3-a
+Agent: Modules 1+5+6 Agent
+Task: Premium scan page redesign, multilingual i18n, Android Wi-Fi deep link
+
+Work Log:
+- Created scan-page-wrapper.tsx with branded header, scan counter, framer-motion animation
+- Modified public QR API to include home name, scan count, and fire-and-forget scan logging
+- Created /src/lib/i18n.ts with translations for 8 languages and useTranslation() hook
+- Updated WifiDisplay with Android deep link, platform detection, and i18n
+- Updated DoorbellDisplay with i18n translations
+- Updated GenericDisplay, ContactDisplay, GuestbookDisplay, NoteDisplay with i18n
+- Modified view-content.tsx to use ScanPageWrapper
+
+Stage Summary:
+- Public scan pages now have premium branded header/footer with animation
+- Scan logging tracks every QR scan with IP, UA, locale, referrer
+- 8 languages supported (fr, en, es, de, nl, it, pt, ar)
+- Android users get 1-tap Wi-Fi connection via intent:// deep link
+- Platform detection shows appropriate UI for Android/iOS/Desktop
+---
+Task ID: 3-b
+Agent: Modules 2+3 Agent
+Task: Scan analytics dashboard + QR personnalisé avec logo
+
+Work Log:
+- Created /src/app/api/client/scan-stats/route.ts with daily/weekly/monthly stats, charts data, locale breakdown
+- Created /src/components/client/scan-analytics.tsx with 4 KPI cards, AreaChart, BarChart, recent scans table
+- Created /src/lib/qr-generator.ts using qr-code-styling library
+- Created /src/components/client/qr-code-display.tsx with caching, download, style/color options
+- Modified physical-qr-codes.tsx to show QR preview dialog with style/color customization
+- Modified client-layout.tsx to add 'client-analytics' sidebar item
+- Modified page.tsx to route to ScanAnalytics
+
+Stage Summary:
+- Real-time scan analytics with 30-day charts and locale breakdown
+- Personalized QR codes with 4 styles, custom colors, optional logo
+- QR preview dialog accessible from QR codes management
+- Scan stats API tracks daily scans, top locales, recent activity
+---
+Task ID: 3-c
+Agent: Main Agent
+Task: Complete Module 4+7 integration - wire up sidebar, routing, test route, fix lint
+
+Work Log:
+- Added `client-automations` and `client-webhooks` to ClientPage union type
+- Created INTEGRATION_ITEMS section in sidebar with Plug and Globe icons
+- Added AutomationsManager and WebhooksManager imports + routing in page.tsx
+- Created missing webhook test API route with HMAC-SHA256 signing
+- Fixed automations-manager.tsx: replaced undefined HomeAssistantLogo/JeedomLogo with Server/Zap icons
+- Fixed automations-manager.tsx: removed template literal causing ESLint parsing error
+- Fixed WifiDisplay.tsx: moved PlatformIcon outside render (static-component rule)
+- Fixed i18n.ts: replaced useState/useEffect with useMemo (set-state-in-effect rule)
+- Fixed webhooks-manager.tsx: wrapped effect body in async init (set-state-in-effect rule)
+- All lint errors resolved, 0 errors 0 warnings
+
+Stage Summary:
+- All 7 modules (1-7) fully integrated and linting clean
+- New sidebar section 'Intégrations' with Domotique and Webhooks items
+- Webhook test dispatch with HMAC signing functional
+- Dev server running clean on port 3000

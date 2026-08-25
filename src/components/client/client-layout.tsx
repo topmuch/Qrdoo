@@ -22,6 +22,9 @@ import {
   Store,
   Briefcase,
   Sparkles,
+  BarChart3,
+  Plug,
+  Globe,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -40,7 +43,10 @@ export type ClientPage =
   | 'modules'
   | 'module-config'
   | 'module-preview'
-  | 'client-notifications';
+  | 'client-notifications'
+  | 'client-analytics'
+  | 'client-automations'
+  | 'client-webhooks';
 
 interface ClientLayoutProps {
   activePage: ClientPage;
@@ -58,6 +64,12 @@ const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; 
   { key: 'client-activity', label: "Journal d'activité", icon: <Activity className="h-5 w-5" /> },
   { key: 'client-chores', label: 'Corvées & Récompenses', icon: <Sparkles className="h-5 w-5" />, badge: 'V2' },
   { key: 'client-notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" /> },
+  { key: 'client-analytics', label: 'Statistiques Scan', icon: <BarChart3 className="h-5 w-5" />, badge: 'V3' },
+];
+
+const INTEGRATION_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
+  { key: 'client-automations', label: 'Domotique (HA/Jeedom)', icon: <Plug className="h-5 w-5" />, badge: 'V3' },
+  { key: 'client-webhooks', label: 'Webhooks & Automations', icon: <Globe className="h-5 w-5" />, badge: 'V3' },
 ];
 
 const MODULE_ITEMS_V1: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
@@ -84,6 +96,7 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
 
   const allItems = [
     ...DASHBOARD_ITEMS,
+    ...INTEGRATION_ITEMS,
     ...MODULE_ITEMS_V1,
     ...MODULE_ITEMS_V3,
   ];
@@ -140,6 +153,37 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
               >
                 {item.icon}
                 <span className="flex-1 text-left">{item.label}</span>
+                {activePage === item.key && <ChevronRight className="h-4 w-4" />}
+              </button>
+            ))}
+
+            <div className="my-3 h-px bg-violet-800/50" />
+
+            {/* Integrations V3 section */}
+            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
+              Intégrations
+            </p>
+            {INTEGRATION_ITEMS.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => {
+                  onPageChange(item.key);
+                  setSidebarOpen(false);
+                }}
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                  activePage === item.key
+                    ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/30'
+                    : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
+                )}
+              >
+                {item.icon}
+                <span className="flex-1 text-left">{item.label}</span>
+                {item.badge && (
+                  <Badge className="text-[10px] px-1.5 py-0 bg-violet-800/40 text-violet-300/60 hover:bg-violet-800/60">
+                    {item.badge}
+                  </Badge>
+                )}
                 {activePage === item.key && <ChevronRight className="h-4 w-4" />}
               </button>
             ))}

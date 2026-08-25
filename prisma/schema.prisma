@@ -90,6 +90,9 @@ model Home {
   chores           Chore[]
   merchant         Merchant?        @relation("HomeMerchant")
   serviceRequests  ServiceRequest[] @relation("HomeServiceRequests")
+  scanLogs        ScanLog[]
+  webhooks         Webhook[]
+  homeAutomations  HomeAutomation[]
 
   @@map("homes")
 }
@@ -158,6 +161,7 @@ model QrCode {
   activityLogs      ActivityLog[]
   serviceRequests   ServiceRequest[]
   emergencyQrCode   EmergencyQrCode?
+  scanLogs         ScanLog[]
 
   @@index([homeId])
   @@index([roomId])
@@ -868,4 +872,72 @@ model MerchantPhoto {
 
   @@index([merchantId])
   @@map("merchant_photos")
+}
+
+// ==============================================================
+// TABLE 35: scan_logs (V3 - Scan Analytics)
+// ==============================================================
+model ScanLog {
+  id         String   @id @default(cuid())
+  qrCodeId   String   @map("qr_code_id")
+  homeId     String   @map("home_id")
+  visitorIp  String?  @map("visitor_ip")
+  userAgent  String?  @map("user_agent")
+  locale     String?  @default("fr")
+  referrer   String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  qrCode QrCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+  home   Home   @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@index([qrCodeId])
+  @@index([homeId])
+  @@index([createdAt])
+  @@map("scan_logs")
+}
+
+// ==============================================================
+// TABLE 36: webhooks (V3 - Webhook Integration)
+// ==============================================================
+model Webhook {
+  id          String   @id @default(cuid())
+  homeId      String   @map("home_id")
+  name        String
+  url         String
+  events      String   @default("[\"scan\",\"doorbell\",\"guestbook\"]")
+  secret      String?
+  isActive    Boolean  @default(true) @map("is_active")
+  lastTriggerAt DateTime? @map("last_trigger_at")
+  successCount Int     @default(0) @map("success_count")
+  failCount   Int     @default(0) @map("fail_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@index([homeId])
+  @@index([isActive])
+  @@map("webhooks")
+}
+
+// ==============================================================
+// TABLE 37: home_automations (V3 - Home Assistant / Jeedom)
+// ==============================================================
+model HomeAutomation {
+  id            String   @id @default(cuid())
+  homeId        String   @map("home_id")
+  name          String
+  provider      String   @default("home_assistant") // home_assistant, jeedom
+  baseUrl       String   @map("base_url")
+  apiToken      String?  @map("api_token")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  home Home @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@index([homeId])
+  @@index([provider])
+  @@index([isActive])
+  @@map("home_automations")
 }

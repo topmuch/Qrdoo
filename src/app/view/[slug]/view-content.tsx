@@ -1,8 +1,9 @@
 'use client';
 
 import { use, useState, useEffect } from 'react';
-import { Loader2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ScanPageWrapper } from '@/components/modules/scan-page-wrapper';
 
 // Dedicated display components (existing)
 import { WifiDisplay } from '@/components/modules/wifi/WifiDisplay';
@@ -24,8 +25,9 @@ import { ChecklistDisplay } from '@/components/modules/display/ChecklistDisplay'
 import { GenericDisplay } from '@/components/modules/display/GenericDisplay';
 
 interface QrData {
-  qrCode: { id: string; name: string; type: string; publicSlug: string; isActive: boolean };
+  qrCode: { id: string; name: string; type: string; publicSlug: string; isActive: boolean; homeName?: string | null };
   content: Record<string, unknown>;
+  scanCount: number;
 }
 
 type DisplayComponentType = React.ComponentType<{
@@ -134,7 +136,7 @@ export function ViewPageContent({ params }: { params: Promise<{ slug: string }> 
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-white">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-          <p className="text-sm text-muted-foreground">Chargement du module...</p>
+          <p className="text-sm text-muted-foreground">Chargement...</p>
         </div>
       </div>
     );
@@ -153,7 +155,6 @@ export function ViewPageContent({ params }: { params: Promise<{ slug: string }> 
             {error || `Le code ${slug} ne correspond à aucun QR actif.`}
           </p>
           <Button variant="outline" onClick={() => { window.location.href = '/'; }}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
             Retour à l'accueil
           </Button>
         </div>
@@ -161,15 +162,17 @@ export function ViewPageContent({ params }: { params: Promise<{ slug: string }> 
     );
   }
 
-  // Render the appropriate display component
-  const { qrCode, content } = data;
+  // Render the appropriate display component wrapped in ScanPageWrapper
+  const { qrCode, content, scanCount, homeName } = data;
   const DisplayComponent = DISPLAY_MAP[qrCode.type] || GenericDisplay;
 
   return (
-    <DisplayComponent
-      content={content}
-      qrCodeId={qrCode.id}
-      qrName={qrCode.name}
-    />
+    <ScanPageWrapper homeName={homeName} scanCount={scanCount}>
+      <DisplayComponent
+        content={content}
+        qrCodeId={qrCode.id}
+        qrName={qrCode.name}
+      />
+    </ScanPageWrapper>
   );
 }
