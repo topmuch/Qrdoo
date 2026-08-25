@@ -103,3 +103,28 @@ Stage Summary:
 - Content is validated before activation (required fields check)
 - Post-activation: dashboard auto-switches to "Mes QR codes activés" tab
 - All changes pass lint, compilation succeeds (200 on /)
+---
+Task ID: 4-a
+Agent: API Agent
+Task: Create public QR content API
+
+Work Log:
+- Created /api/public/qr/[slug]/route.ts
+- GET returns qrCode + parsed content JSON
+- No authentication required (public endpoint)
+
+Stage Summary:
+- Public API ready for /view/[slug] page
+---
+Task ID: 4-b
+Agent: Display Components Agent
+Task: Create V1 Display components for public QR scan
+
+Work Log:
+- Created 10 display components in /components/modules/display/
+- Each follows the established pattern: mobile-first, gradient bg, shadcn/ui
+- Guestbook is interactive with visitor message form
+- Shopping list and checklist show items with checkboxes
+
+Stage Summary:
+- 10 new Display components ready for /view/[slug] page

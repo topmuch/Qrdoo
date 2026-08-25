@@ -50,6 +50,24 @@ export function ActivatePageContent({ params }: { params: Promise<{ code: string
       const data = await res.json();
       setCodeStatus(data.status || 'not_found');
       if (data.physicalQr?.id) setPhysicalQrId(data.physicalQr.id);
+      // If active, redirect to the public view page
+      if (data.status === 'active') {
+        // Fetch the slug from the linked QrCode
+        try {
+          const slugRes = await fetch(`/api/client/check-code?code=${encodeURIComponent(code)}`);
+          const slugData = await slugRes.json();
+          // The check-code API returns the physical QR, we need to find the dynamic QR's slug
+          // Use a dedicated lookup
+          const lookupRes = await fetch(`/api/public/slug-from-code?code=${encodeURIComponent(code)}`);
+          if (lookupRes.ok) {
+            const { slug } = await lookupRes.json();
+            if (slug) {
+              window.location.href = `/view/${slug}`;
+              return;
+            }
+          }
+        } catch { /* fall through to showing the active message */ }
+      }
     } catch {
       setCodeStatus('error');
     }
@@ -108,6 +126,11 @@ export function ActivatePageContent({ params }: { params: Promise<{ code: string
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur');
+      // Redirect to the view page to see the activated module
+      if (data.qrCode?.publicSlug) {
+        window.location.href = `/view/${data.qrCode.publicSlug}`;
+        return;
+      }
       setActivationSuccess(true);
       toast.success('QR code activé !');
     } catch (e: any) {
