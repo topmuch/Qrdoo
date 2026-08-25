@@ -7,12 +7,13 @@ import crypto from 'crypto';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { code, moduleType, name, homeId, roomId } = body as {
+    const { code, moduleType, name, homeId, roomId, content } = body as {
       code: string;
       moduleType: string;
       name?: string;
       homeId?: string;
       roomId?: string;
+      content?: Record<string, unknown>;
     };
 
     if (!code || !moduleType) {
@@ -56,14 +57,18 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Auto-resolve room if not provided (use first room of the home)
+      // Auto-resolve room if not provided
       if (!resolvedRoomId && resolvedHomeId) {
-        const room = await db.room.findFirst({
+        let room = await db.room.findFirst({
           where: { homeId: resolvedHomeId },
         });
-        if (room) {
-          resolvedRoomId = room.id;
+        if (!room) {
+          // Auto-create a default room
+          room = await db.room.create({
+            data: { homeId: resolvedHomeId, name: 'Piece principale' },
+          });
         }
+        resolvedRoomId = room.id;
       }
     }
 
@@ -109,12 +114,14 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // 3. Create QrContent with default content based on module type
-      const defaultContent = getDefaultContent(moduleType);
+      // 3. Create QrContent — use provided content or defaults
+      const savedContent = content && Object.keys(content).length > 0
+        ? content
+        : getDefaultContent(moduleType);
       await tx.qrContent.create({
         data: {
           qrCodeId: qrCode.id,
-          contentJson: JSON.stringify(defaultContent),
+          contentJson: JSON.stringify(savedContent),
         },
       });
 

@@ -310,7 +310,7 @@ export function PhysicalQrCodes() {
   // ---- Handlers ----
 
   function formatCodeInput(value: string) {
-    const cleaned = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const cleaned = value.replace(/[^a-zA-Z0-9-]/g, '').toUpperCase();
     return cleaned;
   }
 
@@ -365,7 +365,7 @@ export function PhysicalQrCodes() {
   }
 
   async function handleSingleActivate() {
-    if (!selectedHomeId || !codeInput || !selectedModuleType || !selectedRoomId || !qrName) return;
+    if (!selectedHomeId || !codeInput || !selectedModuleType || !qrName) return;
     setActivating(true);
     try {
       const res = await fetch('/api/client/activate', {
@@ -374,7 +374,6 @@ export function PhysicalQrCodes() {
         body: JSON.stringify({
           code: codeInput,
           moduleType: selectedModuleType,
-          roomId: selectedRoomId,
           name: qrName,
           homeId: selectedHomeId,
         }),
@@ -821,11 +820,9 @@ export function PhysicalQrCodes() {
                     {loadingRooms ? (
                       <Skeleton className="h-10 w-full" />
                     ) : rooms.length === 0 ? (
-                      <div className="text-center p-4 rounded-lg border border-dashed bg-muted/30">
-                        <p className="text-sm text-muted-foreground">
-                          Aucune pièce créée. Veuillez d'abord créer une pièce.
-                        </p>
-                      </div>
+                      <p className="text-xs text-muted-foreground text-center">
+                        Aucune pièce — le QR sera associé à votre maison
+                      </p>
                     ) : (
                       <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
                         <SelectTrigger>
@@ -859,7 +856,7 @@ export function PhysicalQrCodes() {
                       Retour
                     </Button>
                     <Button
-                      disabled={!selectedModuleType || !selectedRoomId || !qrName.trim()}
+                      disabled={!selectedModuleType || !qrName.trim()}
                       onClick={() => setWizardStep(3)}
                     >
                       Suivant
@@ -891,6 +888,7 @@ export function PhysicalQrCodes() {
                         {(QR_MODULE_LABELS as Record<string, string>)[selectedModuleType] ?? selectedModuleType}
                       </Badge>
                     </div>
+                    {selectedRoomId && (<>
                     <Separator />
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Pièce</span>
@@ -898,6 +896,7 @@ export function PhysicalQrCodes() {
                         {rooms.find((r) => r.id === selectedRoomId)?.name ?? '—'}
                       </span>
                     </div>
+                    </>)}
                     <Separator />
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Nom</span>
