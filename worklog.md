@@ -1025,3 +1025,38 @@ Stage Summary:
 - API handles both new user creation and existing user linking
 - PIN hashed with bcrypt, hubSlug auto-generated from home name + random hex suffix
 - Subscription created with 14-day trial, plan stored on User.selectedPlan
+---
+Task ID: 3
+Agent: Main
+Task: Étape 3 — QR Code Hub /hub/[slug]
+
+Work Log:
+- Explored existing patterns: view/[slug] public page, API public/qr/[slug], Room/QrCode relations, V3 display components, VoiceMessage model, MODULE_GRADIENTS, QR_MODULE_LABELS
+- Created /src/app/api/public/hub/[slug]/route.ts (GET + POST)
+  - GET: looks up PhysicalQrCode by hubSlug (where isClaimed=true, homeId not null), fetches Home, guest rooms (non-private QR codes), family rooms (all QR codes), last 10 voice messages. Returns structured JSON.
+  - POST: verifies 4-digit PIN via bcrypt.compare against home.pinHash. Returns 401 on incorrect, 200 on success.
+- Created /src/app/hub/[slug]/page.tsx — thin server component wrapper with Suspense
+- Created /src/app/hub/[slug]/hub-content.tsx — Full hub UI:
+  - 4 views: mode-select, pin, guest, family with AnimatePresence transitions
+  - Mode-select: home header with animated icon, 2 gradient buttons (Invité=emerald, Famille=violet), voice messages preview list
+  - PIN modal: iOS-style numpad (3x4 grid), auto-submit on 4th digit, error animation, loading state
+  - Guest view: shows only non-private QR modules grouped by room, quick WiFi card with network/password
+  - Family view: shows ALL modules including private (with lock badge), grouped by room
+  - Room section: icon per room type (20+ mappings: salon→Sofa, cuisine→Utensils, etc.)
+  - Module cards: gradient icon from MODULE_GRADIENTS, label from QR_MODULE_LABELS, click→/view/[slug], hover arrow
+  - DynamicIcon component pattern to avoid 'component created during render' ESLint error
+  - Sticky header with back button and mode badge (INVITÉ/FAMILLE)
+  - Fixed footer
+  - Dark slate theme (bg-slate-900 via slate-800)
+- Verified: GET /api/public/hub/test-slug → 404 {error: 'Hub non trouvé'} (correct)
+- Verified: GET /hub/test-slug → HTTP 200, no errors (renders error state correctly)
+- Verified: /hub already in middleware publicPaths (added in Étape 2)
+- Lint passes clean
+
+Stage Summary:
+- 3 files created: api/public/hub/[slug]/route.ts, hub/[slug]/page.tsx, hub/[slug]/hub-content.tsx
+- Complete hub page with 4 views: mode selection, PIN verification, guest mode, family mode
+- Public API returns guest rooms (non-private) and family rooms (all) for conditional rendering
+- PIN verification via bcrypt compare
+- Room→QR code hierarchy with module-type icons and gradient backgrounds
+- WiFi quick-access card when wifi module present
