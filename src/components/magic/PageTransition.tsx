@@ -106,7 +106,7 @@ export function BrandedFooter({ delay = 1 }: { delay?: number }) {
       <p className="text-white/50 text-xs flex items-center justify-center gap-1.5">
         Propulsé par{' '}
         <a
-          href="https://qrdomotik.com"
+          href="https://qrdomotik.roomscan.pro"
           target="_blank"
           rel="noopener noreferrer"
           className="font-bold text-white/80 hover:text-white transition-colors underline underline-offset-2 decoration-white/30"

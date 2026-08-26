@@ -30,7 +30,7 @@ export async function POST(req: Request) {
         email,
         fullName,
         passwordHash,
-        role: role || (email === 'admin@qrdomotik.com' ? 'superadmin' : 'user'),
+        role: role || (email === 'admin@qrdomotik.roomscan.pro' ? 'superadmin' : 'user'),
       },
     });
 

@@ -26,7 +26,7 @@ const DEMOS: DemoSlide[] = [
     price: '49\u20ac / an',
     badge: 'Famille',
     badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    qrValue: 'https://qrdomotik.com/demo/family-hub',
+    qrValue: 'https://qrdomotik.roomscan.pro/demo/family-hub',
     phoneGradient: 'from-emerald-600 via-teal-600 to-cyan-700',
     phoneTitle: 'Maison Martin',
     phoneModules: [
@@ -43,7 +43,7 @@ const DEMOS: DemoSlide[] = [
     price: '9,90\u20ac / mois',
     badge: 'Airbnb',
     badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    qrValue: 'https://qrdomotik.com/demo/airbnb-hub',
+    qrValue: 'https://qrdomotik.roomscan.pro/demo/airbnb-hub',
     phoneGradient: 'from-amber-500 via-orange-600 to-red-600',
     phoneTitle: 'Loft Paris 11',
     phoneModules: [

@@ -960,7 +960,7 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
         {/* Footer — safe area for iOS */}
         <div className="mt-auto px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center">
           <p className="text-xs text-white/30">
-            QR Domotik &middot; qrdomotik.com
+            QR Domotik &middot; qrdomotik.roomscan.pro
           </p>
         </div>
       </div>

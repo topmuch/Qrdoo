@@ -83,7 +83,7 @@ export function ScanPageWrapper({ children, homeName, scanCount }: ScanPageWrapp
             {t('powered_by')}
             {' '}
             <a
-              href="https://qrdomotik.com"
+              href="https://qrdomotik.roomscan.pro"
               target="_blank"
               rel="noopener noreferrer"
               className="font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity"

@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
       if (!admin) {
         admin = await tx.user.create({
           data: {
-            email: 'superadmin@qrdomotik.com',
+            email: 'superadmin@qrdomotik.roomscan.pro',
             fullName: 'Superadmin',
             role: 'superadmin',
           },

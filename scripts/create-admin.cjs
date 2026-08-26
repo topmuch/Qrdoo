@@ -43,14 +43,14 @@ async function createAdmin() {
   try {
     // --- Compte Super Admin ---
     const existingAdmin = await prisma.user.findUnique({
-      where: { email: 'admin@qrdomotik.com' },
+      where: { email: 'admin@qrdomotik.roomscan.pro' },
     });
 
     if (!existingAdmin) {
       const adminPasswordHash = await getHash('QrDomotik2024!');
       const admin = await prisma.user.create({
         data: {
-          email: 'admin@qrdomotik.com',
+          email: 'admin@qrdomotik.roomscan.pro',
           fullName: 'Administrateur QR Domotik',
           passwordHash: adminPasswordHash,
           role: 'superadmin',
@@ -66,7 +66,7 @@ async function createAdmin() {
       });
 
       console.log('[create-admin] Compte Super Admin cree avec succes');
-      console.log('  Email: admin@qrdomotik.com');
+      console.log('  Email: admin@qrdomotik.roomscan.pro');
       console.log('  Mot de passe: QrDomotik2024!');
     } else {
       console.log('[create-admin] Compte Super Admin existe deja, bypass.');
@@ -74,14 +74,14 @@ async function createAdmin() {
 
     // --- Compte Demo Client ---
     const existingDemo = await prisma.user.findUnique({
-      where: { email: 'demo@qrdomotik.com' },
+      where: { email: 'demo@qrdomotik.roomscan.pro' },
     });
 
     if (!existingDemo) {
       const demoPasswordHash = await getHash('demo123');
       const demo = await prisma.user.create({
         data: {
-          email: 'demo@qrdomotik.com',
+          email: 'demo@qrdomotik.roomscan.pro',
           fullName: 'Utilisateur Demo',
           passwordHash: demoPasswordHash,
           role: 'user',
@@ -97,7 +97,7 @@ async function createAdmin() {
       });
 
       console.log('[create-admin] Compte Demo Client cree avec succes');
-      console.log('  Email: demo@qrdomotik.com');
+      console.log('  Email: demo@qrdomotik.roomscan.pro');
       console.log('  Mot de passe: demo123');
     } else {
       console.log('[create-admin] Compte Demo Client existe deja, bypass.');

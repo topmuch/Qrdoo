@@ -4,13 +4,13 @@ import { sendPushToHome } from '@/lib/push-sender';
 
 async function ensureDemoUser() {
   let user = await db.user.findFirst({
-    where: { email: 'demo@qrdomotik.com' },
+    where: { email: 'demo@qrdomotik.roomscan.pro' },
   });
 
   if (!user) {
     user = await db.user.create({
       data: {
-        email: 'demo@qrdomotik.com',
+        email: 'demo@qrdomotik.roomscan.pro',
         fullName: 'Utilisateur Démo',
         role: 'user',
       },

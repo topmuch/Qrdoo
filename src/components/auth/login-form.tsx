@@ -15,7 +15,7 @@ const DEPLOY_CREDENTIALS = [
   {
     role: 'superadmin',
     label: 'Super Admin',
-    email: 'admin@qrdomotik.com',
+    email: 'admin@qrdomotik.roomscan.pro',
     password: 'QrDomotik2024!',
     color: 'red',
     icon: Shield,
@@ -23,7 +23,7 @@ const DEPLOY_CREDENTIALS = [
   {
     role: 'user',
     label: 'Client Demo',
-    email: 'demo@qrdomotik.com',
+    email: 'demo@qrdomotik.roomscan.pro',
     password: 'demo123',
     color: 'blue',
     icon: Users,
@@ -32,7 +32,7 @@ const DEPLOY_CREDENTIALS = [
 
 export function AuthForm({ onSuccess, initialRegister }: AuthFormProps) {
   const [isLogin, setIsLogin] = useState(!initialRegister);
-  const [email, setEmail] = useState('admin@qrdomotik.com');
+  const [email, setEmail] = useState('admin@qrdomotik.roomscan.pro');
   const [password, setPassword] = useState('QrDomotik2024!');
   const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -82,7 +82,7 @@ export function AuthForm({ onSuccess, initialRegister }: AuthFormProps) {
       if (result?.error) {
         setError('Email ou mot de passe incorrect');
       } else if (result?.ok) {
-        const role = email === 'admin@qrdomotik.com' ? 'superadmin' : 'user';
+        const role = email === 'admin@qrdomotik.roomscan.pro' ? 'superadmin' : 'user';
         onSuccess(role);
       }
     } catch {
