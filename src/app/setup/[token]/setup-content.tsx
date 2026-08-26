@@ -150,10 +150,9 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
   // Pre-fill if logged in
   useEffect(() => {
     if (session?.user) {
-      // @ts-expect-error - session.user has these fields from JWT callback
-      setEmail(session.user.email || '');
-      // @ts-expect-error
-      setFullName(session.user.name || '');
+      const u = session.user as Record<string, any>;
+      setEmail(u?.email || '');
+      setFullName(u?.name || '');
     }
   }, [session]);
 
@@ -214,8 +213,7 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
       if (!session?.user) {
         body.password = password;
       } else {
-        // @ts-expect-error
-        body.existingUserId = session.user.id;
+        body.existingUserId = (session.user as Record<string, any>)?.id;
       }
 
       const res = await fetch(`/api/setup/${encodeURIComponent(token)}`, {
@@ -588,7 +586,7 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-white text-sm">{plan.name}</span>
-                                {plan.popular && (
+                                {'popular' in plan && plan.popular && (
                                   <span className="text-[10px] font-bold bg-violet-500 text-white px-2 py-0.5 rounded-full">POPULAIRE</span>
                                 )}
                               </div>
