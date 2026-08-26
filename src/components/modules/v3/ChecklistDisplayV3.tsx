@@ -76,7 +76,7 @@ export default function ChecklistDisplayV3({ content, qrCodeId, qrName }: Checkl
 
       <div className="relative z-10 min-h-screen flex flex-col items-center px-4 py-8 pb-24">
         {/* Icon */}
-        <AnimatedIcon delay={0}>
+        <AnimatedIcon delay={0} pulseRings={2} wobble ringColor="rgba(139,92,246,0.3)">
           <div className="w-20 h-20 rounded-full bg-violet-400/20 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-lg shadow-violet-500/20">
             <ListChecks className="w-10 h-10 text-white" strokeWidth={1.8} />
           </div>

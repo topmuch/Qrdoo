@@ -254,47 +254,26 @@ export default function WifiDisplayV3({
           transition={{ type: 'spring', stiffness: 120, damping: 18, delay: 0.1 }}
         >
           <div className="flex flex-col items-center gap-6">
-            {/* Animated Wifi Icon */}
-            <AnimatedIcon delay={0.15} className="relative">
+            {/* Animated Wifi Icon with pulse rings + wobble */}
+            <AnimatedIcon delay={0.15} pulseRings={3} wobble ringColor="rgba(255,255,255,0.3)">
               <motion.div
                 animate={{ y: [0, -6, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
                 className="w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center rounded-full
-                  bg-white/10 border border-white/20 backdrop-blur-sm"
+                  bg-white/15 border border-white/25 backdrop-blur-sm shadow-xl"
               >
                 <Wifi className="w-10 h-10 sm:w-12 sm:h-12 text-white" strokeWidth={1.8} />
-                {/* Signal rings */}
-                <motion.div
-                  animate={{ scale: [1, 1.5, 1.8], opacity: [0.3, 0.1, 0] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeOut' }}
-                  className="absolute inset-0 rounded-full border-2 border-white/30"
-                />
-                <motion.div
-                  animate={{
-                    scale: [1, 1.4, 1.7],
-                    opacity: [0.2, 0.08, 0],
-                  }}
-                  transition={{
-                    duration: 2.5,
-                    repeat: Infinity,
-                    ease: 'easeOut',
-                    delay: 0.6,
-                  }}
-                  className="absolute inset-0 rounded-full border-2 border-white/20"
-                />
               </motion.div>
             </AnimatedIcon>
 
             {/* Title */}
             <AnimatedTitle delay={0.25} className="text-center">
               <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                Wi-Fi
+                Bienvenue ! 🎉
               </h1>
-              {qrName && (
-                <p className="text-sm text-white/60 mt-1 font-medium">
-                  {qrName}
-                </p>
-              )}
+              <p className="text-sm sm:text-base text-white/70 mt-1.5 font-medium">
+                Connectez-vous au Wi-Fi en un clic
+              </p>
             </AnimatedTitle>
 
             {/* Staggered Content */}
@@ -319,8 +298,17 @@ export default function WifiDisplayV3({
                   <label className="text-xs font-semibold uppercase tracking-wider text-white/50">
                     Sécurité
                   </label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <SecurityBadge type={security} />
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.6 }}
+                      whileHover={{ scale: 1.05 }}
+                      className="px-3 py-1.5 bg-emerald-400/20 backdrop-blur rounded-full text-emerald-300 text-xs font-semibold border border-emerald-400/30"
+                    >
+                      ● Sécurisé
+                    </motion.span>
                     {hidden && (
                       <motion.span
                         initial={{ opacity: 0, x: -8 }}
@@ -368,8 +356,9 @@ export default function WifiDisplayV3({
             >
               <PulseButton
                 onClick={handleConnect}
-                glow="0 0 30px rgba(255,255,255,0.3), 0 0 60px rgba(255,255,255,0.1)"
-                className="!bg-white/20 !border-white/30 !text-base sm:!text-lg font-bold"
+                variant="white"
+                glow="0 0 30px rgba(255,255,255,0.5), 0 0 60px rgba(59,130,246,0.3)"
+                className="!text-base sm:!text-lg font-bold"
               >
                 <PlatformLabel platform={platform} />
               </PulseButton>

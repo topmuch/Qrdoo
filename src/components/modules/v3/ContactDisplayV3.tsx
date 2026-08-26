@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Phone, Mail, Copy, Check } from 'lucide-react';
+import { User, Phone, Mail, Copy, Check, PhoneCall } from 'lucide-react';
 import {
   FloatingParticles,
   GradientBackground,
@@ -10,7 +10,10 @@ import {
   AnimatedIcon,
   AnimatedTitle,
   BrandedFooter,
+  useConfetti,
 } from '@/components/magic';
+
+const CONFETTI_COLORS = ['#38bdf8', '#7dd3fc', '#ffffff', '#bae6fd'];
 
 interface ContactDisplayV3Props {
   content: Record<string, any>;
@@ -24,24 +27,26 @@ export default function ContactDisplayV3({ content, qrCodeId, qrName }: ContactD
   const rawEmail: string = content?.email || '';
 
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const { fire: fireConfetti } = useConfetti();
 
   const copyToClipboard = useCallback(async (text: string, field: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedField(field);
+      fireConfetti(CONFETTI_COLORS);
       setTimeout(() => setCopiedField(null), 2000);
     } catch {
       // silent fallback
     }
-  }, []);
+  }, [fireConfetti]);
 
   return (
     <GradientBackground moduleType="contact">
       <FloatingParticles color="rgba(255,255,255,0.2)" count={18} />
 
       <div className="relative z-10 min-h-screen flex flex-col items-center px-4 py-8 pb-24">
-        {/* Icon */}
-        <AnimatedIcon delay={0}>
+        {/* Icon with pulse rings + wobble */}
+        <AnimatedIcon delay={0} pulseRings={2} wobble ringColor="rgba(56,189,248,0.3)">
           <div className="w-20 h-20 rounded-full bg-sky-400/20 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-lg shadow-sky-500/20">
             <User className="w-10 h-10 text-white" strokeWidth={1.8} />
           </div>
@@ -69,6 +74,15 @@ export default function ContactDisplayV3({ content, qrCodeId, qrName }: ContactD
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.55, duration: 0.4 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="rounded-2xl"
+                  style={{ transition: 'box-shadow 0.3s ease' }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(56,189,248,0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                  }}
                 >
                   <motion.button
                     type="button"
@@ -113,6 +127,21 @@ export default function ContactDisplayV3({ content, qrCodeId, qrName }: ContactD
                       )}
                     </AnimatePresence>
                   </motion.button>
+
+                  {/* Action button: Call */}
+                  <motion.a
+                    href={`tel:${rawPhone}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.7 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="mt-2 ml-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/8 backdrop-blur-sm border border-white/10 text-white/70 text-xs font-medium hover:text-white hover:bg-white/15 transition-colors"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <PhoneCall className="w-3.5 h-3.5" strokeWidth={2} />
+                    Appeler
+                  </motion.a>
                 </motion.div>
               )}
 
@@ -122,6 +151,15 @@ export default function ContactDisplayV3({ content, qrCodeId, qrName }: ContactD
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.65, duration: 0.4 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="rounded-2xl"
+                  style={{ transition: 'box-shadow 0.3s ease' }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.boxShadow = '0 0 20px rgba(56,189,248,0.15)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                  }}
                 >
                   <motion.button
                     type="button"
@@ -166,6 +204,21 @@ export default function ContactDisplayV3({ content, qrCodeId, qrName }: ContactD
                       )}
                     </AnimatePresence>
                   </motion.button>
+
+                  {/* Action button: Send email */}
+                  <motion.a
+                    href={`mailto:${rawEmail}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.8 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="mt-2 ml-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/8 backdrop-blur-sm border border-white/10 text-white/70 text-xs font-medium hover:text-white hover:bg-white/15 transition-colors"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <Mail className="w-3.5 h-3.5" strokeWidth={2} />
+                    Envoyer
+                  </motion.a>
                 </motion.div>
               )}
 
@@ -179,11 +232,19 @@ export default function ContactDisplayV3({ content, qrCodeId, qrName }: ContactD
                 >
                   <motion.div
                     initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
-                    className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4"
+                    animate={{
+                      scale: 1,
+                      y: [0, -8, 0],
+                    }}
+                    transition={{
+                      type: 'spring',
+                      stiffness: 200,
+                      delay: 0.1,
+                      y: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
+                    }}
+                    className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4"
                   >
-                    <User className="w-8 h-8 text-white/30" strokeWidth={1.5} />
+                    <User className="w-10 h-10 text-white/30" strokeWidth={1.5} />
                   </motion.div>
                   <p className="text-white/50 text-center text-base">
                     Aucune information de contact

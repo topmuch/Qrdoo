@@ -23,16 +23,59 @@ export function PageTransition({ children, className = '', delay = 0 }: PageTran
   );
 }
 
-/** Animated entry for a page icon (spring + rotate) */
-export function AnimatedIcon({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
+/** Animated entry for a page icon with optional pulse rings */
+export function AnimatedIcon({
+  children,
+  delay = 0,
+  className = '',
+  pulseRings = 0,
+  wobble = false,
+  ringColor = 'rgba(255,255,255,0.25)',
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+  pulseRings?: number;
+  wobble?: boolean;
+  ringColor?: string;
+}) {
+  const iconMotion = wobble
+    ? { scale: 1, rotate: [0, 10, -10, 0], opacity: 1 }
+    : { scale: 1, rotate: 0, opacity: 1 };
+
   return (
     <motion.div
       initial={{ scale: 0, rotate: -180, opacity: 0 }}
-      animate={{ scale: 1, rotate: 0, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 150, damping: 12, delay }}
-      className={className}
+      animate={iconMotion}
+      transition={{
+        type: 'spring',
+        stiffness: 150,
+        damping: 12,
+        delay,
+        ...(wobble ? { rotate: { duration: 5, repeat: Infinity, ease: 'easeInOut' } } : {}),
+      }}
+      className={`relative inline-flex ${className}`}
     >
       {children}
+      {/* Pulse rings */}
+      {pulseRings > 0 &&
+        Array.from({ length: pulseRings }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute inset-0 rounded-full border-2 pointer-events-none"
+            style={{ borderColor: ringColor }}
+            animate={{
+              scale: [1, 1.5, 1.8],
+              opacity: [0.3, 0.1, 0],
+            }}
+            transition={{
+              duration: 2.5,
+              repeat: Infinity,
+              ease: 'easeOut',
+              delay: i * 0.4,
+            }}
+          />
+        ))}
     </motion.div>
   );
 }

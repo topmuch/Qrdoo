@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+import React from 'react';
 
 export const MODULE_GRADIENTS: Record<string, { from: string; via: string; to: string }> = {
   wifi:             { from: '#2563eb', via: '#3b82f6', to: '#06b6d4' },
@@ -28,6 +29,7 @@ interface GradientBackgroundProps {
   via?: string;
   to?: string;
   animate?: boolean;
+  waves?: boolean;
   children?: React.ReactNode;
 }
 
@@ -37,6 +39,7 @@ export function GradientBackground({
   via: viaProp,
   to: toProp,
   animate = true,
+  waves = true,
   children,
 }: GradientBackgroundProps) {
   const g = moduleType ? (MODULE_GRADIENTS[moduleType] ?? DEFAULT_GRADIENT) : { from: fromProp ?? '#059669', via: viaProp ?? '#10b981', to: toProp ?? '#34d399' };
@@ -51,18 +54,47 @@ export function GradientBackground({
           backgroundSize: animate ? '400% 400%' : undefined,
         }}
       />
+
+      {/* Animated background waves */}
+      {waves && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute -bottom-1/2 left-1/2 -translate-x-1/2 rounded-full"
+              style={{
+                width: '150%',
+                height: '100%',
+                background: `linear-gradient(to top, rgba(255,255,255,${0.06 + i * 0.02}) 0%, transparent 70%)`,
+              }}
+              animate={{
+                y: [-100, 100, -100],
+                rotate: [0, 180, 360],
+              }}
+              transition={{
+                duration: 20 + i * 7,
+                repeat: Infinity,
+                ease: 'linear',
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Radial glow */}
       <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.15) 0%, transparent 70%)`,
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.15) 0%, transparent 70%)',
         }}
         aria-hidden="true"
       />
+
       {/* Content */}
       <div className="relative z-10 min-h-screen">
         {children}
       </div>
+
       <style>{`
         @keyframes gradient-shift {
           0%, 100% { background-position: 0% 50%; }

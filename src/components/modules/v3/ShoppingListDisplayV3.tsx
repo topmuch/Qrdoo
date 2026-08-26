@@ -78,7 +78,7 @@ export default function ShoppingListDisplayV3({ content, qrCodeId, qrName }: Sho
 
       <div className="relative z-10 min-h-screen flex flex-col items-center px-4 py-8 pb-24">
         {/* Icon */}
-        <AnimatedIcon delay={0}>
+        <AnimatedIcon delay={0} pulseRings={2} wobble ringColor="rgba(52,211,153,0.3)">
           <div className="w-20 h-20 rounded-full bg-emerald-400/20 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-lg shadow-emerald-500/20">
             <ShoppingCart className="w-10 h-10 text-white" strokeWidth={1.8} />
           </div>

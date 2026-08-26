@@ -241,3 +241,89 @@ Stage Summary:
 - Each module type has unique color palette
 - Mobile-first, prefers-reduced-motion support
 - Pushed to GitHub as commit c311242
+
+---
+Task ID: V3-guestbook-upgrade
+Agent: Main
+Task: Upgrade GuestbookDisplayV3 with immersive "Wahou" visual enhancements
+
+Work Log:
+- Added 10 twinkling scattered stars (TWINKLE_STARS array) positioned across the top area with opacity oscillation and staggered delays using motion.span + Star icon
+- Upgraded AnimatedIcon to use pulseRings={2} and wobble props for the main book icon, with amber-colored ring (rgba(251,191,36,0.3))
+- Made the 3 decorative stars twinkle with staggered animation (opacity + scale oscillation, 0.35s delay between each)
+- Enhanced empty state: larger bouncing book icon (w-20 h-20), pulsing amber glow behind it, spring animation + floating y-bounce
+- Enhanced entry cards: added left accent border (border-l-amber-400/60), radial gradient hover glow effect
+- Added shimmer overlay on GlassCard: motion.div with diagonal linear gradient that slides across with 4s duration, 3s repeat delay
+
+Stage Summary:
+- GuestbookDisplayV3 now has 6 visual enhancement layers: twinkling stars, wobble+pulse icon, staggered star deco, bouncing empty state with glow, gold-accented entry cards, and card shimmer
+- No API or data fetching changes — purely visual upgrades
+- Lint passes clean, dev server compiles without errors
+
+---
+Task ID: V3-contact-upgrade
+Agent: Main
+Task: Upgrade ContactDisplayV3 with immersive "Wahou" interactions
+
+Work Log:
+- Added `useConfetti` import from `@/components/magic` and fire confetti on successful copy with contact-themed colors (['#38bdf8', '#7dd3fc', '#ffffff', '#bae6fd'])
+- Added action buttons below each contact field row:
+  - Phone row: glass-styled `tel:` link button with PhoneCall icon ("Appeler")
+  - Email row: glass-styled `mailto:` link button with Mail icon ("Envoyer")
+  - Both use bg-white/8, backdrop-blur-sm, border-white/10, hover scale effects
+- Enhanced AnimatedIcon for main User icon: added `pulseRings={2}`, `wobble`, and `ringColor="rgba(56,189,248,0.3)"`
+- Enhanced hover on contact rows: added `whileHover={{ scale: 1.02 }}` and dynamic box-shadow glow (`0 0 20px rgba(56,189,248,0.15)`) via onMouseEnter/Leave
+- Improved empty state: enlarged icon to w-20 h-20, added continuous floating y-bounce animation (`y: [0, -8, 0]` with repeat: Infinity)
+
+Stage Summary:
+- ContactDisplayV3 now has 5 enhancement layers: confetti on copy, action buttons (call/email), pulse rings + wobble on icon, hover glow on rows, bouncing empty state
+- No API or data fetching changes — purely visual and interaction upgrades
+- Lint passes clean, no errors
+
+---
+Task ID: V3-batch-upgrade
+Agent: Main
+Task: Upgrade 5 V3 display components with immersive "Wahou" effects
+
+Work Log:
+- MedicationDisplayV3: Added pulseRings={2} + wobble on AnimatedIcon with pink ringColor, subtitle "Instructions de prise", glassmorphism inner content-card (bg-white/5 rounded-2xl p-5 border-white/10), copy dosage button with useConfetti (pink confetti colors), Copy/Check icons from lucide-react, bouncing empty state with larger icon (w-20 h-20)
+- MealPlannerDisplayV3: Added pulseRings={2} + wobble with orange ringColor, subtitle "Bon appétit ! 🍽️", glassmorphism inner content-card, bouncing empty state with larger icon (w-20 h-20)
+- NoteDisplayV3: Added pulseRings={2} + wobble with yellow ringColor, subtitle "Votre message", glassmorphism inner content-card, bouncing empty state with larger icon (w-20 h-20), "Copier le texte" PulseButton (variant="white") with useConfetti (yellow confetti colors)
+- LinkDisplayV3: Added pulseRings={2} + wobble with teal ringColor, subtitle "Redirection automatique", glassmorphism inner content-card, PulseButton changed to variant="white", 5-second auto-redirect countdown with Clock icon + notice text, "Page de redirection ouverte" post-redirect notice, bouncing empty state with larger icon (w-20 h-20)
+- InfoDisplayV3: Added pulseRings={2} + wobble with purple ringColor (rgba(124,58,237,0.3)), subtitle "Informations utiles", glassmorphism inner content-card, bouncing empty state with larger icon (w-20 h-20)
+
+Stage Summary:
+- All 5 components upgraded with consistent "Wahou" effects: animated pulse rings, wobble animation, module-specific subtitles, glassmorphism inner cards, and bouncing empty states
+- Medication: copy button with pink confetti
+- Note: PulseButton "Copier le texte" with yellow confetti
+- Link: white variant PulseButton + 5s auto-redirect countdown
+- No API or data fetching changes — purely visual and interaction upgrades
+- Lint passes clean (0 errors, 0 warnings), dev server compiles without errors
+
+---
+Task ID: V3-magic-polish
+Agent: Main
+Task: Polish magic components + upgrade all V3 displays to match reference template
+
+Work Log:
+- Enhanced GradientBackground: added animated background waves (3 rotating gradient circles via Framer Motion)
+- Fixed PulseButton: replaced broken CSS group-hover shine with Framer Motion animated shine sweep on hover, added `variant="white"` for solid white buttons with colored text
+- Upgraded AnimatedIcon (in PageTransition.tsx): added `pulseRings` (0-3 expanding ring animations), `wobble` (gentle rotation), and `ringColor` props
+- Upgraded GlassCard: changed to `backdrop-blur-2xl` for advanced glassmorphism
+- WifiDisplayV3: added 3 pulse rings + wobble on icon, "Bienvenue ! 🎉" title with subtitle, "● Sécurisé" green badge, variant="white" primary button
+- GuestbookDisplayV3: twinkling stars, wobble+pulse icon, gold-accented entries, card shimmer overlay
+- ContactDisplayV3: confetti on copy, tel:/mailto: action buttons, hover glow on rows
+- MedicationDisplayV3: copy button with confetti, pulse rings, glass inner card
+- MealPlannerDisplayV3: pulse rings, subtitle, glass inner card
+- NoteDisplayV3: PulseButton "Copier le texte" with confetti, pulse rings
+- LinkDisplayV3: white variant button, 5s auto-redirect countdown, pulse rings
+- InfoDisplayV3: pulse rings, subtitle, glass inner card
+- ShoppingListDisplayV3: pulse rings + wobble on icon (emerald)
+- ChecklistDisplayV3: pulse rings + wobble on icon (violet)
+- Fixed ShoppingList+Checklist bug: parse body text into items when structured items array not present
+
+Stage Summary:
+- 15 files modified across magic/ and modules/v3/
+- All public pages now have: animated background waves, pulse ring icons with wobble, glassmorphism cards (backdrop-blur-2xl), working shine effect on buttons
+- Per-module subtitles and interactive features (confetti on copy, action buttons, auto-redirect)
+- Lint passes clean, page compilation verified (200 OK)
