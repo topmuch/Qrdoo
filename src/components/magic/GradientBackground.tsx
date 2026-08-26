@@ -22,6 +22,9 @@ export const MODULE_GRADIENTS: Record<string, { from: string; via: string; to: s
   inventory:        { from: '#b91c1c', via: '#dc2626', to: '#f97316' },
   checkout_feedback: { from: '#d97706', via: '#f59e0b', to: '#fbbf24' },
   service_menu:     { from: '#7c3aed', via: '#8b5cf6', to: '#a78bfa' },
+  artisan_directory: { from: '#0f766e', via: '#14b8a6', to: '#5eead4' },
+  service_request:   { from: '#7c3aed', via: '#8b5cf6', to: '#c4b5fd' },
+  review:            { from: '#d97706', via: '#f59e0b', to: '#fbbf24' },
 };
 
 const DEFAULT_GRADIENT = { from: '#059669', via: '#10b981', to: '#34d399' };

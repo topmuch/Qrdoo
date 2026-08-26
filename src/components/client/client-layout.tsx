@@ -27,6 +27,7 @@ import {
   Globe,
   ShieldAlert,
   Package,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -50,7 +51,8 @@ export type ClientPage =
   | 'client-automations'
   | 'client-webhooks'
   | 'client-stock'
-  | 'client-packs';
+  | 'client-packs'
+  | 'client-artisans';
 
 interface ClientLayoutProps {
   activePage: ClientPage;
@@ -69,6 +71,7 @@ const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; 
   { key: 'client-chores', label: 'Corvées & Récompenses', icon: <Sparkles className="h-5 w-5" />, badge: 'V2' },
   { key: 'client-stock', label: 'Stock & DLC', icon: <ShieldAlert className="h-5 w-5" />, badge: 'V2' },
   { key: 'client-packs', label: 'Packs Pré-configurés', icon: <Package className="h-5 w-5" />, badge: 'B2B' },
+  { key: 'client-artisans', label: 'Artisans & Réservations', icon: <Users className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" /> },
   { key: 'client-analytics', label: 'Statistiques Scan', icon: <BarChart3 className="h-5 w-5" />, badge: 'V3' },
 ];
@@ -85,8 +88,8 @@ const MODULE_ITEMS_V1: { key: ClientPage; label: string; icon: React.ReactNode; 
 ];
 
 const MODULE_ITEMS_V3: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
-  { key: 'modules', label: 'Mon Quartier', icon: <Store className="h-5 w-5" />, badge: 'V3' },
-  { key: 'modules', label: 'Services Pro', icon: <Briefcase className="h-5 w-5" />, badge: 'V3' },
+  { key: 'client-artisans', label: 'Mon Quartier', icon: <Store className="h-5 w-5" />, badge: 'V3' },
+  { key: 'client-artisans', label: 'Services Pro', icon: <Briefcase className="h-5 w-5" />, badge: 'V3' },
 ];
 
 export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogout, children }: ClientLayoutProps) {

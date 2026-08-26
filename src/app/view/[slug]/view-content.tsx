@@ -19,6 +19,9 @@ import CheckoutFeedbackDisplayV3 from '@/components/modules/v3/CheckoutFeedbackD
 import ServiceMenuDisplayV3 from '@/components/modules/v3/ServiceMenuDisplayV3';
 import LinkDisplayV3 from '@/components/modules/v3/LinkDisplayV3';
 import InfoDisplayV3 from '@/components/modules/v3/InfoDisplayV3';
+import ArtisanDirectoryDisplayV3 from '@/components/modules/v3/ArtisanDirectoryDisplayV3';
+import ServiceRequestDisplayV3 from '@/components/modules/v3/ServiceRequestDisplayV3';
+import ReviewDisplayV3 from '@/components/modules/v3/ReviewDisplayV3';
 import { GradientBackground } from '@/components/magic';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -52,6 +55,9 @@ const V3_DISPLAY_MAP: Record<string, DisplayComponentType> = {
   inventory: InventoryDisplayV3,
   checkout_feedback: CheckoutFeedbackDisplayV3 as DisplayComponentType,
   service_menu: ServiceMenuDisplayV3 as DisplayComponentType,
+  artisan_directory: ArtisanDirectoryDisplayV3 as DisplayComponentType,
+  service_request: ServiceRequestDisplayV3 as DisplayComponentType,
+  review: ReviewDisplayV3 as DisplayComponentType,
 
   // Info-based modules → InfoDisplayV3 (adapts gradient per moduleType)
   home_manual: InfoDisplayV3 as DisplayComponentType,

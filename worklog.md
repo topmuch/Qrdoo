@@ -1,4 +1,33 @@
 ---
+Task ID: 1
+Agent: Explore
+Task: Research architecture patterns for modules #28-33 (Annuaire artisans, Réservation, Avis, Chat)
+
+Work Log:
+- Read worklog.md for context
+- Analyzed API route pattern from src/app/api/client/products/route.ts
+- Analyzed dashboard component pattern from src/components/client/stock-manager.tsx
+- Analyzed V3 display component pattern from src/components/modules/v3/InventoryDisplayV3.tsx
+- Read view-content mapping from src/app/view/[slug]/view-content.tsx
+- Read page routing (case statements) from src/app/page.tsx
+- Read client layout sidebar from src/components/client/client-layout.tsx
+- Read GradientBackground MODULE_GRADIENTS from src/components/magic/GradientBackground.tsx
+- Searched for existing artisan/reservation/review/chat files in src/
+- Read push sender pattern from src/lib/push-sender.ts
+- Read database lib from src/lib/db.ts
+- Read full Prisma schema for all marketplace models (Professional, Service, ServiceRequest, Review, ChatMessage, Notification, Merchant, Subscription, Transaction, FlashSale, Coupon)
+- Read types/database.ts for all V3 business types and module type definitions
+- Confirmed: NO API routes, NO V3 display components, NO client dashboard components exist yet for artisan/service_request/review/chat/reservation
+
+Stage Summary:
+- Complete architecture pattern research for modules #28-33 documented
+- Database models already exist in Prisma schema (Professional, Service, ServiceRequest, Review, ChatMessage)
+- Type definitions already exist in src/types/database.ts (ServiceRequestStatus, ChatSenderType, ChatMessageType, etc.)
+- No implementation files exist yet - all needs to be built from scratch
+- V3 module types already registered in QR_MODULE_TYPES.V3: merchant, service_request, promo, flash_sale, coupon, emergency_service, artisan_directory
+- Sidebar has placeholder V3 items ("Mon Quartier" and "Services Pro") both mapping to 'modules' key
+- No gradients defined yet for artisan_directory, service_request, chat, review module types
+---
 Task ID: 1-4
 Agent: Main
 Task: Fix super-admin crash, buttons, client dashboard KPI multicolor, violet sidebar
@@ -500,3 +529,133 @@ Stage Summary:
 - Install API route created at /api/client/packs/install/route.ts
 - 5 packs rendered as cards with install/progress UI
 - Lint clean, no compilation errors
+
+---
+Task ID: 3
+Agent: API Builder
+Task: Build 8 API routes for professionals, service requests, reviews, and chat
+
+Work Log:
+- Read worklog.md, reference route patterns (products, products/[id], products/instances)
+- Read prisma/schema.prisma for Professional, Service, ServiceRequest, Review, ChatMessage models
+- Read src/types/database.ts for type constants (SERVICE_REQUEST_STATUSES, PRICE_UNITS, URGENCY_LEVELS, CHAT_SENDER_TYPES, CHAT_MESSAGE_TYPES, CATEGORIES)
+- Read src/lib/push-sender.ts for sendPushToUser and sendPushToHome patterns
+- Created /api/client/professionals/route.ts: GET (list with category/location/isVerified/urgent filters, includes services+review summary, limit 20), POST (create professional, auto-set isVerified=false, isActive=true)
+- Created /api/client/professionals/[id]/route.ts: GET (single with services+reviews), PATCH (update all fields), DELETE (soft delete isActive=false)
+- Created /api/client/professionals/[id]/services/route.ts: GET (list services for professional), POST (create service with priceUnit validation)
+- Created /api/client/service-requests/route.ts: GET (list by homeId with optional status filter, includes professional+service+unreadChatCount), POST (create with push notification to professional via sendPushToUser)
+- Created /api/client/service-requests/[id]/route.ts: GET (single with professional+service+reviews+chatMessages asc), PATCH (update status/finalPrice/commissionAmount/preferredDate, sends push to homeowner via sendPushToHome on status change)
+- Created /api/client/reviews/route.ts: GET (list with professionalId/serviceRequestId/userId filters, includes user info), POST (create with 1-5 integer rating validation, recalcProfessionalRating after creation)
+- Created /api/client/reviews/[id]/route.ts: GET (single with user+professional+serviceRequest), PATCH (update rating/comment with recalc), DELETE (hard delete with recalc)
+- Created /api/client/chat/[serviceRequestId]/route.ts: GET (messages ordered asc, optional markRead=true&readerId to mark other party's unread messages), POST (send message with push notification to other party)
+- All routes use NextRequest/NextResponse, try/catch with French error messages, db from @/lib/db
+- Lint passes clean with zero errors
+
+Stage Summary:
+- 8 API route files created across 4 resource domains (professionals, service-requests, reviews, chat)
+- Total endpoints: 16 (3 GET+POST, 2 GET+PATCH+DELETE, 2 GET+POST, 1 GET+PATCH)
+- Push notifications integrated: service request creation -> professional, status change -> homeowner, chat message -> other party
+- Professional rating recalculation on review create/update/delete
+- All validation uses French error messages following existing patterns
+- Lint clean, zero errors
+
+---
+Task ID: 4
+Agent: Frontend
+Task: Create ArtisanManager dashboard component (4-tab artisan marketplace UI)
+
+Work Log:
+- Read worklog.md for prior context (Tasks 1-3 completed)
+- Read stock-manager.tsx (977 lines) for dashboard component patterns: state management, tab system, dialog forms, skeleton loading, empty states, stat cards
+- Read client-layout.tsx to understand sidebar navigation and HomeContext (no HomeContext exists — followed stock-manager pattern of fetching homeId from /api/client/homes)
+- Read database.ts types: CATEGORIES (48 entries), ServiceRequestStatus, UrgencyLevel, ChatSenderType, ChatMessageType
+- Read Prisma schema for Professional, Service, ServiceRequest, Review, ChatMessage models
+- Created /src/components/client/artisan-manager.tsx (1470 lines) with 4 tabs:
+  - Tab 1 "Annuaire": Search bar with category filter, professional grid cards (name, category badge, star rating, location, isVerified, hourlyRate, isUrgentAvailable), detail dialog with full description + services + prices, create profile dialog
+  - Tab 2 "Mes Demandes": Service request list with color-coded status badges (pending=yellow, accepted=blue, in_progress=purple, completed=green, cancelled=gray, disputed=red), urgency badges, detail dialog with status timeline + chat preview, new request dialog (professional select, service select, description, datetime-local, urgency, address), cancel button for pending requests
+  - Tab 3 "Avis": "Avis laissés" section (reviews written), "Avis reçus" section (reviews received if professional), pending reviews for completed service requests, star rating dialog (1-5 clickable stars) + comment textarea
+  - Tab 4 "Chat": Conversation list with last message preview + unread count badge, chat dialog with scrollable messages (homeowner=right/primary, professional=left/muted, system=centered), time display (HH:mm), read indicator, input bar with send button, 3-second polling when dialog open
+- All API calls match Task 3 endpoints: GET/POST /api/client/professionals, GET/POST/PATCH /api/client/service-requests/[id], GET/POST /api/client/reviews, GET/POST /api/client/chat/[serviceRequestId]
+- Followed stock-manager patterns: stat cards with gradients, tab system, Skeleton loading, empty states with icons, toast notifications, custom scrollbar styling
+- Fixed typo (extra 'n' character) in pending reviews button
+- Lint passes clean, no TypeScript errors in artisan-manager.tsx
+- Used hardcoded userId='dev-user-1' as specified
+
+Stage Summary:
+- Single comprehensive component: /src/components/client/artisan-manager.tsx (1470 lines)
+- 4 fully functional tabs: Annuaire, Mes Demandes, Avis, Chat
+- All real API calls to backend endpoints from Task 3
+- Production-quality: loading states, empty states, error handling, responsive design, dark mode support
+- Exported as `export function ArtisanManager()`
+
+---
+Task ID: 5
+Agent: V3 Display Components
+Task: Create 3 V3 immersive display components (ArtisanDirectory, ServiceRequest, Review) and update GradientBackground
+
+Work Log:
+- Read worklog.md for prior task context
+- Read canonical V3 pattern from InventoryDisplayV3.tsx (structure, imports, animation timing)
+- Read form-based V3 example from CheckoutFeedbackDisplayV3.tsx (star rating, AnimatePresence, submit flow)
+- Read GradientBackground.tsx MODULE_GRADIENTS map and magic/index.ts exports
+- Added 3 new gradient entries to MODULE_GRADIENTS: artisan_directory (teal), service_request (violet), review (amber)
+- Created ArtisanDirectoryDisplayV3.tsx: Store icon with pulse rings, 3 stat badges, category filter chips, professional cards with stagger animations, contact dialog with service request form, empty state, loading spinner, fetch from /api/client/professionals
+- Created ServiceRequestDisplayV3.tsx: Briefcase icon with pulse rings, category select (15 artisan categories), description textarea, urgency selector (3 levels), datetime-local input, address pre-fill, photo note, POST to /api/client/service-requests, validation (description + date required), success animation with request ID
+- Created ReviewDisplayV3.tsx: Star icon with pulse rings, professional name + service display, 5 interactive stars with hover effect, comment textarea, POST to /api/client/reviews with anonymous userId, thank you animation with checkmark
+- All 3 components follow V3 pattern exactly: GradientBackground > FloatingParticles > AnimatedIcon > AnimatedTitle > GlassCard > BrandedFooter
+- ESLint passes clean, no errors
+- Dev server compiled successfully
+
+Stage Summary:
+- 3 new V3 display components created:
+  - /src/components/modules/v3/ArtisanDirectoryDisplayV3.tsx
+  - /src/components/modules/v3/ServiceRequestDisplayV3.tsx
+  - /src/components/modules/v3/ReviewDisplayV3.tsx
+- GradientBackground.tsx updated with 3 new MODULE_GRADIENTS entries
+- All components use correct gradient themes, animation timings, and magic component exports
+---
+Task ID: 6
+Agent: Chat Service Setup
+Task: Create WebSocket chat mini-service for real-time chat relaying
+
+Work Log:
+- Read worklog.md for project context
+- Examined existing WebSocket example at /home/z/my-project/examples/websocket/server.ts for established patterns
+- Created /home/z/my-project/mini-services/chat-service/package.json with socket.io dependency
+- Created /home/z/my-project/mini-services/chat-service/index.ts with Socket.IO server on port 3004
+- Followed established patterns from examples/websocket/server.ts: createServer + Server constructor, path:'/', CORS, pingTimeout/pingInterval, graceful shutdown handlers
+- Implemented 5 event handlers: join:request, leave:request, chat:message, chat:typing, chat:read
+- Service only relays messages in real-time; persistence handled by REST API
+- Installed dependencies via bun install (socket.io@4.8.3)
+- Started service in background, verified running on port 3004 (PID confirmed via ps)
+
+Stage Summary:
+- Chat WebSocket mini-service created at /home/z/my-project/mini-services/chat-service/
+- Running on port 3004 with event-based room management per serviceRequestId
+- Supports: join/leave rooms, message relay, typing indicators, read receipts
+- Uses Map<string, Set<string>> for tracking room membership
+- Frontend connects via io('/?XTransformPort=3004') through Caddy gateway---
+Task ID: 3
+Agent: Main Orchestrator
+Task: Build #28-33 Annuaire artisans + réservation + avis + chat
+
+Work Log:
+- Analyzed Prisma schema (Professional, Service, ServiceRequest, Review, ChatMessage models)
+- Researched existing architecture patterns (API routes, dashboard components, V3 displays)
+- Built 8 API route files (16 endpoints) for professionals, services, service-requests, reviews, chat
+- Built ArtisanManager dashboard component (1470 lines, 4 tabs: Annuaire, Demandes, Avis, Chat)
+- Built 3 V3 immersive display components (ArtisanDirectory, ServiceRequest, Review)
+- Built Chat WebSocket mini-service on port 3004 (Socket.IO)
+- Added 3 gradient entries to GradientBackground (artisan_directory, service_request, review)
+- Integrated into sidebar (DASHBOARD_ITEMS + MODULE_ITEMS_V3), page.tsx routing, view-content.tsx mapping
+- All API endpoints verified working
+- Lint passes clean
+
+Stage Summary:
+- Modules #28-33 fully implemented with API, Dashboard, V3 displays, and real-time chat
+- 16 API endpoints across 4 resource domains
+- 4-tab dashboard: Annuaire artisans, Mes Demandes (réservations), Avis, Chat
+- 3 V3 QR scan pages with immersive gradient backgrounds
+- WebSocket chat service on port 3004
+- Push notifications integrated for service request and chat events
+
