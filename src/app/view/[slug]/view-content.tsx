@@ -15,6 +15,8 @@ import MealPlannerDisplayV3 from '@/components/modules/v3/MealPlannerDisplayV3';
 import ContactDisplayV3 from '@/components/modules/v3/ContactDisplayV3';
 import ChecklistDisplayV3 from '@/components/modules/v3/ChecklistDisplayV3';
 import InventoryDisplayV3 from '@/components/modules/v3/InventoryDisplayV3';
+import CheckoutFeedbackDisplayV3 from '@/components/modules/v3/CheckoutFeedbackDisplayV3';
+import ServiceMenuDisplayV3 from '@/components/modules/v3/ServiceMenuDisplayV3';
 import LinkDisplayV3 from '@/components/modules/v3/LinkDisplayV3';
 import InfoDisplayV3 from '@/components/modules/v3/InfoDisplayV3';
 import { GradientBackground } from '@/components/magic';
@@ -48,6 +50,8 @@ const V3_DISPLAY_MAP: Record<string, DisplayComponentType> = {
   shopping_list: ShoppingListDisplayV3,
   checklist: ChecklistDisplayV3,
   inventory: InventoryDisplayV3,
+  checkout_feedback: CheckoutFeedbackDisplayV3 as DisplayComponentType,
+  service_menu: ServiceMenuDisplayV3 as DisplayComponentType,
 
   // Info-based modules → InfoDisplayV3 (adapts gradient per moduleType)
   home_manual: InfoDisplayV3 as DisplayComponentType,

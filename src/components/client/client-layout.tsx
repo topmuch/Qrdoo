@@ -26,6 +26,7 @@ import {
   Plug,
   Globe,
   ShieldAlert,
+  Package,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -48,7 +49,8 @@ export type ClientPage =
   | 'client-analytics'
   | 'client-automations'
   | 'client-webhooks'
-  | 'client-stock';
+  | 'client-stock'
+  | 'client-packs';
 
 interface ClientLayoutProps {
   activePage: ClientPage;
@@ -66,6 +68,7 @@ const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; 
   { key: 'client-activity', label: "Journal d'activité", icon: <Activity className="h-5 w-5" /> },
   { key: 'client-chores', label: 'Corvées & Récompenses', icon: <Sparkles className="h-5 w-5" />, badge: 'V2' },
   { key: 'client-stock', label: 'Stock & DLC', icon: <ShieldAlert className="h-5 w-5" />, badge: 'V2' },
+  { key: 'client-packs', label: 'Packs Pré-configurés', icon: <Package className="h-5 w-5" />, badge: 'B2B' },
   { key: 'client-notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" /> },
   { key: 'client-analytics', label: 'Statistiques Scan', icon: <BarChart3 className="h-5 w-5" />, badge: 'V3' },
 ];

@@ -404,3 +404,99 @@ Stage Summary:
 - InventoryDisplayV3.tsx created with full immersive scan page: red-orange gradient, pulse ring icon, 3 KPI badges, staggered product list with status badges
 - Inventory gradient entry added to MODULE_GRADIENTS for automatic color theming
 - Lint passes clean, dev server compiles without errors
+
+---
+Task ID: 2-b
+Agent: API Agent
+Task: Create packs config + packs API routes
+
+Work Log:
+- Created /src/lib/packs-config.ts with exported types PackQRDefinition and PackDefinition and const PACKS array containing 5 pack definitions:
+  1. airbnb-serenite (5 QR codes: wifi, home_manual, doorbell, guestbook, checklist)
+  2. famille (15 QR codes: wifi, home_manual, note, shopping_list, meal_planner, checklist, medication, key_location, cleaning_schedule, guestbook, contact, doorbell, energy_monitor, checklist, note)
+  3. bureau (10 QR codes: wifi, home_manual, note, checklist, contact, doorbell, external_link, note, guestbook, checklist)
+  4. bouclier-avis (1 QR code: checkout_feedback)
+  5. upselling (1 QR code: service_menu)
+- Each pack includes: id, name, description, icon (lucide), color (tailwind gradient), targetAudience, badge, qrCodes with defaultContent, features
+- Created /src/app/api/client/packs/route.ts with two endpoints:
+  - GET /api/client/packs?homeId=xxx: Returns all packs enriched with installedCount/totalCount per pack and per-QR installed status (matched by moduleType::name)
+  - POST /api/client/packs/install: Installs a pack — finds or creates rooms by roomName, creates QrCode + QrContent for each non-duplicate QR, uses db.$transaction for atomicity, creates ActivityLog entries, skips already-installed QR codes
+- Follows existing patterns: NextRequest/NextResponse, db import, crypto for publicSlug, French error messages, console.error with prefix
+- No Prisma model needed — packs are pure TypeScript config
+- Lint passes clean (0 errors, 0 warnings), dev server compiles without errors
+
+Stage Summary:
+- 2 files created: packs-config.ts (config) and packs/route.ts (API)
+- GET returns all 5 packs with per-QR installation status for any given home
+- POST installs a pack atomically: auto-creates rooms, creates QR codes + content, skips duplicates
+- No PhysicalQrCode created (pack installs are virtual QR codes)
+- Lint clean, dev server healthy
+
+---
+Task ID: 3-a
+Agent: Main
+Task: Create CheckoutFeedbackDisplayV3 + ServiceMenuDisplayV3 + gradient entries
+
+Work Log:
+- Added 2 entries to MODULE_GRADIENTS in GradientBackground.tsx:
+  - checkout_feedback: { from: '#d97706', via: '#f59e0b', to: '#fbbf24' } (amber/gold)
+  - service_menu: { from: '#7c3aed', via: '#8b5cf6', to: '#a78bfa' } (violet/purple)
+- Created CheckoutFeedbackDisplayV3.tsx — "Bouclier Anti-Mauvais Avis" scan page:
+  - Amber gradient (moduleType="checkout_feedback"), FloatingParticles (12, white/0.2)
+  - ShieldCheck icon with pulseRings={2}, wobble, amber ringColor
+  - AnimatedTitle with configurable title/subtitle from content
+  - Optional customMessage with Heart icon in glass card
+  - Interactive 5-star rating with hover effects (whileHover scale 1.2), rating labels in French
+  - Comment textarea in glassmorphism style
+  - Submit button (white bg, amber text) with spinner loading state
+  - POST to /api/public/feedback on submit (visual-only, no API needed yet)
+  - AnimatePresence toggles between form and success view with Check icon animation
+  - All text in French
+- Created ServiceMenuDisplayV3.tsx — "Upselling Automatisé" scan page:
+  - Violet gradient (moduleType="service_menu"), FloatingParticles (15, white/0.15)
+  - TrendingUp icon with pulseRings={2}, wobble, violet ringColor
+  - AnimatedTitle with configurable title/subtitle from content
+  - Service cards list from content.items array with stagger animation (0.1 * index)
+  - Each card: glass card with icon (mapped via ICON_MAP with 12 lucide icons + Sparkles fallback), name, description, amber-300 price, "Réserver" button with whileTap scale
+  - Empty state: bouncing TrendingUp icon
+  - Optional contactMessage at bottom with MessageCircle icon
+  - All text in French
+- Fixed React Compiler lint error: changed useMemo dependency from content?.items to content
+
+Stage Summary:
+- 3 files modified/created (GradientBackground.tsx, CheckoutFeedbackDisplayV3.tsx, ServiceMenuDisplayV3.tsx)
+- 2 new gradient entries for checkout_feedback (amber) and service_menu (violet) modules
+- CheckoutFeedbackDisplayV3: full interactive feedback form with star rating, comment, submit with AnimatePresence success state
+- ServiceMenuDisplayV3: upselling service cards with icon mapping, stagger animations, reserve buttons
+- Lint passes clean (0 errors, 0 warnings), dev server compiles without errors
+---
+Task ID: 4
+Agent: Main
+Task: Create PackManager component with pack cards, install flow, and progress tracking
+
+Work Log:
+- Read worklog.md, stock-manager.tsx (patterns), packs-config.ts (pack definitions), and /api/client/packs/route.ts (API shape)
+- Created /api/client/packs/install/route.ts — dedicated POST endpoint for pack installation (delegates same logic as packs POST)
+- Created /src/components/client/pack-manager.tsx — 'use client' named export PackManager component
+- Component fetches homes from /api/client/homes on mount, picks first home
+- Fetches packs with installation status from /api/client/packs?homeId=...
+- Renders responsive grid (1/2/3 cols) of pack cards with:
+  - Gradient header bar (pack.color classes) with badge + icon + name
+  - Description text
+  - Target audience badge (muted, outline)
+  - Features list in dark bg-slate-900 container with Check icons and text-white/80
+  - QR code count indicator
+  - Progress bar (installedCount/totalCount) when partially or fully installed
+  - Smart install button: primary (not installed), amber (partial), green disabled (fully installed)
+  - Loading spinner during installation
+- Empty state with Home icon when no home found
+- Loading skeleton state
+- Toast notifications on success/error
+- French UI throughout
+- Lint passes clean, dev server compiles successfully
+
+Stage Summary:
+- PackManager component created at /src/components/client/pack-manager.tsx
+- Install API route created at /api/client/packs/install/route.ts
+- 5 packs rendered as cards with install/progress UI
+- Lint clean, no compilation errors

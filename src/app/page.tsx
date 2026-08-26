@@ -34,6 +34,7 @@ import { ScanAnalytics } from '@/components/client/scan-analytics';
 import { AutomationsManager } from '@/components/client/automations-manager';
 import { WebhooksManager } from '@/components/client/webhooks-manager';
 import { StockManager } from '@/components/client/stock-manager';
+import { PackManager } from '@/components/client/pack-manager';
 
 function ScanAnalyticsWrapper() {
   const [homeId, setHomeId] = useState('');
@@ -180,6 +181,7 @@ function AppContent() {
       case 'client-activity': return <ActivityLogViewer />;
       case 'client-chores': return <ChoresManager />;
       case 'client-stock': return <StockManager />;
+      case 'client-packs': return <PackManager />;
       case 'client-notifications': return <NotificationCenter />;
       case 'client-analytics': return <ScanAnalyticsWrapper />;
       case 'client-automations': return <AutomationsManager />;

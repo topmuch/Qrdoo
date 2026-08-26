@@ -20,6 +20,8 @@ export const MODULE_GRADIENTS: Record<string, { from: string; via: string; to: s
   key_location:     { from: '#475569', via: '#64748b', to: '#94a3b8' },
   cleaning_schedule:{ from: '#0891b2', via: '#06b6d4', to: '#67e8f9' },
   inventory:        { from: '#b91c1c', via: '#dc2626', to: '#f97316' },
+  checkout_feedback: { from: '#d97706', via: '#f59e0b', to: '#fbbf24' },
+  service_menu:     { from: '#7c3aed', via: '#8b5cf6', to: '#a78bfa' },
 };
 
 const DEFAULT_GRADIENT = { from: '#059669', via: '#10b981', to: '#34d399' };
