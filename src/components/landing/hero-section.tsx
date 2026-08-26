@@ -6,6 +6,9 @@ import {
   QrCode, Menu, X, ArrowRight, Sparkles, Shield, Zap,
 } from 'lucide-react';
 import { InteractiveDemo } from './interactive-demo';
+import { HowItWorks } from './how-it-works';
+import { PricingSection } from './pricing-section';
+import { ModulesShowcase } from './modules-showcase';
 
 interface LandingPageProps { onGoToDashboard: () => void }
 
@@ -20,15 +23,6 @@ function FadeIn({ children, delay = 0, className = '' }: { children: React.React
     >
       {children}
     </motion.div>
-  );
-}
-
-function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <div className="text-center mb-16">
-      <FadeIn><h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">{title}</h2></FadeIn>
-      {subtitle && <FadeIn delay={0.1}><p className="text-white/50 text-lg md:text-xl max-w-2xl mx-auto">{subtitle}</p></FadeIn>}
-    </div>
   );
 }
 
@@ -237,25 +231,6 @@ function HeroSection({ onGoToDashboard }: { onGoToDashboard: () => void }) {
   );
 }
 
-function PlaceholderSection({ id, title, subtitle, icon }: { id: string; title: string; subtitle: string; icon: React.ReactNode }) {
-  return (
-    <section id={id} className="py-24 md:py-32 px-4 md:px-8 scroll-mt-16 relative"
-      style={{ background: 'linear-gradient(180deg, #020617 0%, #0f172a 50%, #020617 100%)' }}
-    >
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-violet-500/[0.03] rounded-full blur-[120px] pointer-events-none" />
-      <div className="max-w-7xl mx-auto relative z-10">
-        <SectionTitle title={title} subtitle={subtitle} />
-        <FadeIn className="flex flex-col items-center gap-4 py-16">
-          <div className="w-16 h-16 rounded-2xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-white/30">
-            {icon}
-          </div>
-          <p className="text-white/30 text-sm">Section en cours de construction...</p>
-        </FadeIn>
-      </div>
-    </section>
-  );
-}
-
 function CtaFinal({ onGoToDashboard }: { onGoToDashboard: () => void }) {
   return (
     <section id="cta-final" className="relative py-24 md:py-32 px-4 md:px-8 scroll-mt-16 overflow-hidden"
@@ -339,9 +314,9 @@ export function LandingPage({ onGoToDashboard }: LandingPageProps) {
     <div className="min-h-screen flex flex-col bg-slate-950">
       <Navbar onGoToDashboard={onGoToDashboard} />
       <HeroSection onGoToDashboard={onGoToDashboard} />
-      <PlaceholderSection id="avantages" title="Comment ca marche ?" subtitle="3 etapes simples pour une maison connectee" icon={<Zap className="w-8 h-8" />} />
-      <PlaceholderSection id="pricing" title="Simple et transparent" subtitle="Choisissez l'offre qui vous correspond" icon={<Sparkles className="w-8 h-8" />} />
-      <PlaceholderSection id="modules" title="Modules V3" subtitle="Des interfaces immersives pour chaque usage" icon={<QrCode className="w-8 h-8" />} />
+      <HowItWorks />
+      <PricingSection />
+      <ModulesShowcase />
       <CtaFinal onGoToDashboard={onGoToDashboard} />
       <Footer />
     </div>
