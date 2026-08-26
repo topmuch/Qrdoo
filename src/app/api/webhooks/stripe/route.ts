@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-06-20',
-});
-
+// Lazy Stripe init to avoid build-time crash when STRIPE_SECRET_KEY is missing
+let _stripe: InstanceType<typeof import('stripe').default> | null = null;
+function getStripe() {
+  if (!_stripe) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Stripe = require('stripe');
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
+      apiVersion: '2024-06-20',
+    });
+  }
+  return _stripe;
+}
 const isSimulation = !process.env.STRIPE_SECRET_KEY;
 
 // POST: Stripe webhook endpoint
@@ -28,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify Stripe signature
-    let event: Stripe.Event;
+    let event: any;
     const signature = request.headers.get('stripe-signature');
 
     if (!signature) {
@@ -39,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      event = getStripe().webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err) {
       console.error('[stripe webhook] Signature verification failed:', err);
       return NextResponse.json(
@@ -49,21 +56,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle events
+    const S = await import('stripe');
     switch (event.type) {
       case 'checkout.session.completed': {
-        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        await handleCheckoutCompleted(event.data.object as S.Checkout.Session);
         break;
       }
       case 'customer.subscription.updated': {
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        await handleSubscriptionUpdated(event.data.object as S.Subscription);
         break;
       }
       case 'customer.subscription.deleted': {
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        await handleSubscriptionDeleted(event.data.object as S.Subscription);
         break;
       }
       case 'invoice.payment_failed': {
-        await handlePaymentFailed(event.data.object as Stripe.Invoice);
+        await handlePaymentFailed(event.data.object as S.Invoice);
         break;
       }
       default:
@@ -82,7 +90,7 @@ export async function POST(request: NextRequest) {
 
 // --- Event Handlers ---
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+async function handleCheckoutCompleted(session: any) {
   const { subscriberId, subscriberType, plan } = session.metadata || {};
 
   if (!subscriberId || !subscriberType || !plan) {
@@ -125,7 +133,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 }
 
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+async function handleSubscriptionUpdated(subscription: any) {
   const stripeSubId = subscription.id;
 
   const existing = await db.subscription.findFirst({
@@ -164,7 +172,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   });
 }
 
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+async function handleSubscriptionDeleted(subscription: any) {
   const stripeSubId = subscription.id;
 
   const existing = await db.subscription.findFirst({
@@ -182,7 +190,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   });
 }
 
-async function handlePaymentFailed(invoice: Stripe.Invoice) {
+async function handlePaymentFailed(invoice: any) {
   const stripeSubId = invoice.subscription as string | null;
 
   if (!stripeSubId) {
