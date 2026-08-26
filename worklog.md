@@ -1167,3 +1167,34 @@ Stage Summary:
 - Plan selection embedded in Step 4 (Configuration rapide)
 - Adaptive config fields based on selected plan
 - All API integration preserved (token validation, account creation, PIN, hub creation)
+
+---
+Task ID: 3
+Agent: Main
+Task: ÉTAPE 3 — Rewrite /hub/[slug]/page.tsx with immersive home screen + PIN modal
+
+Work Log:
+- Read existing hub-content.tsx (577 lines) with mode-select, PIN inline, guest/family views, voice recorder/player
+- Read API route /api/public/hub/[slug]/route.ts (GET hub data + POST PIN verify)
+- Rewrote page.tsx as client component with matching emerald fallback
+- Completely rewrote hub-content.tsx with immersive design:
+  - **Mode-select screen**: Home name as H1, owner subtitle, stats (pièces/modules), Settings gear (rotate 90° on tap)
+  - **Two big gradient buttons**: 
+    - Mode Invité (emerald→teal, shimmer hover, User icon, module count badges)
+    - Mode Famille (purple→fuchsia, Lock icon, PIN required badge, shimmer hover)
+  - **PIN Modal**: Full-screen overlay (bg-black/60 backdrop-blur-sm), GlassCard, NumericKeypad from magic/, cancel button, used for both family access and settings access
+  - **Guest view**: WiFi quick card, VoiceRecorder, VoicePlayer, room grid with ModuleCards
+  - **Family view**: Room grid with ModuleCards (private badge)
+  - Background changes: hub-guest preset for mode-select+guest, hub-family preset for family
+  - FloatingParticles on all views
+  - All cards use bg-white/10 backdrop-blur-xl border-white/20 glassmorphism
+- VoicePlayer and VoiceRecorder preserved from original with updated glass styling
+- PinModal is a separate component with AnimatePresence enter/exit
+- Verified: lint passes, route compiles 200, error state renders in browser
+
+Stage Summary:
+- /hub/[slug] fully redesigned with immersive glassmorphism UI
+- Dynamic gradient that shifts based on active mode (emerald guest → purple family)
+- PIN modal with NumericKeypad and GlassCard
+- Settings gear opens PIN modal
+- All API integration preserved
