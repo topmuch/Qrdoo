@@ -36,6 +36,7 @@ import { WebhooksManager } from '@/components/client/webhooks-manager';
 import { StockManager } from '@/components/client/stock-manager';
 import { PackManager } from '@/components/client/pack-manager';
 import { ArtisanManager } from '@/components/client/artisan-manager';
+import { MonetizationManager } from '@/components/client/monetization-manager';
 
 function ScanAnalyticsWrapper() {
   const [homeId, setHomeId] = useState('');
@@ -184,6 +185,7 @@ function AppContent() {
       case 'client-stock': return <StockManager />;
       case 'client-packs': return <PackManager />;
       case 'client-artisans': return <ArtisanManager />;
+      case 'client-monetization': return <MonetizationManager />;
       case 'client-notifications': return <NotificationCenter />;
       case 'client-analytics': return <ScanAnalyticsWrapper />;
       case 'client-automations': return <AutomationsManager />;

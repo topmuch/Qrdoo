@@ -659,3 +659,130 @@ Stage Summary:
 - WebSocket chat service on port 3004
 - Push notifications integrated for service request and chat events
 
+---
+Task ID: 2
+Agent: API Builder
+Task: Build Subscription, Transaction, and Billing API routes (7 files)
+
+Work Log:
+- Installed stripe@22.5.0 package
+- Added STRIPE_SECRET_KEY= and STRIPE_WEBHOOK_SECRET= to .env (empty = simulation mode)
+- Created directories: subscriptions/[id]/portal, transactions/[id], billing/plans, webhooks/stripe
+- Built /api/client/subscriptions/route.ts (GET list with dynamic include, POST create with simulation/Stripe modes)
+- Built /api/client/subscriptions/[id]/route.ts (GET with transactions, PATCH update status/plan, DELETE cancel)
+- Built /api/client/subscriptions/[id]/portal/route.ts (POST Stripe Customer Portal session, simulation returns null URL)
+- Built /api/client/transactions/route.ts (GET list with pagination, POST create with type/status validation)
+- Built /api/client/transactions/[id]/route.ts (GET single, PATCH update status, DELETE soft-delete to refunded)
+- Built /api/client/billing/plans/route.ts (GET returns 3 plans, POST initiates purchase with plan validation)
+- Built /api/webhooks/stripe/route.ts (POST with signature verification, handles checkout.completed, subscription.updated, subscription.deleted, invoice.payment_failed)
+- All routes follow existing patterns: NextRequest/NextResponse, French error messages, try/catch, db from @/lib/db
+- Simulation mode: when STRIPE_SECRET_KEY is empty, creates DB records directly without calling Stripe
+- Stripe mode: dynamic import of stripe, Checkout Sessions, Customer Portal, webhook signature verification
+- Fixed lint error (semicolons in type annotation)
+- Final lint: clean, no errors
+
+Stage Summary:
+- 7 API route files created for billing/monetization system
+- Full simulation mode support for development without Stripe keys
+- Stripe integration ready for production (checkout sessions, portal, webhooks)
+- Consistent French error messages and validation using const arrays from types/database.ts
+
+---
+Task ID: 3
+Agent: Component Builder
+Task: Create MonetizationManager client dashboard component
+
+Work Log:
+- Read worklog.md for context and prior task patterns
+- Read artisan-manager.tsx (lines 1-100, 200-280) for imports, types, fetchHomeId pattern
+- Read types/database.ts (lines 50-86, 175-219) for SubscriptionTier, SubscriptionStatus, TransactionType, TransactionStatus types
+- Confirmed Tabs component exists in ui/ (Tabs, TabsList, TabsTrigger, TabsContent)
+- Created /home/z/my-project/src/components/client/monetization-manager.tsx (971 lines)
+- Ran bun run lint — passed with zero errors
+- Verified dev server compilation via dev.log
+
+Component Structure:
+- 'use client' component exported as `MonetizationManager`
+- 3 tabs via shadcn Tabs: Plans & Tarifs, Mon Abonnement, Transactions
+- Tab 1: 3 stat cards (revenue, active subs, tx count) + responsive 3-col pricing grid with featured gradient border
+- Tab 2: Current subscription card with Stripe portal/cancel/change-plan actions + subscription history list
+- Tab 3: Filterable transaction list with type/status dropdowns, color-coded badges, amount formatting
+- 3 dialogs: choose plan (subscriberType select + checkout URL), cancel confirmation, change plan
+- Full loading states with Skeleton, empty states with icons, toast notifications
+- Custom scrollbar styling, responsive layout (mobile-first), French locale formatting
+- Uses dev-user-1 as demo userId, follows artisan-manager fetch patterns
+
+Stage Summary:
+- Production-quality monetization dashboard component created (971 lines)
+- All 3 tabs fully implemented with loading, empty, and data states
+- Dialog flows for subscribe, cancel, change plan, and Stripe portal redirect
+- Consistent with project patterns (shadcn/ui, French labels, sonner toasts, Tailwind responsive)
+
+---
+Task ID: 4
+Agent: V3 Integrator
+Task: Create V3 PricingDisplayV3 component and integrate across view-content, sidebar, and routing
+
+Work Log:
+- Read worklog.md for context and prior task patterns
+- Read ServiceRequestDisplayV3.tsx (full file, 346 lines) for V3 display component pattern
+- Read GradientBackground.tsx (lines 1-30) for MODULE_GRADIENTS map structure
+- Read magic/index.ts for available exports
+- Read view-content.tsx (full file) for V3_DISPLAY_MAP pattern
+- Read client-layout.tsx (full file) for ClientPage type union and DASHBOARD_ITEMS
+- Read page.tsx (full file) for renderClientPage switch-case pattern
+- Confirmed MonetizationManager already exists at monetization-manager.tsx
+- Created /home/z/my-project/src/components/modules/v3/PricingDisplayV3.tsx
+- Added `pricing: { from: '#059669', via: '#10b981', to: '#6ee7b7' }` to MODULE_GRADIENTS in GradientBackground.tsx
+- Added `import PricingDisplayV3` and `pricing: PricingDisplayV3 as DisplayComponentType` to view-content.tsx
+- Added `CreditCard` import, `'client-monetization'` to ClientPage union, and sidebar entry to client-layout.tsx
+- Added `import { MonetizationManager }` and `case 'client-monetization'` to page.tsx
+- Ran bun run lint — passed with zero errors
+
+Component Structure (PricingDisplayV3.tsx):
+- 'use client' V3 immersive display, props: { content, qrCodeId, qrName }
+- V3 pattern: GradientBackground(moduleType="pricing") > FloatingParticles > div.relative-z-10 > AnimatedIcon(Crown) > AnimatedTitle > motion.div > GlassCard > BrandedFooter
+- 3 stat badges: '3 plans disponibles', 'Sans engagement', 'Annulez à tout moment'
+- Fetches plans from /api/client/billing/plans on mount
+- 3-column responsive pricing grid with CheckCircle feature lists
+- Featured/premium card has special bg-white/15 border-emerald-400/50 with "Populaire" badge
+- Subscribe POSTs to /api/client/billing/plans with subscriberId/subscriberType/planId
+- Success state: checkmark animation + "Abonnement confirmé !" message
+- Loading state with spinner, error-silent fallback
+
+Integration Edits:
+- GradientBackground.tsx: pricing gradient entry (emerald theme)
+- view-content.tsx: import + V3_DISPLAY_MAP mapping
+- client-layout.tsx: CreditCard icon, client-monetization type, DASHBOARD_ITEMS entry after client-artisans
+- page.tsx: MonetizationManager import + case in renderClientPage
+
+Stage Summary:
+- PricingDisplayV3 V3 component created and fully integrated
+- All 4 integration points completed (gradient, view-content, sidebar, routing)
+- Lint passes cleanly
+---
+Task ID: 2-4
+Agent: Main Orchestrator
+Task: Build #34-36 Stripe/Monetisation (schema prêt, intégration paiement)
+
+Work Log:
+- Analyzed Prisma schema (Subscription, Transaction models) and existing types
+- Installed stripe@22.5.0 package
+- Built 7 API route files (simulation mode + real Stripe mode)
+- Built MonetizationManager dashboard (971 lines, 3 tabs: Plans & Tarifs, Mon Abonnement, Transactions)
+- Built PricingDisplayV3 immersive V3 page (emerald gradient, Crown icon, pricing cards)
+- Added pricing gradient to GradientBackground
+- Integrated into sidebar (Monétisation V3), page.tsx routing, view-content.tsx mapping
+- Verified Plans API returns all 3 plans with features
+- Verified Subscriptions API returns empty array
+- Lint passes clean
+
+Stage Summary:
+- Modules #34-36 fully implemented with simulation mode (no Stripe keys needed)
+- 7 API endpoints: subscriptions CRUD, transactions CRUD, billing plans, Stripe webhook, portal
+- 3-tab dashboard: Plans & Tarifs (pricing cards), Mon Abonnement (manage/cancel), Transactions (filtered history)
+- V3 PricingDisplay for QR scan with responsive pricing grid
+- Stripe Checkout Session flow ready (activated when STRIPE_SECRET_KEY is set)
+- Stripe Customer Portal integration for self-service management
+- Webhook handler for checkout.completed, subscription.updated, subscription.deleted, invoice.payment_failed
+

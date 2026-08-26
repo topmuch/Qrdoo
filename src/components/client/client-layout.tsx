@@ -28,6 +28,7 @@ import {
   ShieldAlert,
   Package,
   Users,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -52,7 +53,8 @@ export type ClientPage =
   | 'client-webhooks'
   | 'client-stock'
   | 'client-packs'
-  | 'client-artisans';
+  | 'client-artisans'
+  | 'client-monetization';
 
 interface ClientLayoutProps {
   activePage: ClientPage;
@@ -72,6 +74,7 @@ const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; 
   { key: 'client-stock', label: 'Stock & DLC', icon: <ShieldAlert className="h-5 w-5" />, badge: 'V2' },
   { key: 'client-packs', label: 'Packs Pré-configurés', icon: <Package className="h-5 w-5" />, badge: 'B2B' },
   { key: 'client-artisans', label: 'Artisans & Réservations', icon: <Users className="h-5 w-5" />, badge: 'V3' },
+  { key: 'client-monetization', label: 'Monétisation', icon: <CreditCard className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" /> },
   { key: 'client-analytics', label: 'Statistiques Scan', icon: <BarChart3 className="h-5 w-5" />, badge: 'V3' },
 ];

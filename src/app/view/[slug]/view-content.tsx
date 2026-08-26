@@ -22,6 +22,7 @@ import InfoDisplayV3 from '@/components/modules/v3/InfoDisplayV3';
 import ArtisanDirectoryDisplayV3 from '@/components/modules/v3/ArtisanDirectoryDisplayV3';
 import ServiceRequestDisplayV3 from '@/components/modules/v3/ServiceRequestDisplayV3';
 import ReviewDisplayV3 from '@/components/modules/v3/ReviewDisplayV3';
+import PricingDisplayV3 from '@/components/modules/v3/PricingDisplayV3';
 import { GradientBackground } from '@/components/magic';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ const V3_DISPLAY_MAP: Record<string, DisplayComponentType> = {
   artisan_directory: ArtisanDirectoryDisplayV3 as DisplayComponentType,
   service_request: ServiceRequestDisplayV3 as DisplayComponentType,
   review: ReviewDisplayV3 as DisplayComponentType,
+  pricing: PricingDisplayV3 as DisplayComponentType,
 
   // Info-based modules → InfoDisplayV3 (adapts gradient per moduleType)
   home_manual: InfoDisplayV3 as DisplayComponentType,
