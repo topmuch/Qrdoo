@@ -203,7 +203,7 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, o
 
         <footer className="border-t bg-card px-4 py-3 lg:px-8">
           <p className="text-center text-xs text-muted-foreground">
-            QR Domotik v1.0.0 &middot; Super Administration
+            QR Domotik v3.0.0 &middot; Super Administration
           </p>
         </footer>
       </div>

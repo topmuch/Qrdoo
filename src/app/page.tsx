@@ -35,6 +35,10 @@ import { AutomationsManager } from '@/components/client/automations-manager';
 import { WebhooksManager } from '@/components/client/webhooks-manager';
 import { ArtisanManager } from '@/components/client/artisan-manager';
 import { MonetizationManager } from '@/components/client/monetization-manager';
+import { StockManager } from '@/components/client/stock-manager';
+import { PackManager } from '@/components/client/pack-manager';
+import { MarketplaceManager } from '@/components/client/marketplace-manager';
+import { SettingsPage } from '@/components/client/settings-page';
 
 // Admin pages (marketplace & B2B)
 import { AdminArtisans } from '@/components/admin/admin-artisans';
@@ -189,6 +193,9 @@ function AppContent() {
       case 'client-activity': return <ActivityLogViewer />;
       case 'client-chores': return <ChoresManager />;
       case 'client-artisans': return <ArtisanManager />;
+      case 'client-stock': return <StockManager />;
+      case 'client-packs': return <PackManager />;
+      case 'client-marketplace': return <MarketplaceManager />;
       case 'client-monetization': return <MonetizationManager />;
       case 'client-notifications': return <NotificationCenter />;
       case 'client-analytics': return <ScanAnalyticsWrapper />;
@@ -198,7 +205,7 @@ function AppContent() {
       case 'module-config': return <ModuleConfigPage />;
       case 'module-preview': return <ModulePreviewPage />;
       case 'modules': return <ModulePreviewPage />;
-      case 'client-settings': return <PlaceholderPage title="Parametres" />;
+      case 'client-settings': return <SettingsPage />;
       default: return <ModulePreviewPage />;
     }
   };

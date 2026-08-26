@@ -1092,3 +1092,27 @@ Stage Summary:
 - Full voice recording flow: mic button → recording UI → name input → upload → refresh list
 - Voice playback: play/pause, progress bar, duration
 - All 4 new pages/APIs validated via HTTP status codes
+
+---
+Task ID: 5
+Agent: Main
+Task: Étape 5 — Final integration, Settings page, Landing page V3 upgrade
+
+Work Log:
+- Integrated StockManager, PackManager, MarketplaceManager into client sidebar (new MARKETPLACE_ITEMS section)
+- Added client-stock, client-packs, client-marketplace to ClientPage type union
+- Reorganized sidebar: DASHBOARD_ITEMS (with Stock), MARKETPLACE_ITEMS (Artisans, Marketplace, Packs, Monetization), INTEGRATION_ITEMS (with Settings), MODULE_ITEMS_V1, MODULE_ITEMS_V3 (Services Pro only)
+- Added 3 new routing cases in page.tsx (client-stock, client-packs, client-marketplace)
+- Created SettingsPage component (6 cards: Profil, Préférences Hub, Notifications, Apparence, Sécurité, À propos)
+- Replaced PlaceholderPage with SettingsPage in page.tsx routing
+- Upgraded Landing page: added V3 Nouveautés section (Hub, Artisans, Marketplace, Voice, Inventaire, Packs), updated pricing to 3 plans (Famille 49€/an, Airbnb Solo 9.90€/mois, Airbnb Pro 199€/an), updated testimonials for V3 features, added Hub FAQ, updated footer links
+- Version bumped to v3.0.0 in client and admin footers
+- All lint passes clean, dev server compiles with 200 OK
+
+Stage Summary:
+- 4 files created/modified: client-layout.tsx, page.tsx, settings-page.tsx, hero-section.tsx, super-admin-layout.tsx
+- 3 previously built components now fully integrated (StockManager, PackManager, MarketplaceManager)
+- Settings page with 6 functional sections replaces placeholder
+- Landing page upgraded with V3 feature showcase, 3-tier pricing, updated testimonials
+- Sidebar reorganized into 5 logical sections
+- Version bumped to v3.0.0

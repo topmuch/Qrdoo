@@ -6,6 +6,7 @@ import {
   QrCode, Printer, Smartphone, Wifi, DoorOpen, ShoppingBag,
   BookOpen, ClipboardList, Shield, Zap, Layers, RefreshCw,
   Lock, Headphones, Star, ArrowRight, Check, Menu, X,
+  Store, Mic, Package, Users,
 } from 'lucide-react';
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
@@ -35,9 +36,10 @@ function Navbar({ onGoToDashboard }: { onGoToDashboard: () => void }) {
 
   const links = [
     { label: 'Accueil', href: '#hero' },
-    { label: 'A propos', href: '#avantages' },
+    { label: 'Fonctionnalites', href: '#avantages' },
+    { label: 'Nouveautes V3', href: '#v3' },
     { label: 'Tarifs', href: '#pricing' },
-    { label: 'Contactez nous', href: '#cta-final' },
+    { label: 'Contact', href: '#cta-final' },
   ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
@@ -180,7 +182,7 @@ export function LandingPage({ onGoToDashboard }: LandingPageProps) {
         </div>
       </Section>
 
-      {/* MODULES */}
+      {/* MODULES V1+V2 */}
       <Section>
         <SectionTitle title="Des modules pour chaque besoin" subtitle="Plus de 50 modules disponibles" />
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -199,6 +201,34 @@ export function LandingPage({ onGoToDashboard }: LandingPageProps) {
                 </div>
                 <h3 className="font-semibold mb-1 text-gray-900 group-hover:text-violet-600 transition-colors">{mod.title}</h3>
                 <p className="text-sm text-gray-500">{mod.description}</p>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </Section>
+
+      {/* NOUVEAUTES V3 */}
+      <Section id="v3" className="bg-gradient-to-b from-violet-50/80 to-white">
+        <SectionTitle title="Nouveautes V3" subtitle="Une experience encore plus riche" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[
+            { icon: Users, title: 'Hub Central', description: "Un point d'acces unique pour tous vos QR codes. Mode Invite ou Famille avec code PIN.", color: 'text-violet-600', bg: 'bg-violet-50', border: 'hover:border-violet-300' },
+            { icon: Store, title: 'Annuaire Artisans', description: 'Trouvez des professionnels verifies dans votre quartier et reservez en un scan.', color: 'text-teal-600', bg: 'bg-teal-50', border: 'hover:border-teal-300' },
+            { icon: ShoppingBag, title: 'Marketplace Local', description: 'Promotions, ventes flash et coupons des commercants de votre quartier.', color: 'text-rose-600', bg: 'bg-rose-50', border: 'hover:border-rose-300' },
+            { icon: Mic, title: 'Messages Vocaux', description: 'Laissez des messages audio pour votre famille ou vos invites directement depuis le Hub.', color: 'text-amber-600', bg: 'bg-amber-50', border: 'hover:border-amber-300' },
+            { icon: ClipboardList, title: 'Inventaire & DLC', description: 'Suivez vos stocks, alertes dates de consommation et liste de courses automatique.', color: 'text-red-600', bg: 'bg-red-50', border: 'hover:border-red-300' },
+            { icon: Package, title: 'Packs Configures', description: "Packs pre-configures pour Airbnb, Famille ou Bureau. Installation en 1 clic.", color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'hover:border-emerald-300' },
+          ].map((mod, index) => (
+            <FadeIn key={mod.title} delay={index * 0.1}>
+              <div className={`bg-white rounded-2xl p-6 border border-gray-100 ${mod.border} transition-all group cursor-pointer h-full hover:shadow-lg`}>
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${mod.bg}`}>
+                  <mod.icon className={`w-6 h-6 ${mod.color}`} />
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="font-semibold text-gray-900 group-hover:text-violet-600 transition-colors">{mod.title}</h3>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">V3</span>
+                </div>
+                <p className="text-sm text-gray-500 leading-relaxed">{mod.description}</p>
               </div>
             </FadeIn>
           ))}
@@ -289,9 +319,9 @@ export function LandingPage({ onGoToDashboard }: LandingPageProps) {
         <SectionTitle title="Ils nous font confiance" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
-            { quote: 'QR Domotik a transforme notre maison Airbnb. Nos invites adorent !', name: 'Marie D.', role: 'Hotesse Airbnb', city: 'Paris', initials: 'MD', color: 'bg-violet-600' },
-            { quote: 'Plus besoin de noter le mot de passe Wi-Fi sur un bout de papier.', name: 'Thomas R.', role: 'Papa de 3 enfants', city: 'Lyon', initials: 'TR', color: 'bg-emerald-600' },
-            { quote: 'Le portier virtuel est genial. On sait toujours qui est passe.', name: 'Sophie M.', role: 'Proprietaire', city: 'Bordeaux', initials: 'SM', color: 'bg-amber-600' },
+            { quote: "Le Hub central a revolutionne notre Airbnb. Nos invites ont tout en un seul scan : Wi-Fi, manuel, et meme les bons plans du quartier !", name: 'Marie D.', role: 'Hotesse Airbnb Superhost', city: 'Paris', initials: 'MD', color: 'bg-violet-600' },
+            { quote: "L'inventaire et les alertes DLC m'ont evite de jeter de la nourriture. Ma liste de courses se remplit toute seule.", name: 'Thomas R.', role: 'Papa de 3 enfants', city: 'Lyon', initials: 'TR', color: 'bg-emerald-600' },
+            { quote: "J'ai trouve un plombier en 5 minutes via l'annuaire artisans. Le chat integre est super pratique.", name: 'Sophie M.', role: 'Proprietaire', city: 'Bordeaux', initials: 'SM', color: 'bg-amber-600' },
           ].map((t, index) => (
             <FadeIn key={t.name} delay={index * 0.15}>
               <div className="bg-white rounded-2xl p-6 md:p-8 h-full flex flex-col shadow-sm border border-gray-100">
@@ -310,30 +340,42 @@ export function LandingPage({ onGoToDashboard }: LandingPageProps) {
       {/* PRICING */}
       <Section id="pricing">
         <SectionTitle title="Simple et transparent" subtitle="Choisissez le plan qui vous convient" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           <FadeIn delay={0}>
             <div className="bg-white rounded-2xl p-8 h-full flex flex-col border border-gray-200 shadow-sm">
-              <h3 className="text-xl font-bold mb-2 text-gray-900">Gratuit</h3>
-              <div className="mb-6"><span className="text-5xl font-extrabold text-gray-900">0€</span><span className="text-gray-400">/mois</span></div>
+              <h3 className="text-xl font-bold mb-2 text-gray-900">Famille</h3>
+              <div className="mb-6"><span className="text-4xl font-extrabold text-gray-900">49€</span><span className="text-gray-400">/an</span></div>
               <ul className="space-y-3 mb-8 flex-1">
-                {['5 QR codes', '3 modules de base', '1 maison', 'Support email'].map((f) => (
-                  <li key={f} className="flex items-center gap-3"><Check className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-gray-600">{f}</span></li>
+                {['15 QR codes', 'Tous les modules V1+V2', 'Hub familial', 'Inventaire & DLC', 'Messages vocaux'].map((f) => (
+                  <li key={f} className="flex items-center gap-3"><Check className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-gray-600 text-sm">{f}</span></li>
                 ))}
               </ul>
-              <button onClick={onGoToDashboard} className="w-full py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all">Commencer gratuitement</button>
+              <button onClick={onGoToDashboard} className="w-full py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all">Essai 14 jours gratuit</button>
             </div>
           </FadeIn>
-          <FadeIn delay={0.15}>
+          <FadeIn delay={0.1}>
             <div className="bg-gradient-to-b from-violet-600 to-purple-700 rounded-2xl p-8 h-full flex flex-col relative text-white shadow-xl shadow-violet-500/20">
               <span className="absolute top-4 right-4 bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full">Populaire</span>
-              <h3 className="text-xl font-bold mb-2">Pro</h3>
-              <div className="mb-6"><span className="text-5xl font-extrabold">9,90€</span><span className="text-violet-200">/mois</span></div>
+              <h3 className="text-xl font-bold mb-2">Airbnb Solo</h3>
+              <div className="mb-6"><span className="text-4xl font-extrabold">9,90€</span><span className="text-violet-200">/mois</span></div>
               <ul className="space-y-3 mb-8 flex-1">
-                {['QR codes illimites', 'Tous les modules', 'Maisons illimitees', 'Marketplace V3', 'Support prioritaire', 'API & integrations'].map((f) => (
-                  <li key={f} className="flex items-center gap-3"><Check className="w-5 h-5 text-emerald-300 shrink-0" /><span className="text-violet-100">{f}</span></li>
+                {['QR codes illimites', 'Tous les modules V3', 'Hub + mode invite', 'Bouclier Avis', 'Annuaire artisans'].map((f) => (
+                  <li key={f} className="flex items-center gap-3"><Check className="w-5 h-5 text-emerald-300 shrink-0" /><span className="text-violet-100 text-sm">{f}</span></li>
                 ))}
               </ul>
-              <button onClick={onGoToDashboard} className="w-full py-3 rounded-xl bg-white text-violet-600 font-semibold hover:bg-violet-50 transition-all shadow-lg">Demarrer l&apos;essai gratuit</button>
+              <button onClick={onGoToDashboard} className="w-full py-3 rounded-xl bg-white text-violet-600 font-semibold hover:bg-violet-50 transition-all shadow-lg">Essai 14 jours gratuit</button>
+            </div>
+          </FadeIn>
+          <FadeIn delay={0.2}>
+            <div className="bg-white rounded-2xl p-8 h-full flex flex-col border border-gray-200 shadow-sm">
+              <h3 className="text-xl font-bold mb-2 text-gray-900">Airbnb Pro</h3>
+              <div className="mb-6"><span className="text-4xl font-extrabold text-gray-900">199€</span><span className="text-gray-400">/an</span></div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {['QR codes illimites', 'Tous les modules V3', 'Marketplace locale', 'Packs B2B', 'Upselling automatique', 'API & webhooks'].map((f) => (
+                  <li key={f} className="flex items-center gap-3"><Check className="w-5 h-5 text-emerald-500 shrink-0" /><span className="text-gray-600 text-sm">{f}</span></li>
+                ))}
+              </ul>
+              <button onClick={onGoToDashboard} className="w-full py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all">Essai 14 jours gratuit</button>
             </div>
           </FadeIn>
         </div>
@@ -350,7 +392,8 @@ export function LandingPage({ onGoToDashboard }: LandingPageProps) {
                 { q: 'Mes invites doivent-ils installer une application ?', a: "Non, absolument pas ! Vos invites n'ont besoin que de l'appareil photo de leur telephone. Le QR code ouvre une page web mobile optimisee." },
                 { q: "Puis-je modifier le contenu d'un QR code ?", a: 'Oui ! Contrairement aux QR codes classiques, les QR Domotik sont dynamiques. Vous pouvez modifier le contenu a tout moment depuis votre dashboard sans changer le QR code physique.' },
                 { q: 'Le portier virtuel fonctionne-t-il quand je suis absent ?', a: "Oui, le portier virtuel affiche un statut 'Absent' et presente vos consignes personnalisees au visiteur. Vous recevez une notification a chaque sonnerie ou message." },
-                { q: "Qu'est-ce que le Marketplace V3 ?", a: 'Le Marketplace V3 connecte votre maison aux commercants et artisans de votre quartier. Promotions, services a domicile, et tout cela accessible directement depuis vos QR codes.' },
+                { q: "Qu'est-ce que le Hub central ?", a: "Le Hub est un point d'acces unique qui regroupe tous vos QR codes en une seule page. Vos invites choisissent le mode Invite (modules publics) ou Famille (code PIN pour tous les modules)." },
+                { q: "Qu'est-ce que le Marketplace V3 ?", a: 'Le Marketplace V3 connecte votre maison aux commercants et artisans de votre quartier. Promotions, ventes flash, coupons, et services a domicile, accessibles directement depuis vos QR codes.' },
                 { q: 'Mes donnees sont-elles securisees ?', a: 'Absolument. Toutes les donnees sont chiffrees (SSL/TLS), hebergees en France (RGPD), et vous controlez la visibilite de chaque QR code.' },
               ].map((faq, i) => (
                 <AccordionItem key={i} value={`faq-${i}`} className="bg-white border border-gray-200 rounded-2xl overflow-hidden px-6">
@@ -388,7 +431,7 @@ export function LandingPage({ onGoToDashboard }: LandingPageProps) {
               </div>
               <p className="text-sm text-gray-400 leading-relaxed">Transformez n&apos;importe quel objet en commande domotique grace a la puissance des QR codes.</p>
             </div>
-            <div><h4 className="font-semibold mb-4 text-white">Produit</h4><ul className="space-y-2.5">{['Fonctionnalites', 'Modules', 'Prix', 'Marketplace'].map((l) => <li key={l}><a href="#" className="text-sm text-gray-400 hover:text-white transition-colors">{l}</a></li>)}</ul></div>
+            <div><h4 className="font-semibold mb-4 text-white">Produit</h4><ul className="space-y-2.5">{['Fonctionnalites', 'Hub Central', 'Modules', 'Packs', 'Prix', 'Marketplace'].map((l) => <li key={l}><a href="#" className="text-sm text-gray-400 hover:text-white transition-colors">{l}</a></li>)}</ul></div>
             <div><h4 className="font-semibold mb-4 text-white">Support</h4><ul className="space-y-2.5">{['Documentation', 'Contact', 'FAQ', 'Statut'].map((l) => <li key={l}><a href="#" className="text-sm text-gray-400 hover:text-white transition-colors">{l}</a></li>)}</ul></div>
             <div><h4 className="font-semibold mb-4 text-white">Legal</h4><ul className="space-y-2.5">{['CGU', 'Confidentialite', 'Mentions legales', 'Cookies'].map((l) => <li key={l}><a href="#" className="text-sm text-gray-400 hover:text-white transition-colors">{l}</a></li>)}</ul></div>
           </div>
