@@ -1137,3 +1137,33 @@ Stage Summary:
 - All pass `bun run lint` with zero errors
 - Dev server compiles successfully
 - Components designed mobile-first, fully accessible (aria-labels, hidden inputs)
+
+---
+Task ID: 2
+Agent: Main
+Task: ÉTAPE 2 — Rewrite /setup/[token]/page.tsx with 5-step immersive wizard
+
+Work Log:
+- Read existing setup-content.tsx (938 lines, 6 steps: welcome, account, plan, pin, home, success)
+- Read API route /api/setup/[token]/route.ts to understand data contract
+- Rewrote page.tsx wrapper with matching fallback theme
+- Completely rewrote setup-content.tsx with new design:
+  - 5 steps instead of 6 (merged plan selection into config step)
+  - Step 1 (Welcome): Animated Home icon with spring + rotate, feature pills (WiFi/Security/Family), shimmer CTA button, plaque badge
+  - Step 2 (Account): Glassmorphism inputs (bg-white/10 backdrop-blur), Google sign-in button, eye toggle for password, shimmer continue button
+  - Step 3 (PIN): NumericKeypad component (from magic/), auto-advance on 4-digit completion, Fingerprint icon
+  - Step 4 (Config): Compact 3-column plan selector (Famille/Airbnb Solo/Airbnb Pro), home name input, adaptive fields (WiFi for Famille, emergency phone for Airbnb), summary GlassCard, submit with loading state
+  - Step 5 (Success): SuccessAnimation with confetti, “Tester mon Hub” CTA, summary card, auto-redirect
+- Uses AnimatedGradient preset='setup', FloatingParticles, GlassCard from magic components
+- AnimatePresence slide transitions between steps (directional)
+- Error states (not_found, error) use GlassCard with matching gradient
+- Already-claimed state shows Hub access button
+- Fixed parsing error (stray 'n' character) and lint
+- Verified: lint passes, dev server compiles setup route (200), browser shows correct error state for invalid token
+
+Stage Summary:
+- /setup/[token] fully redesigned with immersive glassmorphism UI
+- 5-step wizard: Welcome → Account → PIN → Config → Success
+- Plan selection embedded in Step 4 (Configuration rapide)
+- Adaptive config fields based on selected plan
+- All API integration preserved (token validation, account creation, PIN, hub creation)

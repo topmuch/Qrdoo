@@ -1,0 +1,938 @@
+     1→'use client';
+     2→
+     3→import { use, useState, useEffect, useCallback } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import {
+     6→  QrCode, CheckCircle2, XCircle, AlertCircle, Loader2,
+     7→  ArrowRight, ArrowLeft, Home, Lock, Mail, User,
+     8→  Shield, Wifi, Users, Building2, Sparkles, PartyPopper,
+     9→  Eye, EyeOff, Fingerprint, KeyRound,
+    10→} from 'lucide-react';
+    11→import { toast } from 'sonner';
+    12→import { useRouter } from 'next/navigation';
+    13→import { useSession } from 'next-auth/react';
+    14→
+    15→// ── Types ──
+    16→type TokenStatus = 'loading' | 'available' | 'claimed' | 'not_found' | 'error';
+    17→
+    18→type SetupStep = 'welcome' | 'account' | 'plan' | 'pin' | 'home' | 'success';
+    19→
+    20→interface PlaqueInfo {
+    21→  id: string;
+    22→  activationCode: string;
+    23→  batchId: string;
+    24→  quantity: number;
+    25→  designConfig: string;
+    26→}
+    27→
+    28→// ── Plans ──
+    29→const PLANS = [
+    30→  {
+    31→    id: 'famille' as const,
+    32→    name: 'Famille',
+    33→    price: '49€',
+    34→    period: '/an',
+    35→    desc: 'Idéal pour votre maison',
+    36→    icon: Home,
+    37→    gradient: 'from-emerald-500 to-teal-600',
+    38→    bgLight: 'bg-emerald-50',
+    39→    borderColor: 'border-emerald-500',
+    40→    textColor: 'text-emerald-700',
+    41→    features: ['1 logement', 'PIN Famille', 'QR Hub personnalisé', 'Tous les modules V3'],
+    42→  },
+    43→  {
+    44→    id: 'airbnb_solo' as const,
+    45→    name: 'Airbnb Solo',
+    46→    price: '9,90€',
+    47→    period: '/mois',
+    48→    desc: 'Pour un seul logement',
+    49→    icon: Building2,
+    50→    gradient: 'from-violet-500 to-purple-600',
+    51→    bgLight: 'bg-violet-50',
+    52→    borderColor: 'border-violet-500',
+    53→    textColor: 'text-violet-700',
+    54→    features: ['1 logement', 'Mode Invité', 'QR Hub personnalisé', 'Tous les modules V3'],
+    55→    popular: true,
+    56→  },
+    57→  {
+    58→    id: 'airbnb_pro' as const,
+    59→    name: 'Airbnb Pro',
+    60→    price: '199€',
+    61→    period: '/an',
+    62→    badge: 'Économisez 19€',
+    63→    desc: 'Jusqu\'à 3 logements',
+    64→    icon: Building2,
+    65→    gradient: 'from-amber-500 to-orange-600',
+    66→    bgLight: 'bg-amber-50',
+    67→    borderColor: 'border-amber-500',
+    68→    textColor: 'text-amber-700',
+    69→    features: ['3 logements', 'Mode Invité + Famille', 'QR Hub x3', 'Tous les modules V3', 'Support prioritaire'],
+    70→  },
+    71→] as const;
+    72→
+    73→// ── Animation variants ──
+    74→const slideVariants = {
+    75→  enter: (direction: number) => ({
+    76→    x: direction > 0 ? 300 : -300,
+    77→    opacity: 0,
+    78→  }),
+    79→  center: {
+    80→    x: 0,
+    81→    opacity: 1,
+    82→  },
+    83→  exit: (direction: number) => ({
+    84→    x: direction < 0 ? 300 : -300,
+    85→    opacity: 0,
+    86→  }),
+    87→};
+    88→
+    89→const fadeUp = {
+    90→  initial: { opacity: 0, y: 20 },
+    91→  animate: { opacity: 1, y: 0 },
+    92→  exit: { opacity: 0, y: -10 },
+    93→};
+    94→
+    95→// ── Component ──
+    96→export function SetupPageContent({ params }: { params: Promise<{ token: string }> }) {
+    97→  const { token } = use(params);
+    98→  const { data: session } = useSession();
+    99→  const router = useRouter();
+   100→
+   101→  // Token state
+   102→  const [tokenStatus, setTokenStatus] = useState<TokenStatus>('loading');
+   103→  const [plaqueInfo, setPlaqueInfo] = useState<PlaqueInfo | null>(null);
+   104→  const [claimedInfo, setClaimedInfo] = useState<{ hubSlug?: string; homeName?: string }>({});
+   105→
+   106→  // Step navigation
+   107→  const [step, setStep] = useState<SetupStep>('welcome');
+   108→  const [direction, setDirection] = useState(1);
+   109→
+   110→  // Account form
+   111→  const [fullName, setFullName] = useState('');
+   112→  const [email, setEmail] = useState('');
+   113→  const [password, setPassword] = useState('');
+   114→  const [showPassword, setShowPassword] = useState(false);
+   115→
+   116→  // Plan
+   117→  const [selectedPlan, setSelectedPlan] = useState<string>('famille');
+   118→
+   119→  // PIN
+   120→  const [pin, setPin] = useState('');
+   121→  const [pinConfirm, setPinConfirm] = useState('');
+   122→
+   123→  // Home
+   124→  const [homeName, setHomeName] = useState('');
+   125→
+   126→  // Submission
+   127→  const [submitting, setSubmitting] = useState(false);
+   128→
+   129→  // ── Check token on mount ──
+   130→  const checkToken = useCallback(async () => {
+   131→    try {
+   132→      const res = await fetch(`/api/setup/${encodeURIComponent(token)}`);
+   133→      const data = await res.json();
+   134→      if (data.status === 'available') {
+   135→        setTokenStatus('available');
+   136→        setPlaqueInfo(data.plaque);
+   137→      } else if (data.status === 'claimed') {
+   138→        setTokenStatus('claimed');
+   139→        setClaimedInfo({ hubSlug: data.hubSlug, homeName: data.homeName });
+   140→      } else {
+   141→        setTokenStatus('not_found');
+   142→      }
+   143→    } catch {
+   144→      setTokenStatus('error');
+   145→    }
+   146→  }, [token]);
+   147→
+   148→  useEffect(() => { checkToken(); }, [checkToken]);
+   149→
+   150→  // Pre-fill if logged in
+   151→  useEffect(() => {
+   152→    if (session?.user) {
+   153→      const u = session.user as Record<string, any>;
+   154→      setEmail(u?.email || '');
+   155→      setFullName(u?.name || '');
+   156→    }
+   157→  }, [session]);
+   158→
+   159→  // ── Step navigation helpers ──
+   160→  const goNext = () => {
+   161→    setDirection(1);
+   162→    const order: SetupStep[] = ['welcome', 'account', 'plan', 'pin', 'home', 'success'];
+   163→    const idx = order.indexOf(step);
+   164→    if (idx < order.length - 1) setStep(order[idx + 1]);
+   165→  };
+   166→
+   167→  const goBack = () => {
+   168→    setDirection(-1);
+   169→    const order: SetupStep[] = ['welcome', 'account', 'plan', 'pin', 'home', 'success'];
+   170→    const idx = order.indexOf(step);
+   171→    if (idx > 0) setStep(order[idx - 1]);
+   172→  };
+   173→
+   174→  // ── Validate & navigate ──
+   175→  const handleWelcomeNext = () => goNext();
+   176→
+   177→  const handleAccountNext = () => {
+   178→    if (!fullName.trim()) { toast.error('Entrez votre nom'); return; }
+   179→    if (!email.trim() || !email.includes('@')) { toast.error('Email invalide'); return; }
+   180→    if (!session?.user && (!password || password.length < 6)) { toast.error('Mot de passe requis (6+ caractères)'); return; }
+   181→    goNext();
+   182→  };
+   183→
+   184→  const handlePlanNext = () => {
+   185→    if (!selectedPlan) { toast.error('Choisissez un plan'); return; }
+   186→    goNext();
+   187→  };
+   188→
+   189→  const handlePinNext = () => {
+   190→    if (!/^\d{4}$/.test(pin)) { toast.error('Le PIN doit être 4 chiffres'); return; }
+   191→    if (pin !== pinConfirm) { toast.error('Les PINs ne correspondent pas'); return; }
+   192→    goNext();
+   193→  };
+   194→
+   195→  const handleHomeNext = () => {
+   196→    if (!homeName.trim()) { toast.error('Nommez votre logement'); return; }
+   197→    goNext();
+   198→  };
+   199→
+   200→  // ── Submit ──
+   201→  const handleSubmit = async () => {
+   202→    setSubmitting(true);
+   203→    try {
+   204→      const body: Record<string, string> = {
+   205→        email: email.trim(),
+   206→        fullName: fullName.trim(),
+   207→        pin,
+   208→        homeName: homeName.trim(),
+   209→        plan: selectedPlan,
+   210→      };
+   211→
+   212→      // If user is not logged in, include password
+   213→      if (!session?.user) {
+   214→        body.password = password;
+   215→      } else {
+   216→        body.existingUserId = (session.user as Record<string, any>)?.id;
+   217→      }
+   218→
+   219→      const res = await fetch(`/api/setup/${encodeURIComponent(token)}`, {
+   220→        method: 'POST',
+   221→        headers: { 'Content-Type': 'application/json' },
+   222→        body: JSON.stringify(body),
+   223→      });
+   224→      const data = await res.json();
+   225→
+   226→      if (!res.ok) {
+   227→        throw new Error(data.error || 'Erreur lors de la configuration');
+   228→      }
+   229→
+   230→      // Show success step
+   231→      setDirection(1);
+   232→      setStep('success');
+   233→
+   234→      // If new user, auto-login after a delay
+   235→      if (data.isNewUser) {
+   236→        setTimeout(async () => {
+   237→          const loginRes = await fetch('/api/auth/callback/credentials', {
+   238→            method: 'POST',
+   239→            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+   240→            body: new URLSearchParams({
+   241→              email: email.trim(),
+   242→              password: password,
+   243→              callbackUrl: '/',
+   244→            }).toString(),
+   245→          });
+   246→          // If login succeeds, redirect to dashboard; otherwise just show success
+   247→          if (loginRes.ok) {
+   248→            window.location.href = '/';
+   249→          }
+   250→        }, 3000);
+   251→      } else {
+   252→        // Already logged in → redirect to hub after delay
+   253→        setTimeout(() => {
+   254→          window.location.href = data.hubSlug ? `/hub/${data.hubSlug}` : '/';
+   255→        }, 3000);
+   256→      }
+   257→    } catch (e: any) {
+   258→      toast.error(e.message || 'Erreur');
+   259→    } finally {
+   260→      setSubmitting(false);
+   261→    }
+   262→  };
+   263→
+   264→  // ── Step indicator ──
+   265→  const stepOrder: SetupStep[] = ['welcome', 'account', 'plan', 'pin', 'home', 'success'];
+   266→  const currentIdx = stepOrder.indexOf(step);
+   267→
+   268→  // ── Loading state ──
+   269→  if (tokenStatus === 'loading') {
+   270→    return (
+   271→      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-950 via-slate-900 to-slate-950">
+   272→        <motion.div
+   273→          initial={{ opacity: 0, scale: 0.8 }}
+   274→          animate={{ opacity: 1, scale: 1 }}
+   275→          className="flex flex-col items-center gap-4"
+   276→        >
+   277→          <div className="relative">
+   278→            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
+   279→              <QrCode className="h-8 w-8 text-white" />
+   280→            </div>
+   281→            <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center">
+   282→              <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
+   283→            </div>
+   284→          </div>
+   285→          <div className="text-center">
+   286→            <p className="text-violet-200 font-medium">Vérification de votre plaque...</p>
+   287→            <p className="text-xs text-slate-400 mt-1 font-mono">{token}</p>
+   288→          </div>
+   289→        </motion.div>
+   290→      </div>
+   291→    );
+   292→  }
+   293→
+   294→  // ── Error states ──
+   295→  if (tokenStatus === 'not_found' || tokenStatus === 'error') {
+   296→    const Icon = tokenStatus === 'error' ? AlertCircle : XCircle;
+   297→    const msg = tokenStatus === 'not_found'
+   298→      ? { title: 'Plaque non trouvée', desc: "Ce code d'activation n'existe pas. Vérifiez votre plaque et réessayez." }
+   299→      : { title: 'Erreur', desc: 'Impossible de vérifier la plaque. Réessayez.' };
+   300→    return (
+   301→      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-950 via-slate-900 to-slate-950 p-4">
+   302→        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+   303→          <div className="rounded-2xl bg-slate-800/80 backdrop-blur-xl border border-slate-700 p-8 text-center">
+   304→            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/20">
+   305→              <Icon className="h-8 w-8 text-red-400" />
+   306→            </div>
+   307→            <h1 className="text-xl font-bold text-white mb-2">{msg.title}</h1>
+   308→            <p className="text-sm text-slate-400 mb-1 font-mono">{token}</p>
+   309→            <p className="text-sm text-slate-400 mb-6">{msg.desc}</p>
+   310→            <button onClick={() => { setTokenStatus('loading'); checkToken(); }} className="w-full h-11 rounded-xl bg-slate-700 text-slate-200 text-sm font-medium hover:bg-slate-600 transition-colors">
+   311→              Réessayer
+   312→            </button>
+   313→          </div>
+   314→        </motion.div>
+   315→      </div>
+   316→    );
+   317→  }
+   318→
+   319→  // ── Already claimed ──
+   320→  if (tokenStatus === 'claimed') {
+   321→    return (
+   322→      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-950 via-slate-900 to-slate-950 p-4">
+   323→        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
+   324→          <div className="rounded-2xl bg-slate-800/80 backdrop-blur-xl border border-slate-700 p-8 text-center">
+   325→            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20">
+   326→              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+   327→            </div>
+   328→            <h1 className="text-xl font-bold text-white mb-2">Plaque déjà configurée</h1>
+   329→            {claimedInfo.homeName && (
+   330→              <p className="text-sm text-slate-400 mb-1">Logement : <span className="text-violet-300 font-semibold">{claimedInfo.homeName}</span></p>
+   331→            )}
+   332→            <p className="text-sm text-slate-400 mb-6">Cette plaque est déjà liée à un compte.</p>
+   333→            {claimedInfo.hubSlug && (
+   334→              <button
+   335→                onClick={() => router.push(`/hub/${claimedInfo.hubSlug}`)}
+   336→                className="w-full h-11 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white text-sm font-semibold hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-600/25"
+   337→              >
+   338→                Accéder au Hub
+   339→              </button>
+   340→            )}
+   341→            <button onClick={() => router.push('/')} className="w-full h-11 mt-3 rounded-xl bg-slate-700 text-slate-200 text-sm font-medium hover:bg-slate-600 transition-colors">
+   342→              Aller à l'accueil
+   343→            </button>
+   344→          </div>
+   345→        </motion.div>
+   346→      </div>
+   347→    );
+   348→  }
+   349→
+   350→  // ── Main multi-step flow ──
+   351→  return (
+   352→    <div className="min-h-screen bg-gradient-to-br from-violet-950 via-slate-900 to-slate-950 flex flex-col">
+   353→      {/* Header bar with step indicator */}
+   354→      <div className="w-full px-4 pt-6 pb-2">
+   355→        <div className="max-w-md mx-auto">
+   356→          {/* Logo + progress */}
+   357→          <div className="flex items-center justify-between mb-4">
+   358→            <div className="flex items-center gap-2">
+   359→              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+   360→                <QrCode className="h-4 w-4 text-white" />
+   361→              </div>
+   362→              <span className="text-sm font-bold text-white tracking-tight">QR Domotik</span>
+   363→            </div>
+   364→            <span className="text-xs text-slate-400">
+   365→              Étape {Math.min(currentIdx + 1, 5)} / 5
+   366→            </span>
+   367→          </div>
+   368→          {/* Progress bar */}
+   369→          <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+   370→            <motion.div
+   371→              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-500"
+   372→              initial={{ width: 0 }}
+   373→              animate={{ width: `${(Math.min(currentIdx, 4) / 5) * 100}%` }}
+   374→              transition={{ duration: 0.4, ease: 'easeOut' }}
+   375→            />
+   376→          </div>
+   377→        </div>
+   378→      </div>
+   379→
+   380→      {/* Step content */}
+   381→      <div className="flex-1 flex items-center justify-center px-4 py-6">
+   382→        <div className="w-full max-w-md relative overflow-hidden">
+   383→          <AnimatePresence mode="wait" custom={direction}>
+   384→            {/* ─── STEP 1: Welcome ─── */}
+   385→            {step === 'welcome' && (
+   386→              <motion.div
+   387→                key="welcome"
+   388→                custom={direction}
+   389→                variants={slideVariants}
+   390→                initial="enter"
+   391→                animate="center"
+   392→                exit="exit"
+   393→                transition={{ duration: 0.35, ease: 'easeInOut' }}
+   394→                className="space-y-6"
+   395→              >
+   396→                <div className="text-center space-y-4">
+   397→                  <motion.div
+   398→                    initial={{ scale: 0 }}
+   399→                    animate={{ scale: 1 }}
+   400→                    transition={{ delay: 0.15, type: 'spring', stiffness: 200 }}
+   401→                    className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-2xl shadow-violet-500/30"
+   402→                  >
+   403→                    <QrCode className="h-12 w-12 text-white" />
+   404→                  </motion.div>
+   405→                  <motion.h1 initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.2 }} className="text-2xl font-bold text-white">
+   406→                    Bienvenue !
+   407→                  </motion.h1>
+   408→                  <motion.p initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.3 }} className="text-slate-400 text-sm leading-relaxed">
+   409→                    Votre plaque QR est prête à être configurée.<br />
+   410→                    En quelques étapes, créez votre espace domotique intelligent.
+   411→                  </motion.p>
+   412→                  {plaqueInfo && (
+   413→                    <motion.div initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.35 }} className="inline-flex items-center gap-2 rounded-full bg-slate-800/80 border border-slate-700 px-4 py-2">
+   414→                      <span className="text-xs text-slate-400">Plaque :</span>
+   415→                      <span className="text-xs font-mono text-violet-300 font-semibold">{plaqueInfo.activationCode}</span>
+   416→                    </motion.div>
+   417→                  )}
+   418→                </div>
+   419→
+   420→                <motion.div initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.4 }} className="space-y-3">
+   421→                  <div className="grid grid-cols-3 gap-3">
+   422→                    {[
+   423→                      { icon: Wifi, label: 'Wi-Fi', color: 'text-emerald-400' },
+   424→                      { icon: Shield, label: 'Sécurité', color: 'text-amber-400' },
+   425→                      { icon: Users, label: 'Famille', color: 'text-violet-400' },
+   426→                    ].map((item, i) => (
+   427→                      <motion.div
+   428→                        key={item.label}
+   429→                        initial={{ opacity: 0, y: 10 }}
+   430→                        animate={{ opacity: 1, y: 0 }}
+   431→                        transition={{ delay: 0.5 + i * 0.1 }}
+   432→                        className="flex flex-col items-center gap-2 rounded-xl bg-slate-800/60 border border-slate-700/50 p-3"
+   433→                      >
+   434→                        <item.icon className={`h-5 w-5 ${item.color}`} />
+   435→                        <span className="text-[11px] text-slate-400 font-medium">{item.label}</span>
+   436→                      </motion.div>
+   437→                    ))}
+   438→                  </div>
+   439→                </motion.div>
+   440→
+   441→                <motion.button
+   442→                  initial={{ opacity: 0, y: 10 }}
+   443→                  animate={{ opacity: 1, y: 0 }}
+   444→                  transition={{ delay: 0.6 }}
+   445→                  onClick={handleWelcomeNext}
+   446→                  className="w-full h-12 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold text-sm hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-600/25 flex items-center justify-center gap-2"
+   447→                >
+   448→                  Commencer la configuration
+   449→                  <ArrowRight className="h-4 w-4" />
+   450→                </motion.button>
+   451→              </motion.div>
+   452→            )}
+   453→
+   454→            {/* ─── STEP 2: Account ─── */}
+   455→            {step === 'account' && (
+   456→              <motion.div
+   457→                key="account"
+   458→                custom={direction}
+   459→                variants={slideVariants}
+   460→                initial="enter"
+   461→                animate="center"
+   462→                exit="exit"
+   463→                transition={{ duration: 0.35, ease: 'easeInOut' }}
+   464→                className="space-y-5"
+   465→              >
+   466→                <div className="text-center">
+   467→                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/20">
+   468→                    <User className="h-7 w-7 text-violet-400" />
+   469→                  </div>
+   470→                  <h2 className="text-xl font-bold text-white">Créez votre compte</h2>
+   471→                  <p className="text-sm text-slate-400 mt-1">
+   472→                    {session?.user ? 'Connecté en tant que' : 'Informations de connexion'}
+   473→                  </p>
+   474→                </div>
+   475→
+   476→                <div className="space-y-4">
+   477→                  {/* Full Name */}
+   478→                  <div className="space-y-1.5">
+   479→                    <label className="text-sm font-medium text-slate-300">Nom complet</label>
+   480→                    <div className="relative">
+   481→                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+   482→                      <input
+   483→                        type="text"
+   484→                        placeholder="Jean Dupont"
+   485→                        value={fullName}
+   486→                        onChange={(e) => setFullName(e.target.value)}
+   487→                        className="w-full h-11 rounded-xl bg-slate-800/80 border border-slate-700 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+   488→                      />
+   489→                    </div>
+   490→                  </div>
+   491→
+   492→                  {/* Email */}
+   493→                  <div className="space-y-1.5">
+   494→                    <label className="text-sm font-medium text-slate-300">Email</label>
+   495→                    <div className="relative">
+   496→                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+   497→                      <input
+   498→                        type="email"
+   499→                        placeholder="jean@exemple.com"
+   500→                        value={email}
+   501→                        onChange={(e) => setEmail(e.target.value)}
+   502→                        disabled={!!session?.user}
+   503→                        className="w-full h-11 rounded-xl bg-slate-800/80 border border-slate-700 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all disabled:opacity-60"
+   504→                      />
+   505→                    </div>
+   506→                  </div>
+   507→
+   508→                  {/* Password (only if not logged in) */}
+   509→                  {!session?.user && (
+   510→                    <div className="space-y-1.5">
+   511→                      <label className="text-sm font-medium text-slate-300">Mot de passe</label>
+   512→                      <div className="relative">
+   513→                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+   514→                        <input
+   515→                          type={showPassword ? 'text' : 'password'}
+   516→                          placeholder="6 caractères minimum"
+   517→                          value={password}
+   518→                          onChange={(e) => setPassword(e.target.value)}
+   519→                          className="w-full h-11 rounded-xl bg-slate-800/80 border border-slate-700 pl-10 pr-10 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+   520→                        />
+   521→                        <button
+   522→                          type="button"
+   523→                          onClick={() => setShowPassword(!showPassword)}
+   524→                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+   525→                        >
+   526→                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   527→                        </button>
+   528→                      </div>
+   529→                    </div>
+   530→                  )}
+   531→                </div>
+   532→
+   533→                <div className="flex gap-3">
+   534→                  <button onClick={goBack} className="h-12 px-6 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors flex items-center gap-2">
+   535→                    <ArrowLeft className="h-4 w-4" />
+   536→                    Retour
+   537→                  </button>
+   538→                  <button onClick={handleAccountNext} className="flex-1 h-12 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold text-sm hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-600/25 flex items-center justify-center gap-2">
+   539→                    Continuer
+   540→                    <ArrowRight className="h-4 w-4" />
+   541→                  </button>
+   542→                </div>
+   543→              </motion.div>
+   544→            )}
+   545→
+   546→            {/* ─── STEP 3: Plan Selection ─── */}
+   547→            {step === 'plan' && (
+   548→              <motion.div
+   549→                key="plan"
+   550→                custom={direction}
+   551→                variants={slideVariants}
+   552→                initial="enter"
+   553→                animate="center"
+   554→                exit="exit"
+   555→                transition={{ duration: 0.35, ease: 'easeInOut' }}
+   556→                className="space-y-5"
+   557→              >
+   558→                <div className="text-center">
+   559→                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/20">
+   560→                    <Sparkles className="h-7 w-7 text-violet-400" />
+   561→                  </div>
+   562→                  <h2 className="text-xl font-bold text-white">Choisissez votre plan</h2>
+   563→                  <p className="text-sm text-slate-400 mt-1">14 jours d'essai gratuit inclus</p>
+   564→                </div>
+   565→
+   566→                <div className="space-y-3">
+   567→                  {PLANS.map((plan) => {
+   568→                    const isSelected = selectedPlan === plan.id;
+   569→                    return (
+   570→                      <motion.button
+   571→                        key={plan.id}
+   572→                        type="button"
+   573→                        onClick={() => setSelectedPlan(plan.id)}
+   574→                        whileTap={{ scale: 0.98 }}
+   575→                        className={`w-full text-left rounded-2xl border-2 p-4 transition-all ${
+   576→                          isSelected
+   577→                            ? `${plan.borderColor} bg-slate-800/90 shadow-lg`
+   578→                            : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+   579→                        }`}
+   580→                      >
+   581→                        <div className="flex items-start justify-between">
+   582→                          <div className="flex items-center gap-3">
+   583→                            <div className={`h-10 w-10 rounded-xl bg-gradient-to-br ${plan.gradient} flex items-center justify-center shadow-md`}>
+   584→                              <plan.icon className="h-5 w-5 text-white" />
+   585→                            </div>
+   586→                            <div>
+   587→                              <div className="flex items-center gap-2">
+   588→                                <span className="font-bold text-white text-sm">{plan.name}</span>
+   589→                                {'popular' in plan && plan.popular && (
+   590→                                  <span className="text-[10px] font-bold bg-violet-500 text-white px-2 py-0.5 rounded-full">POPULAIRE</span>
+   591→                                )}
+   592→                              </div>
+   593→                              <p className="text-xs text-slate-400">{plan.desc}</p>
+   594→                            </div>
+   595→                          </div>
+   596→                          <div className="text-right">
+   597→                            <span className="text-lg font-bold text-white">{plan.price}</span>
+   598→                            <span className="text-xs text-slate-400">{plan.period}</span>
+   599→                          </div>
+   600→                        </div>
+   601→
+   602→                        {isSelected && (
+   603→                          <motion.div
+   604→                            initial={{ height: 0, opacity: 0 }}
+   605→                            animate={{ height: 'auto', opacity: 1 }}
+   606→                            exit={{ height: 0, opacity: 0 }}
+   607→                            className="mt-3 pt-3 border-t border-slate-700"
+   608→                          >
+   609→                            <ul className="space-y-1.5">
+   610→                              {plan.features.map((f) => (
+   611→                                <li key={f} className="flex items-center gap-2 text-xs text-slate-300">
+   612→                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+   613→                                  {f}
+   614→                                </li>
+   615→                              ))}
+   616→                            </ul>
+   617→                          </motion.div>
+   618→                        )}
+   619→                      </motion.button>
+   620→                    );
+   621→                  })}
+   622→                </div>
+   623→
+   624→                <div className="flex gap-3">
+   625→                  <button onClick={goBack} className="h-12 px-6 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors flex items-center gap-2">
+   626→                    <ArrowLeft className="h-4 w-4" />
+   627→                    Retour
+   628→                  </button>
+   629→                  <button onClick={handlePlanNext} className="flex-1 h-12 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold text-sm hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-600/25 flex items-center justify-center gap-2">
+   630→                    Continuer
+   631→                    <ArrowRight className="h-4 w-4" />
+   632→                  </button>
+   633→                </div>
+   634→              </motion.div>
+   635→            )}
+   636→
+   637→            {/* ─── STEP 4: PIN Setup ─── */}
+   638→            {step === 'pin' && (
+   639→              <motion.div
+   640→                key="pin"
+   641→                custom={direction}
+   642→                variants={slideVariants}
+   643→                initial="enter"
+   644→                animate="center"
+   645→                exit="exit"
+   646→                transition={{ duration: 0.35, ease: 'easeInOut' }}
+   647→                className="space-y-5"
+   648→              >
+   649→                <div className="text-center">
+   650→                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/20">
+   651→                    <Fingerprint className="h-7 w-7 text-violet-400" />
+   652→                  </div>
+   653→                  <h2 className="text-xl font-bold text-white">Code PIN d'accès</h2>
+   654→                  <p className="text-sm text-slate-400 mt-1">
+   655→                    Ce code permettra aux invités et membres de la famille d'accéder au Hub
+   656→                  </p>
+   657→                </div>
+   658→
+   659→                <div className="space-y-4">
+   660→                  {/* PIN display (4 boxes) */}
+   661→                  <div className="space-y-1.5">
+   662→                    <label className="text-sm font-medium text-slate-300">Choisissez un PIN à 4 chiffres</label>
+   663→                    <div className="flex gap-3 justify-center">
+   664→                      {[0, 1, 2, 3].map((i) => (
+   665→                        <div
+   666→                          key={i}
+   667→                          className={`h-14 w-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold font-mono transition-all ${
+   668→                            i < pin.length
+   669→                              ? 'border-violet-500 bg-violet-500/10 text-violet-300'
+   670→                              : 'border-slate-700 bg-slate-800/50 text-slate-600'
+   671→                          }`}
+   672→                        >
+   673→                          {i < pin.length ? '●' : ''}
+   674→                        </div>
+   675→                      ))}
+   676→                    </div>
+   677→                    <input
+   678→                      type="tel"
+   679→                      inputMode="numeric"
+   680→                      maxLength={4}
+   681→                      value={pin}
+   682→                      onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+   683→                      className="sr-only"
+   684→                      autoFocus
+   685→                    />
+   686→                  </div>
+   687→
+   688→                  {/* PIN numpad for mobile */}
+   689→                  <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
+   690→                    {['1','2','3','4','5','6','7','8','9','','0','⌫'].map((key) => {
+   691→                      if (key === '') return <div key="empty" />;
+   692→                      return (
+   693→                        <button
+   694→                          key={key}
+   695→                          type="button"
+   696→                          onClick={() => {
+   697→                            if (key === '⌫') {
+   698→                              setPin((p) => p.slice(0, -1));
+   699→                              setPinConfirm((p) => p.slice(0, -1));
+   700→                            } else if (pin.length < 4) {
+   701→                              setPin((p) => p + key);
+   702→                            }
+   703→                          }}
+   704→                          className="h-12 rounded-xl bg-slate-800 border border-slate-700 text-white text-lg font-semibold hover:bg-slate-700 active:scale-95 transition-all"
+   705→                        >
+   706→                          {key}
+   707→                        </button>
+   708→                      );
+   709→                    })}
+   710→                  </div>
+   711→
+   712→                  {/* Confirm PIN */}
+   713→                  {pin.length === 4 && (
+   714→                    <motion.div
+   715→                      initial={{ opacity: 0, y: 10 }}
+   716→                      animate={{ opacity: 1, y: 0 }}
+   717→                      className="space-y-1.5"
+   718→                    >
+   719→                      <label className="text-sm font-medium text-slate-300">Confirmez le PIN</label>
+   720→                      <div className="flex gap-3 justify-center">
+   721→                        {[0, 1, 2, 3].map((i) => (
+   722→                          <div
+   723→                            key={i}
+   724→                            className={`h-14 w-14 rounded-xl border-2 flex items-center justify-center text-2xl font-bold font-mono transition-all ${
+   725→                              i < pinConfirm.length
+   726→                                ? pinConfirm[i] === pin[i]
+   727→                                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+   728→                                  : 'border-red-500 bg-red-500/10 text-red-300'
+   729→                                : 'border-slate-700 bg-slate-800/50 text-slate-600'
+   730→                            }`}
+   731→                          >
+   732→                            {i < pinConfirm.length ? '●' : ''}
+   733→                          </div>
+   734→                        ))}
+   735→                      </div>
+   736→                      <input
+   737→                        type="tel"
+   738→                        inputMode="numeric"
+   739→                        maxLength={4}
+   740→                        value={pinConfirm}
+   741→                        onChange={(e) => setPinConfirm(e.target.value.replace(/\D/g, '').slice(0, 4))}
+   742→                        className="sr-only"
+   743→                        autoFocus
+   744→                      />
+   745→                    </motion.div>
+   746→                  )}
+   747→
+   748→                  {pin.length === 4 && pinConfirm.length === 4 && pin !== pinConfirm && (
+   749→                    <p className="text-center text-sm text-red-400 flex items-center justify-center gap-1.5">
+   750→                      <AlertCircle className="h-4 w-4" />
+   751→                      Les PINs ne correspondent pas
+   752→                    </p>
+   753→                  )}
+   754→                </div>
+   755→
+   756→                <div className="flex gap-3">
+   757→                  <button onClick={goBack} className="h-12 px-6 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors flex items-center gap-2">
+   758→                    <ArrowLeft className="h-4 w-4" />
+   759→                    Retour
+   760→                  </button>
+   761→                  <button
+   762→                    onClick={handlePinNext}
+   763→                    disabled={pin.length !== 4 || pin !== pinConfirm}
+   764→                    className="flex-1 h-12 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold text-sm hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-600/25 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+   765→                  >
+   766→                    <KeyRound className="h-4 w-4" />
+   767→                    Valider le PIN
+   768→                  </button>
+   769→                </div>
+   770→              </motion.div>
+   771→            )}
+   772→
+   773→            {/* ─── STEP 5: Home Name ─── */}
+   774→            {step === 'home' && (
+   775→              <motion.div
+   776→                key="home"
+   777→                custom={direction}
+   778→                variants={slideVariants}
+   779→                initial="enter"
+   780→                animate="center"
+   781→                exit="exit"
+   782→                transition={{ duration: 0.35, ease: 'easeInOut' }}
+   783→                className="space-y-5"
+   784→              >
+   785→                <div className="text-center">
+   786→                  <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-500/20">
+   787→                    <Home className="h-7 w-7 text-violet-400" />
+   788→                  </div>
+   789→                  <h2 className="text-xl font-bold text-white">Nommez votre logement</h2>
+   790→                  <p className="text-sm text-slate-400 mt-1">
+   791→                    Ce nom sera visible par les invités et la famille
+   792→                  </p>
+   793→                </div>
+   794→
+   795→                <div className="space-y-4">
+   796→                  <div className="space-y-1.5">
+   797→                    <label className="text-sm font-medium text-slate-300">Nom du logement</label>
+   798→                    <div className="relative">
+   799→                      <Home className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+   800→                      <input
+   801→                        type="text"
+   802→                        placeholder="ex: Maison Dupont, Appartement Paris 15..."
+   803→                        value={homeName}
+   804→                        onChange={(e) => setHomeName(e.target.value)}
+   805→                        autoFocus
+   806→                        className="w-full h-12 rounded-xl bg-slate-800/80 border border-slate-700 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+   807→                      />
+   808→                    </div>
+   809→                  </div>
+   810→
+   811→                  {/* Summary card */}
+   812→                  <div className="rounded-xl bg-slate-800/60 border border-slate-700/50 p-4 space-y-3">
+   813→                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Récapitulatif</p>
+   814→                    <div className="space-y-2">
+   815→                      <div className="flex justify-between text-sm">
+   816→                        <span className="text-slate-400">Compte</span>
+   817→                        <span className="text-white font-medium">{fullName}</span>
+   818→                      </div>
+   819→                      <div className="flex justify-between text-sm">
+   820→                        <span className="text-slate-400">Email</span>
+   821→                        <span className="text-white font-medium truncate ml-4 max-w-[200px]">{email}</span>
+   822→                      </div>
+   823→                      <div className="flex justify-between text-sm">
+   824→                        <span className="text-slate-400">Plan</span>
+   825→                        <span className="text-white font-medium capitalize">{selectedPlan.replace('_', ' ')}</span>
+   826→                      </div>
+   827→                      <div className="flex justify-between text-sm">
+   828→                        <span className="text-slate-400">PIN</span>
+   829→                        <span className="text-white font-mono font-medium">●●●●</span>
+   830→                      </div>
+   831→                      <div className="flex justify-between text-sm">
+   832→                        <span className="text-slate-400">Logement</span>
+   833→                        <span className={homeName.trim() ? 'text-white font-medium' : 'text-slate-500 italic'}>
+   834→                          {homeName.trim() || 'Non défini'}
+   835→                        </span>
+   836→                      </div>
+   837→                    </div>
+   838→                  </div>
+   839→                </div>
+   840→
+   841→                <div className="flex gap-3">
+   842→                  <button onClick={goBack} className="h-12 px-6 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 text-sm font-medium hover:bg-slate-700 transition-colors flex items-center gap-2">
+   843→                    <ArrowLeft className="h-4 w-4" />
+   844→                    Retour
+   845→                  </button>
+   846→                  <button
+   847→                    onClick={handleHomeNext}
+   848→                    disabled={!homeName.trim() || submitting}
+   849→                    className="flex-1 h-12 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold text-sm hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-600/25 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+   850→                  >
+   851→                    {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+   852→                    {submitting ? 'Configuration...' : 'Configurer maintenant'}
+   853→                  </button>
+   854→                </div>
+   855→              </motion.div>
+   856→            )}
+   857→
+   858→            {/* ─── STEP 6: Success ─── */}
+   859→            {step === 'success' && (
+   860→              <motion.div
+   861→                key="success"
+   862→                custom={direction}
+   863→                variants={slideVariants}
+   864→                initial="enter"
+   865→                animate="center"
+   866→                exit="exit"
+   867→                transition={{ duration: 0.35, ease: 'easeInOut' }}
+   868→                className="text-center space-y-6"
+   869→              >
+   870→                <motion.div
+   871→                  initial={{ scale: 0 }}
+   872→                  animate={{ scale: 1 }}
+   873→                  transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+   874→                  className="mx-auto flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-2xl shadow-emerald-500/30"
+   875→                >
+   876→                  <PartyPopper className="h-12 w-12 text-white" />
+   877→                </motion.div>
+   878→
+   879→                <motion.div initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.3 }}>
+   880→                  <h2 className="text-2xl font-bold text-white mb-2">Tout est prêt !</h2>
+   881→                  <p className="text-slate-400 text-sm leading-relaxed">
+   882→                    Votre espace QR Domotik est configuré.<br />
+   883→                    {session?.user
+   884→                      ? 'Vous allez être redirigé vers votre Hub...'
+   885→                      : 'Vous allez être connecté automatiquement...'
+   886→                    }
+   887→                  </p>
+   888→                </motion.div>
+   889→
+   890→                <motion.div
+   891→                  initial={{ opacity: 0 }}
+   892→                  animate={{ opacity: 1 }}
+   893→                  transition={{ delay: 0.5 }}
+   894→                  className="rounded-xl bg-slate-800/60 border border-slate-700/50 p-4 space-y-2"
+   895→                >
+   896→                  <div className="flex justify-between text-sm">
+   897→                    <span className="text-slate-400">Logement</span>
+   898→                    <span className="text-white font-medium">{homeName}</span>
+   899→                  </div>
+   900→                  <div className="flex justify-between text-sm">
+   901→                    <span className="text-slate-400">Plan</span>
+   902→                    <span className="text-violet-300 font-medium capitalize">{selectedPlan.replace('_', ' ')}</span>
+   903→                  </div>
+   904→                  <div className="flex justify-between text-sm">
+   905→                    <span className="text-slate-400">Essai gratuit</span>
+   906→                    <span className="text-emerald-300 font-medium">14 jours</span>
+   907→                  </div>
+   908→                </motion.div>
+   909→
+   910→                <motion.div
+   911→                  initial={{ opacity: 0 }}
+   912→                  animate={{ opacity: 1 }}
+   913→                  transition={{ delay: 0.7 }}
+   914→                  className="flex flex-col gap-2"
+   915→                >
+   916→                  <button
+   917→                    onClick={() => router.push('/')}
+   918→                    className="w-full h-12 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold text-sm hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-600/25"
+   919→                  >
+   920→                    Aller au dashboard
+   921→                  </button>
+   922→                </motion.div>
+   923→              </motion.div>
+   924→            )}
+   925→          </AnimatePresence>
+   926→        </div>
+   927→      </div>
+   928→
+   929→      {/* Footer */}
+   930→      <div className="px-4 py-6 text-center">
+   931→        <p className="text-xs text-slate-500">
+   932→          QR Domotik &middot; qrdomotik.roomscan.pro
+   933→        </p>
+   934→      </div>
+   935→    </div>
+   936→  );
+   937→}
+   938→
