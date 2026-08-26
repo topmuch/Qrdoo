@@ -353,7 +353,7 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
 
       <div className="min-h-screen flex flex-col">
         {/* Header with progress */}
-        <div className="w-full px-6 pt-6 pb-2">
+        <div className="w-full px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2">
           <div className="max-w-md mx-auto">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
@@ -580,7 +580,8 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className={`${glassInput} pl-11 pr-11`}
-                          />\n                          <button
+                          />
+                          <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
                             className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
@@ -704,7 +705,7 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
                     <label className="text-xs font-medium text-white/50 uppercase tracking-wider mb-2 block">
                       Votre offre
                     </label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5">
                       {PLANS.map((plan) => {
                         const isSelected = selectedPlan === plan.id;
                         return (
@@ -713,14 +714,14 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
                             type="button"
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setSelectedPlan(plan.id)}
-                            className={`relative rounded-2xl border-2 p-3 text-center transition-all ${
+                            className={`relative rounded-2xl border-2 p-2.5 text-center transition-all ${
                               isSelected
                                 ? 'bg-white/20 border-white/50'
                                 : 'bg-white/5 border-white/10 hover:bg-white/10'
                             }`}
                           >
-                            <div className={`mx-auto w-8 h-8 rounded-xl bg-gradient-to-br ${plan.gradient} flex items-center justify-center mb-1.5`}>
-                              <plan.icon className="w-4 h-4 text-white" />
+                            <div className={`mx-auto w-7 h-7 rounded-lg bg-gradient-to-br ${plan.gradient} flex items-center justify-center mb-1`}>
+                              <plan.icon className="w-3.5 h-3.5 text-white" />
                             </div>
                             <p className={`text-xs font-semibold ${isSelected ? 'text-white' : 'text-white/60'}`}>
                               {plan.name}
@@ -956,8 +957,8 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-6 text-center">
+        {/* Footer — safe area for iOS */}
+        <div className="mt-auto px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center">
           <p className="text-xs text-white/30">
             QR Domotik &middot; qrdomotik.com
           </p>

@@ -1251,3 +1251,35 @@ Stage Summary:
 - All existing functionality preserved (PIN modal, voice recorder/player, API integration)
 - Zero lint errors, zero console errors
 
+
+---
+Task ID: 5
+Agent: Main
+Task: ÉTAPE 5 — Responsive mobile testing (375px) and final polish
+
+Work Log:
+- Code review at 375px viewport width identified 8 issues
+- Fixed invalid `ml-7.5` Tailwind class → `ml-[30px]` in RoomDetailView
+- Restructured Guest quick access: WiFi card pulled out of 2x2 grid as full-width hero card above remaining cards (Messages, Rules, Contact stay in grid)
+- Reduced Family dashboard card padding: `p-6` → `p-5`, icon `h-14 w-14` → `h-11 w-11`, text `text-lg` → `text-base`
+- Reduced Family dashboard gradient blob: `h-28 w-28 -bottom-6 -left-6` → `h-20 w-20 -bottom-4 -left-4`
+- Increased all back button touch targets: `h-10 w-10` (40px) → `h-11 w-11` (44px) in RoomDetailView, VoiceDetailView, RulesDetailView
+- Added `scrollbar-thin` utility class to globals.css (4px WebKit scrollbar + Firefox thin, white/15 track)
+- Applied `scrollbar-thin` to: voice messages list, voice detail list, mode-select voice preview
+- Added iOS safe area insets: `pt-[max(1.5rem,env(safe-area-inset-top))]` on both hub and setup headers
+- Added iOS safe area footer: `pb-[max(1.25rem,env(safe-area-inset-bottom))]` with `mt-auto` for sticky bottom
+- Tightened setup plan selector: `gap-2` → `gap-1.5`, `p-3` → `p-2.5`, icon `w-8 h-8` → `w-7 h-7 rounded-lg`, `mb-1.5` → `mb-1`
+- Fixed literal `\n` character bug in setup password eye toggle (line 583)
+- Verified: lint passes clean, dev server compiles both routes, zero console errors at 375px
+- Browser verification at 375×812 (iPhone X): hub error state, setup error state, main page all render correctly
+
+Stage Summary:
+- 12 responsive fixes applied across 3 files (hub-content.tsx, setup-content.tsx, globals.css)
+- All touch targets now ≥ 44px (back buttons h-11 w-11)
+- WiFi card full-width for proper password row interaction at 375px
+- Family dashboard cards proportionally scaled for ~158px column width
+- iOS safe area insets on header top and footer bottom
+- Custom thin scrollbar utility for glassmorphism scrollable areas
+- Literal \n JSX bug fixed in setup password toggle
+- Zero lint errors, zero console errors, all routes compile 200
+

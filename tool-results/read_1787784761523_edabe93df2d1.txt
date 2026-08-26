@@ -1,0 +1,969 @@
+     1→'use client';
+     2→
+     3→import { use, useState, useEffect, useCallback } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import {
+     6→  QrCode, CheckCircle2, XCircle, AlertCircle, Loader2,
+     7→  ArrowRight, ArrowLeft, Home, Lock, Mail, User,
+     8→  Shield, Wifi, Users, Building2, Phone, Eye, EyeOff,
+     9→  Fingerprint, Settings, Sparkles,
+    10→} from 'lucide-react';
+    11→import { toast } from 'sonner';
+    12→import { useRouter } from 'next/navigation';
+    13→import { useSession } from 'next-auth/react';
+    14→import {
+    15→  AnimatedGradient,
+    16→  GlassCard,
+    17→  NumericKeypad,
+    18→  FloatingParticles,
+    19→  SuccessAnimation,
+    20→} from '@/components/magic';
+    21→
+    22→// ── Types ──
+    23→type TokenStatus = 'loading' | 'available' | 'claimed' | 'not_found' | 'error';
+    24→type SetupStep = 'welcome' | 'account' | 'pin' | 'config' | 'success';
+    25→
+    26→interface PlaqueInfo {
+    27→  id: string;
+    28→  activationCode: string;
+    29→  batchId: string;
+    30→  quantity: number;
+    31→}
+    32→
+    33→// ── Plans ──
+    34→const PLANS = [
+    35→  {
+    36→    id: 'famille' as const,
+    37→    name: 'Famille',
+    38→    price: '49€',
+    39→    period: '/an',
+    40→    icon: Home,
+    41→    gradient: 'from-emerald-400 to-teal-500',
+    42→  },
+    43→  {
+    44→    id: 'airbnb_solo' as const,
+    45→    name: 'Airbnb Solo',
+    46→    price: '9,90€',
+    47→    period: '/mois',
+    48→    icon: Building2,
+    49→    gradient: 'from-violet-400 to-purple-500',
+    50→    popular: true,
+    51→  },
+    52→  {
+    53→    id: 'airbnb_pro' as const,
+    54→    name: 'Airbnb Pro',
+    55→    price: '199€',
+    56→    period: '/an',
+    57→    badge: 'Économisez 19€',
+    58→    icon: Building2,
+    59→    gradient: 'from-amber-400 to-orange-500',
+    60→  },
+    61→];
+    62→
+    63→// ── Slide variants ──
+    64→const slideVariants = {
+    65→  enter: (direction: number) => ({
+    66→    x: direction > 0 ? 300 : -300,
+    67→    opacity: 0,
+    68→  }),
+    69→  center: {
+    70→    x: 0,
+    71→    opacity: 1,
+    72→  },
+    73→  exit: (direction: number) => ({
+    74→    x: direction < 0 ? 300 : -300,
+    75→    opacity: 0,
+    76→  }),
+    77→};
+    78→
+    79→const fadeUp = {
+    80→  initial: { opacity: 0, y: 20 },
+    81→  animate: { opacity: 1, y: 0 },
+    82→  exit: { opacity: 0, y: -10 },
+    83→};
+    84→
+    85→// ── Glass input class ──
+    86→const glassInput =
+    87→  'w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-white/40 focus:bg-white/15 transition-all';
+    88→
+    89→const glassButton =
+    90→  'w-full relative overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 text-white font-semibold hover:bg-white/20 transition-all';
+    91→
+    92→// ── Component ──
+    93→export function SetupPageContent({ params }: { params: Promise<{ token: string }> }) {
+    94→  const { token } = use(params);
+    95→  const { data: session } = useSession();
+    96→  const router = useRouter();
+    97→
+    98→  // Token state
+    99→  const [tokenStatus, setTokenStatus] = useState<TokenStatus>('loading');
+   100→  const [plaqueInfo, setPlaqueInfo] = useState<PlaqueInfo | null>(null);
+   101→  const [claimedInfo, setClaimedInfo] = useState<{ hubSlug?: string; homeName?: string }>({});
+   102→
+   103→  // Step navigation
+   104→  const [step, setStep] = useState<SetupStep>('welcome');
+   105→  const [direction, setDirection] = useState(1);
+   106→
+   107→  // Account
+   108→  const [fullName, setFullName] = useState('');
+   109→  const [email, setEmail] = useState('');
+   110→  const [password, setPassword] = useState('');
+   111→  const [showPassword, setShowPassword] = useState(false);
+   112→
+   113→  // PIN
+   114→  const [pinKey, setPinKey] = useState(0);
+   115→  const [pinValue, setPinValue] = useState('');
+   116→
+   117→  // Config
+   118→  const [selectedPlan, setSelectedPlan] = useState<string>('famille');
+   119→  const [homeName, setHomeName] = useState('');
+   120→  const [wifiSsid, setWifiSsid] = useState('');
+   121→  const [wifiPassword, setWifiPassword] = useState('');
+   122→  const [emergencyPhone, setEmergencyPhone] = useState('');
+   123→
+   124→  // Submission
+   125→  const [submitting, setSubmitting] = useState(false);
+   126→  const [hubSlug, setHubSlug] = useState('');
+   127→
+   128→  // ── Check token on mount ──
+   129→  const checkToken = useCallback(async () => {
+   130→    try {
+   131→      const res = await fetch(`/api/setup/${encodeURIComponent(token)}`);
+   132→      const data = await res.json();
+   133→      if (data.status === 'available') {
+   134→        setTokenStatus('available');
+   135→        setPlaqueInfo(data.plaque);
+   136→      } else if (data.status === 'claimed') {
+   137→        setTokenStatus('claimed');
+   138→        setClaimedInfo({ hubSlug: data.hubSlug, homeName: data.homeName });
+   139→      } else {
+   140→        setTokenStatus('not_found');
+   141→      }
+   142→    } catch {
+   143→      setTokenStatus('error');
+   144→    }
+   145→  }, [token]);
+   146→
+   147→  useEffect(() => { checkToken(); }, [checkToken]);
+   148→
+   149→  // Pre-fill if logged in
+   150→  useEffect(() => {
+   151→    if (session?.user) {
+   152→      const u = session.user as Record<string, unknown>;
+   153→      setEmail((u?.email as string) || '');
+   154→      setFullName((u?.name as string) || '');
+   155→    }
+   156→  }, [session]);
+   157→
+   158→  // ── Step navigation ──
+   159→  const stepOrder: SetupStep[] = ['welcome', 'account', 'pin', 'config', 'success'];
+   160→
+   161→  const goNext = () => {
+   162→    setDirection(1);
+   163→    const idx = stepOrder.indexOf(step);
+   164→    if (idx < stepOrder.length - 1) setStep(stepOrder[idx + 1]);
+   165→  };
+   166→
+   167→  const goBack = () => {
+   168→    setDirection(-1);
+   169→    const idx = stepOrder.indexOf(step);
+   170→    if (idx > 0) setStep(stepOrder[idx - 1]);
+   171→  };
+   172→
+   173→  // ── Validate & navigate ──
+   174→  const handleWelcomeNext = () => goNext();
+   175→
+   176→  const handleAccountNext = () => {
+   177→    if (!fullName.trim()) { toast.error('Entrez votre nom'); return; }
+   178→    if (!email.trim() || !email.includes('@')) { toast.error('Email invalide'); return; }
+   179→    if (!session?.user && (!password || password.length < 6)) {
+   180→      toast.error('Mot de passe requis (6+ caractères)'); return;
+   181→    }
+   182→    goNext();
+   183→  };
+   184→
+   185→  const handlePinComplete = (enteredPin: string) => {
+   186→    setPinValue(enteredPin);
+   187→    // Auto-advance after a brief delay to show the filled dots
+   188→    setTimeout(() => goNext(), 400);
+   189→  };
+   190→
+   191→  const handleConfigSubmit = async () => {
+   192→    if (!homeName.trim()) { toast.error('Nommez votre logement'); return; }
+   193→    if (!PLANS.find((p) => p.id === selectedPlan)) { toast.error('Choisissez un plan'); return; }
+   194→
+   195→    setSubmitting(true);
+   196→    try {
+   197→      const body: Record<string, string> = {
+   198→        email: email.trim(),
+   199→        fullName: fullName.trim(),
+   200→        pin: pinValue,
+   201→        homeName: homeName.trim(),
+   202→        plan: selectedPlan,
+   203→      };
+   204→
+   205→      if (!session?.user) {
+   206→        body.password = password;
+   207→      } else {
+   208→        body.existingUserId = (session.user as Record<string, unknown>)?.id as string;
+   209→      }
+   210→
+   211→      const res = await fetch(`/api/setup/${encodeURIComponent(token)}`, {
+   212→        method: 'POST',
+   213→        headers: { 'Content-Type': 'application/json' },
+   214→        body: JSON.stringify(body),
+   215→      });
+   216→      const data = await res.json();
+   217→
+   218→      if (!res.ok) throw new Error(data.error || 'Erreur lors de la configuration');
+   219→
+   220→      setHubSlug(data.hubSlug || '');
+   221→      setDirection(1);
+   222→      setStep('success');
+   223→
+   224→      // Auto-redirect after delay
+   225→      if (data.isNewUser) {
+   226→        setTimeout(async () => {
+   227→          try {
+   228→            const loginRes = await fetch('/api/auth/callback/credentials', {
+   229→              method: 'POST',
+   230→              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+   231→              body: new URLSearchParams({
+   232→                email: email.trim(),
+   233→                password,
+   234→                callbackUrl: '/',
+   235→              }).toString(),
+   236→            });
+   237→            if (loginRes.ok) window.location.href = '/';
+   238→          } catch { /* stay on success page */ }
+   239→        }, 3000);
+   240→      } else {
+   241→        setTimeout(() => {
+   242→          window.location.href = data.hubSlug ? `/hub/${data.hubSlug}` : '/';
+   243→        }, 3000);
+   244→      }
+   245→    } catch (e: unknown) {
+   246→      const msg = e instanceof Error ? e.message : 'Erreur';
+   247→      toast.error(msg);
+   248→    } finally {
+   249→      setSubmitting(false);
+   250→    }
+   251→  };
+   252→
+   253→  // ── Progress ──
+   254→  const currentIdx = stepOrder.indexOf(step);
+   255→
+   256→  // ── Loading state ──
+   257→  if (tokenStatus === 'loading') {
+   258→    return (
+   259→      <AnimatedGradient preset="setup">
+   260→        <div className="min-h-screen flex items-center justify-center">
+   261→          <motion.div
+   262→            initial={{ opacity: 0, scale: 0.8 }}
+   263→            animate={{ opacity: 1, scale: 1 }}
+   264→            className="flex flex-col items-center gap-4"
+   265→          >
+   266→            <div className="relative">
+   267→              <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center">
+   268→                <QrCode className="h-8 w-8 text-white" />
+   269→              </div>
+   270→              <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-400 border-2 border-violet-800 flex items-center justify-center">
+   271→                <div className="h-2 w-2 rounded-full bg-white animate-pulse" />
+   272→              </div>
+   273→            </div>
+   274→            <p className="text-white/70 font-medium">Vérification de votre plaque...</p>
+   275→            <p className="text-xs text-white/30 font-mono">{token}</p>
+   276→          </motion.div>
+   277→        </div>
+   278→      </AnimatedGradient>
+   279→    );
+   280→  }
+   281→
+   282→  // ── Error states ──
+   283→  if (tokenStatus === 'not_found' || tokenStatus === 'error') {
+   284→    const Icon = tokenStatus === 'error' ? AlertCircle : XCircle;
+   285→    const msg = tokenStatus === 'not_found'
+   286→      ? { title: 'Plaque non trouvée', desc: "Ce code d'activation n'existe pas. Vérifiez votre plaque et réessayez." }
+   287→      : { title: 'Erreur', desc: 'Impossible de vérifier la plaque. Réessayez.' };
+   288→    return (
+   289→      <AnimatedGradient preset="setup">
+   290→        <div className="min-h-screen flex items-center justify-center p-4">
+   291→          <GlassCard className="w-full max-w-sm p-8 text-center" hover={false}>
+   292→            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/20">
+   293→              <Icon className="h-8 w-8 text-red-400" />
+   294→            </div>
+   295→            <h1 className="text-xl font-bold text-white mb-2">{msg.title}</h1>
+   296→            <p className="text-xs text-white/40 font-mono mb-1">{token}</p>
+   297→            <p className="text-sm text-white/60 mb-6">{msg.desc}</p>
+   298→            <motion.button
+   299→              whileTap={{ scale: 0.97 }}
+   300→              onClick={() => { setTokenStatus('loading'); checkToken(); }}
+   301→              className="w-full h-11 rounded-2xl bg-white/10 border border-white/20 text-white text-sm font-medium hover:bg-white/20 transition-all"
+   302→            >
+   303→              Réessayer
+   304→            </motion.button>
+   305→          </GlassCard>
+   306→        </div>
+   307→      </AnimatedGradient>
+   308→    );
+   309→  }
+   310→
+   311→  // ── Already claimed ──
+   312→  if (tokenStatus === 'claimed') {
+   313→    return (
+   314→      <AnimatedGradient preset="setup">
+   315→        <div className="min-h-screen flex items-center justify-center p-4">
+   316→          <GlassCard className="w-full max-w-sm p-8 text-center" hover={false}>
+   317→            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20">
+   318→              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+   319→            </div>
+   320→            <h1 className="text-xl font-bold text-white mb-2">Plaque déjà configurée</h1>
+   321→            {claimedInfo.homeName && (
+   322→              <p className="text-sm text-white/60 mb-1">
+   323→                Logement : <span className="text-white/90 font-semibold">{claimedInfo.homeName}</span>
+   324→              </p>
+   325→            )}
+   326→            <p className="text-sm text-white/50 mb-6">Cette plaque est déjà liée à un compte.</p>
+   327→            {claimedInfo.hubSlug && (
+   328→              <motion.button
+   329→                whileTap={{ scale: 0.97 }}
+   330→                onClick={() => router.push(`/hub/${claimedInfo.hubSlug}`)}
+   331→                className="w-full h-12 rounded-2xl bg-white text-violet-700 font-bold text-sm shadow-xl"
+   332→              >
+   333→                Accéder au Hub
+   334→              </motion.button>
+   335→            )}
+   336→            <motion.button
+   337→              whileTap={{ scale: 0.97 }}
+   338→              onClick={() => router.push('/')}
+   339→              className="w-full h-11 mt-3 rounded-2xl bg-white/10 border border-white/20 text-white/70 text-sm font-medium hover:bg-white/20 transition-all"
+   340→            >
+   341→              Aller à l'accueil
+   342→            </motion.button>
+   343→          </GlassCard>
+   344→        </div>
+   345→      </AnimatedGradient>
+   346→    );
+   347→  }
+   348→
+   349→  // ── Main multi-step wizard ──
+   350→  return (
+   351→    <AnimatedGradient preset="setup">
+   352→      <FloatingParticles count={20} color="rgba(255,255,255,0.15)" size={3} duration={22} />
+   353→
+   354→      <div className="min-h-screen flex flex-col">
+   355→        {/* Header with progress */}
+   356→        <div className="w-full px-6 pt-6 pb-2">
+   357→          <div className="max-w-md mx-auto">
+   358→            <div className="flex items-center justify-between mb-4">
+   359→              <div className="flex items-center gap-2.5">
+   360→                <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center">
+   361→                  <QrCode className="h-4 w-4 text-white" />
+   362→                </div>
+   363→                <span className="text-sm font-bold text-white tracking-tight">QR Domotik</span>
+   364→              </div>
+   365→              <span className="text-xs text-white/50">
+   366→                {step === 'success' ? '' : `Étape ${currentIdx + 1} / 4`}
+   367→              </span>
+   368→            </div>
+   369→            {/* Progress bar */}
+   370→            {step !== 'success' && (
+   371→              <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+   372→                <motion.div
+   373→                  className="h-full rounded-full bg-white/60"
+   374→                  initial={{ width: 0 }}
+   375→                  animate={{ width: `${(currentIdx / 4) * 100}%` }}
+   376→                  transition={{ duration: 0.4, ease: 'easeOut' }}
+   377→                />
+   378→              </div>
+   379→            )}
+   380→          </div>
+   381→        </div>
+   382→
+   383→        {/* Step content */}
+   384→        <div className="flex-1 flex items-center justify-center px-6 py-6">
+   385→          <div className="w-full max-w-md relative overflow-hidden">
+   386→            <AnimatePresence mode="wait" custom={direction}>
+   387→
+   388→              {/* ═══════════════════ STEP 1: WELCOME ═══════════════════ */}
+   389→              {step === 'welcome' && (
+   390→                <motion.div
+   391→                  key="welcome"
+   392→                  custom={direction}
+   393→                  variants={slideVariants}
+   394→                  initial="enter"
+   395→                  animate="center"
+   396→                  exit="exit"
+   397→                  transition={{ duration: 0.35, ease: 'easeInOut' }}
+   398→                  className="space-y-8 text-center"
+   399→                >
+   400→                  {/* Animated icon */}
+   401→                  <motion.div
+   402→                    initial={{ scale: 0, rotate: -180 }}
+   403→                    animate={{ scale: 1, rotate: 0 }}
+   404→                    transition={{ type: 'spring', duration: 0.8 }}
+   405→                    className="mx-auto w-24 h-24 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-xl border border-white/30"
+   406→                  >
+   407→                    <Home className="w-12 h-12 text-white" />
+   408→                  </motion.div>
+   409→
+   410→                  <div className="space-y-3">
+   411→                    <motion.h1
+   412→                      initial={fadeUp.initial} animate={fadeUp.animate}
+   413→                      transition={{ delay: 0.2 }}
+   414→                      className="text-3xl font-bold text-white"
+   415→                    >
+   416→                      Bienvenue ! 🎉
+   417→                    </motion.h1>
+   418→                    <motion.p
+   419→                      initial={fadeUp.initial} animate={fadeUp.animate}
+   420→                      transition={{ delay: 0.3 }}
+   421→                      className="text-white/70 text-sm leading-relaxed"
+   422→                    >
+   423→                      Votre QR Domotik Hub est prêt à être configuré.<br />
+   424→                      Cela ne prend que 2 minutes.
+   425→                    </motion.p>
+   426→                  </div>
+   427→
+   428→                  {/* Feature pills */}
+   429→                  <motion.div
+   430→                    initial={fadeUp.initial} animate={fadeUp.animate}
+   431→                    transition={{ delay: 0.4 }}
+   432→                    className="flex justify-center gap-3 flex-wrap"
+   433→                  >
+   434→                    {[
+   435→                      { icon: Wifi, label: 'Wi-Fi', color: 'bg-emerald-400/20 text-emerald-300 border-emerald-400/30' },
+   436→                      { icon: Shield, label: 'Sécurité', color: 'bg-amber-400/20 text-amber-300 border-amber-400/30' },
+   437→                      { icon: Users, label: 'Famille', color: 'bg-violet-400/20 text-violet-300 border-violet-400/30' },
+   438→                    ].map((item, i) => (
+   439→                      <motion.div
+   440→                        key={item.label}
+   441→                        initial={{ opacity: 0, y: 10 }}
+   442→                        animate={{ opacity: 1, y: 0 }}
+   443→                        transition={{ delay: 0.5 + i * 0.1 }}
+   444→                        className={`flex items-center gap-2 rounded-full px-4 py-2 border backdrop-blur-sm ${item.color}`}
+   445→                      >
+   446→                        <item.icon className="h-4 w-4" />
+   447→                        <span className="text-xs font-medium">{item.label}</span>
+   448→                      </motion.div>
+   449→                    ))}
+   450→                  </motion.div>
+   451→
+   452→                  {/* Plaque badge */}
+   453→                  {plaqueInfo && (
+   454→                    <motion.div
+   455→                      initial={fadeUp.initial} animate={fadeUp.animate}
+   456→                      transition={{ delay: 0.6 }}
+   457→                      className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/20 px-4 py-2 mx-auto"
+   458→                    >
+   459→                      <QrCode className="h-3.5 w-3.5 text-white/50" />
+   460→                      <span className="text-xs font-mono text-white/60">{plaqueInfo.activationCode}</span>
+   461→                    </motion.div>
+   462→                  )}
+   463→
+   464→                  {/* CTA */}
+   465→                  <motion.button
+   466→                    initial={{ opacity: 0, y: 10 }}
+   467→                    animate={{ opacity: 1, y: 0 }}
+   468→                    transition={{ delay: 0.7 }}
+   469→                    whileHover={{ scale: 1.03 }}
+   470→                    whileTap={{ scale: 0.97 }}
+   471→                    onClick={handleWelcomeNext}
+   472→                    className="w-full h-14 rounded-2xl bg-white text-violet-700 font-bold text-sm shadow-xl shadow-black/10 flex items-center justify-center gap-2 relative overflow-hidden group"
+   473→                  >
+   474→                    <span className="relative z-10">Commencer la configuration</span>
+   475→                    <ArrowRight className="w-4 h-4 relative z-10" />
+   476→                    {/* Shimmer effect */}
+   477→                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+   478→                  </motion.button>
+   479→                </motion.div>
+   480→              )}
+   481→
+   482→              {/* ═══════════════════ STEP 2: ACCOUNT ═══════════════════ */}
+   483→              {step === 'account' && (
+   484→                <motion.div
+   485→                  key="account"
+   486→                  custom={direction}
+   487→                  variants={slideVariants}
+   488→                  initial="enter"
+   489→                  animate="center"
+   490→                  exit="exit"
+   491→                  transition={{ duration: 0.35, ease: 'easeInOut' }}
+   492→                  className="space-y-6"
+   493→                >
+   494→                  <div className="text-center">
+   495→                    <motion.div
+   496→                      initial={{ scale: 0 }}
+   497→                      animate={{ scale: 1 }}
+   498→                      transition={{ delay: 0.1, type: 'spring' }}
+   499→                      className="mx-auto mb-4 w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-xl border border-white/30"
+   500→                    >
+   501→                      <User className="w-7 h-7 text-white" />
+   502→                    </motion.div>
+   503→                    <h2 className="text-2xl font-bold text-white">Créez votre compte</h2>
+   504→                    <p className="text-white/60 text-sm mt-1">
+   505→                      {session?.user ? 'Connecté en tant que' : 'Informations de connexion'}
+   506→                    </p>
+   507→                  </div>
+   508→
+   509→                  <div className="space-y-4">
+   510→                    {/* Google button (if not logged in) */}
+   511→                    {!session?.user && (
+   512→                      <motion.button
+   513→                        initial={{ opacity: 0, y: 10 }}
+   514→                        animate={{ opacity: 1, y: 0 }}
+   515→                        transition={{ delay: 0.15 }}
+   516→                        className={glassButton}
+   517→                      >
+   518→                        <div className="flex items-center justify-center gap-3">
+   519→                          <svg className="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+   520→                          <span className="text-white/90 text-sm font-medium">Continuer avec Google</span>
+   521→                        </div>
+   522→                      </motion.button>
+   523→                    )}
+   524→
+   525→                    {/* Divider */}
+   526→                    {!session?.user && (
+   527→                      <div className="flex items-center gap-3">
+   528→                        <div className="flex-1 h-px bg-white/10" />
+   529→                        <span className="text-xs text-white/30">ou</span>
+   530→                        <div className="flex-1 h-px bg-white/10" />
+   531→                      </div>
+   532→                    )}
+   533→
+   534→                    {/* Full name */}
+   535→                    <motion.div initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.2 }}>
+   536→                      <label className="text-xs font-medium text-white/50 uppercase tracking-wider mb-1.5 block">
+   537→                        Nom complet
+   538→                      </label>
+   539→                      <div className="relative">
+   540→                        <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+   541→                        <input
+   542→                          type="text"
+   543→                          placeholder="Jean Dupont"
+   544→                          value={fullName}
+   545→                          onChange={(e) => setFullName(e.target.value)}
+   546→                          className={`${glassInput} pl-11`}
+   547→                        />
+   548→                      </div>
+   549→                    </motion.div>
+   550→
+   551→                    {/* Email */}
+   552→                    <motion.div initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.25 }}>
+   553→                      <label className="text-xs font-medium text-white/50 uppercase tracking-wider mb-1.5 block">
+   554→                        Email
+   555→                      </label>
+   556→                      <div className="relative">
+   557→                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+   558→                        <input
+   559→                          type="email"
+   560→                          placeholder="jean@exemple.com"
+   561→                          value={email}
+   562→                          onChange={(e) => setEmail(e.target.value)}
+   563→                          disabled={!!session?.user}
+   564→                          className={`${glassInput} pl-11 disabled:opacity-50`}
+   565→                        />
+   566→                      </div>
+   567→                    </motion.div>
+   568→
+   569→                    {/* Password */}
+   570→                    {!session?.user && (
+   571→                      <motion.div initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.3 }}>
+   572→                        <label className="text-xs font-medium text-white/50 uppercase tracking-wider mb-1.5 block">
+   573→                          Mot de passe
+   574→                        </label>
+   575→                        <div className="relative">
+   576→                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+   577→                          <input
+   578→                            type={showPassword ? 'text' : 'password'}
+   579→                            placeholder="6 caractères minimum"
+   580→                            value={password}
+   581→                            onChange={(e) => setPassword(e.target.value)}
+   582→                            className={`${glassInput} pl-11 pr-11`}
+   583→                          />\n                          <button
+   584→                            type="button"
+   585→                            onClick={() => setShowPassword(!showPassword)}
+   586→                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+   587→                          >
+   588→                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+   589→                          </button>
+   590→                        </div>
+   591→                      </motion.div>
+   592→                    )}
+   593→                  </div>
+   594→
+   595→                  {/* Navigation */}
+   596→                  <motion.div
+   597→                    initial={{ opacity: 0, y: 10 }}
+   598→                    animate={{ opacity: 1, y: 0 }}
+   599→                    transition={{ delay: 0.35 }}
+   600→                    className="flex gap-3"
+   601→                  >
+   602→                    <motion.button
+   603→                      whileTap={{ scale: 0.95 }}
+   604→                      onClick={goBack}
+   605→                      className="h-12 px-5 rounded-2xl bg-white/10 border border-white/20 text-white/70 text-sm font-medium hover:bg-white/20 transition-all flex items-center gap-2"
+   606→                    >
+   607→                      <ArrowLeft className="h-4 w-4" />
+   608→                    </motion.button>
+   609→                    <motion.button
+   610→                      whileHover={{ scale: 1.02 }}
+   611→                      whileTap={{ scale: 0.97 }}
+   612→                      onClick={handleAccountNext}
+   613→                      className="flex-1 h-12 rounded-2xl bg-white text-violet-700 font-bold text-sm shadow-xl shadow-black/10 flex items-center justify-center gap-2 relative overflow-hidden group"
+   614→                    >
+   615→                      <span className="relative z-10">Continuer</span>
+   616→                      <ArrowRight className="w-4 h-4 relative z-10" />
+   617→                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+   618→                    </motion.button>
+   619→                  </motion.div>
+   620→                </motion.div>
+   621→              )}
+   622→
+   623→              {/* ═══════════════════ STEP 3: PIN ═══════════════════ */}
+   624→              {step === 'pin' && (
+   625→                <motion.div
+   626→                  key={`pin-${pinKey}`}
+   627→                  custom={direction}
+   628→                  variants={slideVariants}
+   629→                  initial="enter"
+   630→                  animate="center"
+   631→                  exit="exit"
+   632→                  transition={{ duration: 0.35, ease: 'easeInOut' }}
+   633→                  className="space-y-6"
+   634→                >
+   635→                  <div className="text-center">
+   636→                    <motion.div
+   637→                      initial={{ scale: 0 }}
+   638→                      animate={{ scale: 1 }}
+   639→                      transition={{ delay: 0.1, type: 'spring' }}
+   640→                      className="mx-auto mb-4 w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-xl border border-white/30"
+   641→                    >
+   642→                      <Fingerprint className="w-7 h-7 text-white" />
+   643→                    </motion.div>
+   644→                    <h2 className="text-2xl font-bold text-white">Créez votre code secret</h2>
+   645→                    <p className="text-white/60 text-sm mt-1">
+   646→                      Ce code à 4 chiffres protégera l&rsquo;accès à votre espace Famille
+   647→                    </p>
+   648→                  </div>
+   649→
+   650→                  {/* Numeric keypad */}
+   651→                  <NumericKeypad
+   652→                    key={pinKey}
+   653→                    length={4}
+   654→                    onComplete={handlePinComplete}
+   655→                    onChange={(p) => setPinValue(p)}
+   656→                  />
+   657→
+   658→                  {/* Back button */}
+   659→                  <motion.button
+   660→                    initial={{ opacity: 0 }}
+   661→                    animate={{ opacity: 1 }}
+   662→                    transition={{ delay: 0.3 }}
+   663→                    whileTap={{ scale: 0.95 }}
+   664→                    onClick={goBack}
+   665→                    className="mx-auto h-10 px-6 rounded-2xl bg-white/10 border border-white/20 text-white/60 text-sm font-medium hover:bg-white/20 transition-all flex items-center gap-2"
+   666→                  >
+   667→                    <ArrowLeft className="h-4 w-4" />
+   668→                    Retour
+   669→                  </motion.button>
+   670→                </motion.div>
+   671→              )}
+   672→
+   673→              {/* ═══════════════════ STEP 4: CONFIG ═══════════════════ */}
+   674→              {step === 'config' && (
+   675→                <motion.div
+   676→                  key="config"
+   677→                  custom={direction}
+   678→                  variants={slideVariants}
+   679→                  initial="enter"
+   680→                  animate="center"
+   681→                  exit="exit"
+   682→                  transition={{ duration: 0.35, ease: 'easeInOut' }}
+   683→                  className="space-y-5"
+   684→                >
+   685→                  <div className="text-center">
+   686→                    <motion.div
+   687→                      initial={{ scale: 0 }}
+   688→                      animate={{ scale: 1 }}
+   689→                      transition={{ delay: 0.1, type: 'spring' }}
+   690→                      className="mx-auto mb-4 w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-xl border border-white/30"
+   691→                    >
+   692→                      <Settings className="w-7 h-7 text-white" />
+   693→                    </motion.div>
+   694→                    <h2 className="text-2xl font-bold text-white">Configuration rapide</h2>
+   695→                    <p className="text-white/60 text-sm mt-1">
+   696→                      {selectedPlan === 'famille'
+   697→                        ? 'Configurez le Wi-Fi pour votre famille'
+   698→                        : 'Paramétrez votre logement Airbnb'}
+   699→                    </p>
+   700→                  </div>
+   701→
+   702→                  {/* Plan selector */}
+   703→                  <motion.div initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.15 }}>
+   704→                    <label className="text-xs font-medium text-white/50 uppercase tracking-wider mb-2 block">
+   705→                      Votre offre
+   706→                    </label>
+   707→                    <div className="grid grid-cols-3 gap-2">
+   708→                      {PLANS.map((plan) => {
+   709→                        const isSelected = selectedPlan === plan.id;
+   710→                        return (
+   711→                          <motion.button
+   712→                            key={plan.id}
+   713→                            type="button"
+   714→                            whileTap={{ scale: 0.95 }}
+   715→                            onClick={() => setSelectedPlan(plan.id)}
+   716→                            className={`relative rounded-2xl border-2 p-3 text-center transition-all ${
+   717→                              isSelected
+   718→                                ? 'bg-white/20 border-white/50'
+   719→                                : 'bg-white/5 border-white/10 hover:bg-white/10'
+   720→                            }`}
+   721→                          >
+   722→                            <div className={`mx-auto w-8 h-8 rounded-xl bg-gradient-to-br ${plan.gradient} flex items-center justify-center mb-1.5`}>
+   723→                              <plan.icon className="w-4 h-4 text-white" />
+   724→                            </div>
+   725→                            <p className={`text-xs font-semibold ${isSelected ? 'text-white' : 'text-white/60'}`}>
+   726→                              {plan.name}
+   727→                            </p>
+   728→                            <p className="text-[10px] text-white/40 mt-0.5">
+   729→                              {plan.price}{plan.period}
+   730→                            </p>
+   731→                            {'popular' in plan && plan.popular && (
+   732→                              <span className="absolute -top-1.5 -right-1.5 text-[8px] font-bold bg-white text-violet-700 px-1.5 py-0.5 rounded-full">
+   733→                                TOP
+   734→                              </span>
+   735→                            )}
+   736→                          </motion.button>
+   737→                        );
+   738→                      })}
+   739→                    </div>
+   740→                  </motion.div>
+   741→
+   742→                  {/* Home name (always) */}
+   743→                  <motion.div initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.2 }}>
+   744→                    <label className="text-xs font-medium text-white/50 uppercase tracking-wider mb-1.5 block">
+   745→                      Nom du logement
+   746→                    </label>
+   747→                    <div className="relative">
+   748→                      <Home className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+   749→                      <input
+   750→                        type="text"
+   751→                        placeholder="ex: Maison Dupont, Appart Paris 15..."
+   752→                        value={homeName}
+   753→                        onChange={(e) => setHomeName(e.target.value)}
+   754→                        className={`${glassInput} pl-11`}
+   755→                      />
+   756→                    </div>
+   757→                  </motion.div>
+   758→
+   759→                  {/* Adaptive fields */}
+   760→                  {selectedPlan === 'famille' ? (
+   761→                    <GlassCard className="p-4 space-y-4" hover={false}>
+   762→                      <div className="flex items-center gap-2 mb-1">
+   763→                        <Wifi className="w-4 h-4 text-emerald-400" />
+   764→                        <span className="text-sm font-semibold text-white">Wi-Fi</span>
+   765→                      </div>
+   766→                      <div>
+   767→                        <label className="text-xs text-white/50 mb-1 block">SSID (nom du réseau)</label>
+   768→                        <input
+   769→                          type="text"
+   770→                          placeholder="MonWiFi"
+   771→                          value={wifiSsid}
+   772→                          onChange={(e) => setWifiSsid(e.target.value)}
+   773→                          className={glassInput}
+   774→                        />
+   775→                      </div>
+   776→                      <div>
+   777→                        <label className="text-xs text-white/50 mb-1 block">Mot de passe Wi-Fi</label>
+   778→                        <div className="relative">
+   779→                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+   780→                          <input
+   781→                            type="text"
+   782→                            placeholder="Mot de passe Wi-Fi"
+   783→                            value={wifiPassword}
+   784→                            onChange={(e) => setWifiPassword(e.target.value)}
+   785→                            className={`${glassInput} pl-11`}
+   786→                          />
+   787→                        </div>
+   788→                      </div>
+   789→                    </GlassCard>
+   790→                  ) : (
+   791→                    <GlassCard className="p-4 space-y-4" hover={false}>
+   792→                      <div className="flex items-center gap-2 mb-1">
+   793→                        <Phone className="w-4 h-4 text-amber-400" />
+   794→                        <span className="text-sm font-semibold text-white">Contact d'urgence</span>
+   795→                      </div>
+   796→                      <div>
+   797→                        <label className="text-xs text-white/50 mb-1 block">Numéro d'urgence</label>
+   798→                        <div className="relative">
+   799→                          <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+   800→                          <input
+   801→                            type="tel"
+   802→                            placeholder="+33 6 12 34 56 78"
+   803→                            value={emergencyPhone}
+   804→                            onChange={(e) => setEmergencyPhone(e.target.value)}
+   805→                            className={`${glassInput} pl-11`}
+   806→                          />
+   807→                        </div>
+   808→                      </div>
+   809→                    </GlassCard>
+   810→                  )}
+   811→
+   812→                  {/* Summary */}
+   813→                  <GlassCard className="p-4 space-y-2" hover={false}>
+   814→                    <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Récapitulatif</p>
+   815→                    <div className="flex justify-between text-sm">
+   816→                      <span className="text-white/50">Compte</span>
+   817→                      <span className="text-white/90 font-medium truncate ml-3 max-w-[180px]">{fullName}</span>
+   818→                    </div>
+   819→                    <div className="flex justify-between text-sm">
+   820→                      <span className="text-white/50">Plan</span>
+   821→                      <span className="text-white/90 font-medium capitalize">{selectedPlan.replace('_', ' ')}</span>
+   822→                    </div>
+   823→                    <div className="flex justify-between text-sm">
+   824→                      <span className="text-white/50">PIN</span>
+   825→                      <span className="text-white/90 font-mono font-medium">
+   826→                        {pinValue ? '●●●●' : 'Non défini'}
+   827→                      </span>
+   828→                    </div>
+   829→                    <div className="flex justify-between text-sm">
+   830→                      <span className="text-white/50">Logement</span>
+   831→                      <span className={homeName.trim() ? 'text-white/90 font-medium' : 'text-white/30 italic'}>
+   832→                        {homeName.trim() || 'Non défini'}
+   833→                      </span>
+   834→                    </div>
+   835→                  </GlassCard>
+   836→
+   837→                  {/* Navigation */}
+   838→                  <motion.div
+   839→                    initial={{ opacity: 0, y: 10 }}
+   840→                    animate={{ opacity: 1, y: 0 }}
+   841→                    transition={{ delay: 0.3 }}
+   842→                    className="flex gap-3"
+   843→                  >
+   844→                    <motion.button
+   845→                      whileTap={{ scale: 0.95 }}
+   846→                      onClick={goBack}
+   847→                      className="h-12 px-5 rounded-2xl bg-white/10 border border-white/20 text-white/70 text-sm font-medium hover:bg-white/20 transition-all flex items-center gap-2"
+   848→                    >
+   849→                      <ArrowLeft className="h-4 w-4" />
+   850→                    </motion.button>
+   851→                    <motion.button
+   852→                      whileHover={{ scale: 1.02 }}
+   853→                      whileTap={{ scale: 0.97 }}
+   854→                      onClick={handleConfigSubmit}
+   855→                      disabled={!homeName.trim() || submitting}
+   856→                      className="flex-1 h-12 rounded-2xl bg-white text-violet-700 font-bold text-sm shadow-xl shadow-black/10 flex items-center justify-center gap-2 relative overflow-hidden group disabled:opacity-50 disabled:cursor-not-allowed"
+   857→                    >
+   858→                      {submitting ? (
+   859→                        <>
+   860→                          <Loader2 className="w-4 h-4 animate-spin" />
+   861→                          <span className="relative z-10">Configuration...</span>
+   862→                        </>
+   863→                      ) : (
+   864→                        <>
+   865→                          <Sparkles className="w-4 h-4 relative z-10" />
+   866→                          <span className="relative z-10">Configurer maintenant</span>
+   867→                        </>
+   868→                      )}
+   869→                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+   870→                    </motion.button>
+   871→                  </motion.div>
+   872→                </motion.div>
+   873→              )}
+   874→
+   875→              {/* ═══════════════════ STEP 5: SUCCESS ═══════════════════ */}
+   876→              {step === 'success' && (
+   877→                <motion.div
+   878→                  key="success"
+   879→                  custom={direction}
+   880→                  variants={slideVariants}
+   881→                  initial="enter"
+   882→                  animate="center"
+   883→                  exit="exit"
+   884→                  transition={{ duration: 0.35, ease: 'easeInOut' }}
+   885→                  className="text-center space-y-6"
+   886→                >
+   887→                  <SuccessAnimation
+   888→                    show
+   889→                    size={100}
+   890→                    label={undefined}
+   891→                    confettiColors={['#fbbf24', '#34d399', '#a78bfa', '#f472b6', '#60a5fa']}
+   892→                  />
+   893→
+   894→                  <motion.div initial={fadeUp.initial} animate={fadeUp.animate} transition={{ delay: 0.5 }}>
+   895→                    <h2 className="text-3xl font-bold text-white">
+   896→                      Configuration terminée !
+   897→                    </h2>
+   898→                    <p className="text-white/70 text-sm mt-2 leading-relaxed">
+   899→                      Votre Hub est maintenant actif.<br />
+   900→                      Scannez-le à nouveau pour commencer !
+   901→                    </p>
+   902→                  </motion.div>
+   903→
+   904→                  {/* Success info card */}
+   905→                  <motion.div
+   906→                    initial={{ opacity: 0 }}
+   907→                    animate={{ opacity: 1 }}
+   908→                    transition={{ delay: 0.7 }}
+   909→                  >
+   910→                    <GlassCard className="p-4 space-y-2" hover={false}>
+   911→                      <div className="flex justify-between text-sm">
+   912→                        <span className="text-white/50">Logement</span>
+   913→                        <span className="text-white/90 font-medium">{homeName}</span>
+   914→                      </div>
+   915→                      <div className="flex justify-between text-sm">
+   916→                        <span className="text-white/50">Plan</span>
+   917→                        <span className="text-white/90 font-medium capitalize">{selectedPlan.replace('_', ' ')}</span>
+   918→                      </div>
+   919→                      <div className="flex justify-between text-sm">
+   920→                        <span className="text-white/50">Essai gratuit</span>
+   921→                        <span className="text-emerald-300 font-medium">14 jours</span>
+   922→                      </div>
+   923→                    </GlassCard>
+   924→                  </motion.div>
+   925→
+   926→                  {/* CTA buttons */}
+   927→                  <motion.div
+   928→                    initial={{ opacity: 0, y: 10 }}
+   929→                    animate={{ opacity: 1, y: 0 }}
+   930→                    transition={{ delay: 0.9 }}
+   931→                    className="flex flex-col gap-3"
+   932→                  >
+   933→                    {hubSlug && (
+   934→                      <motion.button
+   935→                        whileHover={{ scale: 1.03 }}
+   936→                        whileTap={{ scale: 0.97 }}
+   937→                        onClick={() => router.push(`/hub/${hubSlug}`)}
+   938→                        className="w-full h-14 rounded-2xl bg-white text-violet-700 font-bold text-sm shadow-xl shadow-black/10 flex items-center justify-center gap-2 relative overflow-hidden group"
+   939→                      >
+   940→                        <span className="relative z-10">Tester mon Hub</span>
+   941→                        <ArrowRight className="w-4 h-4 relative z-10" />
+   942→                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+   943→                      </motion.button>
+   944→                    )}
+   945→                    <motion.button
+   946→                      whileTap={{ scale: 0.97 }}
+   947→                      onClick={() => router.push('/')}
+   948→                      className="w-full h-11 rounded-2xl bg-white/10 border border-white/20 text-white/70 text-sm font-medium hover:bg-white/20 transition-all"
+   949→                    >
+   950→                      Aller au dashboard
+   951→                    </motion.button>
+   952→                  </motion.div>
+   953→                </motion.div>
+   954→              )}
+   955→            </AnimatePresence>
+   956→          </div>
+   957→        </div>
+   958→
+   959→        {/* Footer */}
+   960→        <div className="px-6 py-6 text-center">
+   961→          <p className="text-xs text-white/30">
+   962→            QR Domotik &middot; qrdomotik.com
+   963→          </p>
+   964→        </div>
+   965→      </div>
+   966→    </AnimatedGradient>
+   967→  );
+   968→}
+   969→

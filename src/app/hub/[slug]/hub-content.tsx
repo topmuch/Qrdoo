@@ -618,24 +618,24 @@ function FamilyRoomCard({
     <motion.button
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className="relative overflow-hidden rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 p-6 text-left group"
+      className="relative overflow-hidden rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 p-5 text-left group"
     >
       {/* Decorative gradient blob */}
       <div
-        className="absolute -bottom-6 -left-6 h-28 w-28 rounded-full opacity-20 blur-2xl transition-opacity group-hover:opacity-30"
+        className="absolute -bottom-4 -left-4 h-20 w-20 rounded-full opacity-20 blur-2xl transition-opacity group-hover:opacity-30"
         style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
       />
 
       <div className="relative z-10">
         <div
-          className="h-14 w-14 rounded-2xl flex items-center justify-center mb-4 shadow-lg"
+          className="h-11 w-11 rounded-xl flex items-center justify-center mb-3 shadow-lg"
           style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
         >
-          <IconComp iconStr={room.icon} className="h-7 w-7 text-white" />
+          <IconComp iconStr={room.icon} className="h-5.5 w-5.5 text-white" />
         </div>
 
-        <h3 className="text-lg font-bold text-white truncate">{room.name}</h3>
-        <p className="text-sm text-white/50 mt-0.5">
+        <h3 className="text-base font-bold text-white truncate">{room.name}</h3>
+        <p className="text-xs text-white/50 mt-0.5">
           {room.qrCodes.length} module{room.qrCodes.length !== 1 ? 's' : ''}
         </p>
 
@@ -676,23 +676,23 @@ function FamilyActionCard({
     <motion.button
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className="relative overflow-hidden rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 p-6 text-left group"
+      className="relative overflow-hidden rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 p-5 text-left group"
     >
       <div
-        className="absolute -bottom-6 -left-6 h-28 w-28 rounded-full opacity-20 blur-2xl transition-opacity group-hover:opacity-30"
+        className="absolute -bottom-4 -left-4 h-20 w-20 rounded-full opacity-20 blur-2xl transition-opacity group-hover:opacity-30"
         style={{ background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})` }}
       />
 
       <div className="relative z-10">
         <div
-          className="h-14 w-14 rounded-2xl flex items-center justify-center mb-4 shadow-lg"
+          className="h-11 w-11 rounded-xl flex items-center justify-center mb-3 shadow-lg"
           style={{ background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})` }}
         >
-          <Icon className="h-7 w-7 text-white" />
+          <Icon className="h-5.5 w-5.5 text-white" />
         </div>
 
-        <h3 className="text-lg font-bold text-white truncate">{label}</h3>
-        <p className="text-sm text-white/50 mt-0.5">{subtitle}</p>
+        <h3 className="text-base font-bold text-white truncate">{label}</h3>
+        <p className="text-xs text-white/50 mt-0.5">{subtitle}</p>
 
         {badge && (
           <div className={`mt-2 inline-flex items-center text-[10px] font-semibold ${badgeColor || 'text-white/60 bg-white/10'} px-2 py-0.5 rounded-full`}>
@@ -722,7 +722,7 @@ function RoomDetailView({
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={onBack}
-          className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center"
+          className="h-11 w-11 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center"
         >
           <ArrowLeft className="h-5 w-5 text-white" />
         </motion.button>
@@ -731,7 +731,7 @@ function RoomDetailView({
             <DynamicRoomIcon iconStr={room.icon} className="h-5 w-5 text-white/70" />
             <h2 className="text-xl font-bold text-white truncate">{room.name}</h2>
           </div>
-          <p className="text-sm text-white/40 mt-0.5 ml-7.5">
+          <p className="text-sm text-white/40 mt-0.5 ml-[30px]">
             {room.qrCodes.length} module{room.qrCodes.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -776,7 +776,7 @@ function VoiceDetailView({
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={onBack}
-          className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center"
+          className="h-11 w-11 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center"
         >
           <ArrowLeft className="h-5 w-5 text-white" />
         </motion.button>
@@ -797,7 +797,7 @@ function VoiceDetailView({
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1"
+          className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1 scrollbar-thin"
         >
           {voiceMsgs.map((vm) => (
             <motion.div key={vm.id} variants={itemVariants}>
@@ -840,7 +840,7 @@ function RulesDetailView({
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={onBack}
-          className="h-10 w-10 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center"
+          className="h-11 w-11 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center"
         >
           <ArrowLeft className="h-5 w-5 text-white" />
         </motion.button>
@@ -1113,7 +1113,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
 
         <div className="min-h-screen flex flex-col relative z-10">
           {/* Header */}
-          <header className="w-full px-6 pt-6 pb-2">
+          <header className="w-full px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2">
             <div className="max-w-lg mx-auto">
               <div className="flex items-center justify-between">
                 {view !== 'mode-select' ? (
@@ -1273,7 +1273,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                         <MessageCircle className="h-4 w-4" />
                         <span>{voiceMsgs.length} message{voiceMsgs.length > 1 ? 's' : ''} vocal{voiceMsgs.length > 1 ? 'aux' : ''}</span>
                       </div>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                      <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin">
                         {voiceMsgs.slice(0, 3).map((vm) => (
                           <div key={vm.id} className="flex items-center gap-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 px-4 py-3">
                             <div className="h-8 w-8 rounded-full bg-white/15 flex items-center justify-center shrink-0">
@@ -1311,16 +1311,24 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     </p>
                   </div>
 
-                  {/* Quick Access Grid — 2x2 */}
+                  {/* Quick Access: WiFi full-width hero card */}
+                  {wifiQr && (
+                    <motion.div
+                      variants={itemVariants}
+                      initial="hidden"
+                      animate="visible"
+                    >
+                      <WifiQuickCard content={wifiQr.content} />
+                    </motion.div>
+                  )}
+
+                  {/* Quick Access Grid — remaining cards */}
                   <motion.div
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
                     className="grid grid-cols-2 gap-3"
                   >
-                    {/* WiFi Card */}
-                    {wifiQr && <WifiQuickCard content={wifiQr.content} />}
-
                     {/* Messages Card */}
                     <MessagesQuickCard
                       count={voiceMsgs.length}
@@ -1352,7 +1360,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                       <div className="flex items-center gap-2 text-sm font-semibold text-white/70">
                         <Volume2 className="h-4 w-4" /> Messages vocaux
                       </div>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
                         {voiceMsgs.map((vm) => <VoicePlayer key={vm.id} msg={vm} />)}
                       </div>
                     </div>
@@ -1397,7 +1405,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
-                    className="grid grid-cols-2 gap-4"
+                    className="grid grid-cols-2 gap-3"
                   >
                     {/* Room cards (up to 4) */}
                     {data.familyRooms.slice(0, 4).map((room, i) => (
@@ -1520,8 +1528,8 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
             </AnimatePresence>
           </main>
 
-          {/* Footer */}
-          <div className="px-6 py-6 text-center">
+          {/* Footer — sticks to bottom on short content, safe area for iOS */}
+          <div className="mt-auto px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center">
             <p className="text-xs text-white/30">
               Propulsé par QR Domotik 🏠
             </p>
