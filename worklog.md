@@ -1198,3 +1198,56 @@ Stage Summary:
 - PIN modal with NumericKeypad and GlassCard
 - Settings gear opens PIN modal
 - All API integration preserved
+
+---
+Task ID: 4
+Agent: Main
+Task: ÉTAPE 4 — Rewrite Hub internal views (Guest enhanced + Family dashboard)
+
+Work Log:
+- Read existing hub-content.tsx (813 lines) to understand current structure
+- Read API route /api/public/hub/[slug]/route.ts to understand data contract
+- Read QR_MODULE_LABELS from database.ts to understand all module types
+- Read GlassCard component for props reference
+- Rewrote hub-content.tsx (~950 lines) with enhanced views:
+
+  **Guest View (Enhanced):**
+  - 4 Quick Access Cards in a 2x2 responsive grid:
+    1. WifiQuickCard — network name, password with show/hide toggle, copy-to-clipboard with toast feedback, green gradient accent
+    2. MessagesQuickCard — voice message count badge, latest sender preview, cyan gradient accent
+    3. RulesQuickCard — rules count, first rule preview, amber gradient accent, tap to open RulesDetailView
+    4. ContactQuickCard — phone with tap-to-call, email, rose gradient accent
+  - Standalone VoiceRecorder below quick cards
+  - Voice messages list with VoicePlayer
+  - Modules par pièce section (rooms excluding quick-access modules)
+  - RulesDetailView sub-view with numbered rule list
+
+  **Family View (6-card Dashboard):**
+  - 2-column grid with staggered animations
+  - Up to 4 FamilyRoomCard components (rooms from database with icons, module counts, private badges)
+  - FamilyActionCard for Répondeur (voice messages count, rose gradient)
+  - FamilyActionCard for Paramètres (settings, slate gradient, opens PIN modal)
+  - "Plus de pièces" overflow card if > 4 rooms
+  - RoomDetailView sub-view when tapping a room card (back button, module grid)
+  - VoiceDetailView sub-view when tapping Répondeur (back button, recorder + messages)
+
+  **Navigation & Transitions:**
+  - Directional slide variants (left/right) based on navigation direction
+  - slideDirection state to track forward/back movement
+  - goBack helper with smart return (room-detail → family, rules-detail → guest)
+  - HubView type extended: mode-select | guest | family | room-detail | voice-detail | rules-detail
+  - selectedRoomId and selectedRulesContent state for sub-views
+  - AnimatedGradient preset dynamically switches (hub-guest vs hub-family)
+
+- Fixed RoomSection JSX bug (missing braces for map expression)
+- Verified: lint passes clean, dev server compiles 200, no console errors in browser
+
+Stage Summary:
+- hub-content.tsx rewritten with ~950 lines of immersive glassmorphism UI
+- Guest view: 4 quick-access cards (WiFi/Messages/Rules/Contact) + voice + room modules
+- Family view: 6-card dashboard (rooms + Répondeur + Paramètres) + sub-views
+- 6 new components: WifiQuickCard, RulesQuickCard, ContactQuickCard, MessagesQuickCard, FamilyRoomCard, FamilyActionCard, RoomDetailView, VoiceDetailView, RulesDetailView
+- Directional slide transitions with AnimatePresence custom variants
+- All existing functionality preserved (PIN modal, voice recorder/player, API integration)
+- Zero lint errors, zero console errors
+
