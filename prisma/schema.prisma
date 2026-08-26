@@ -22,6 +22,8 @@ model User {
   fullName     String?  @map("full_name")
   passwordHash String?  @map("password_hash")
   role         String   @default("user")
+  selectedPlan      String?   @map("selected_plan")      // 'famille', 'airbnb_solo', 'airbnb_pro' — choisi avant paiement
+  onboardingCompleted Boolean @default(false) @map("onboarding_completed")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -31,6 +33,7 @@ model User {
   homeMemberships               HomeMember[]
   createdBatches                QrBatch[]
   activatedPhysicalQrs          PhysicalQrCode[] @relation("UserActivatedQrs")
+  claimedPlaqueQrs            PhysicalQrCode[] @relation("PlaqueClaimedByUser")
   activityLogEntries            ActivityLog[] @relation("ActivityLogUser")
   assignedChores                Chore[] @relation("ChoreAssignedTo")
   childChoreCompletions         ChoreCompletion[] @relation("ChoreCompletionChild")
@@ -76,6 +79,7 @@ model Home {
   address   String?
   location  String?  // JSON string: {"lat": 48.8566, "lng": 2.3522} for SQLite (PostGIS GEOGRAPHY in Supabase)
   isActive  Boolean  @default(true) @map("is_active")
+  pinHash   String?  @map("pin_hash")          // bcrypt hash du code PIN à 4 chiffres (mode Famille/Hôte)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -93,6 +97,8 @@ model Home {
   scanLogs        ScanLog[]
   webhooks         Webhook[]
   homeAutomations  HomeAutomation[]
+  voiceMessages    VoiceMessage[]
+  plaqueQrCodes    PhysicalQrCode[] @relation("PlaqueQrHome")
 
   @@map("homes")
 }
@@ -213,17 +219,28 @@ model PhysicalQrCode {
   activatedAt        DateTime? @map("activated_at")
   dynamicQrCodeId    String?   @map("dynamic_qr_code_id")
   designConfig       String    @default("{}") @map("design_config")
+  // ── Scan-to-Onboard & QR Hub ──
+  isClaimed          Boolean   @default(false) @map("is_claimed")       // true = plaque liée à un compte
+  hubSlug            String?   @unique @map("hub_slug")              // slug public pour /hub/[slug] (ex: "maison-dupont-7kx")
+  claimedByUserId    String?   @map("claimed_by_user_id")        // utilisateur qui a claimé
+  claimedAt          DateTime? @map("claimed_at")              // date du claim
+  homeId             String?   @map("home_id")                 // maison liée à cette plaque
 
   // Relations
   batch         QrBatch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
   activatedBy   User?      @relation("UserActivatedQrs", fields: [activatedByUserId], references: [id], onDelete: SetNull)
+  claimedBy      User?      @relation("PlaqueClaimedByUser", fields: [claimedByUserId], references: [id], onDelete: SetNull)
   dynamicQrCode QrCode?    @relation(fields: [dynamicQrCodeId], references: [id], onDelete: SetNull)
   activationLogs ActivationLog[]
+  home          Home?      @relation("PlaqueQrHome", fields: [homeId], references: [id], onDelete: SetNull)
 
   @@index([batchId])
   @@index([status])
   @@index([activatedByUserId])
   @@index([dynamicQrCodeId])
+  @@index([isClaimed])
+  @@index([claimedByUserId])
+  @@index([homeId])
   @@map("physical_qr_codes")
 }
 
@@ -664,12 +681,14 @@ model EmergencyQrCode {
 model Subscription {
   id                    String    @id @default(cuid())
   subscriberId          String    @map("subscriber_id")
-  subscriberType        String    @map("subscriber_type")
-  plan                  String
+  subscriberType        String    @map("subscriber_type") // 'user', 'merchant', 'professional'
+  plan                  String                                  // 'famille', 'airbnb_solo', 'airbnb_pro', 'free', 'pro_merchant', 'business_merchant'
   amount                Float
   currency              String    @default("EUR")
+  billingCycle          String    @default("annual") @map("billing_cycle") // 'monthly', 'annual'
+  maxHomes              Int       @default(1) @map("max_homes")        // nombre de logements inclus (airbnb_pro = 3)
   stripeSubscriptionId  String?   @map("stripe_subscription_id")
-  status                String    @default("active")
+  status                String    @default("active")                  // 'active', 'past_due', 'cancelled', 'trialing'
   currentPeriodStart    DateTime? @map("current_period_start")
   currentPeriodEnd      DateTime? @map("current_period_end")
   createdAt             DateTime  @default(now()) @map("created_at")
@@ -940,4 +959,27 @@ model HomeAutomation {
   @@index([provider])
   @@index([isActive])
   @@map("home_automations")
+}
+
+// ==============================================================
+// TABLE 38: voice_messages (Hub - Répondeur vocal)
+// ==============================================================
+model VoiceMessage {
+  id          String   @id @default(cuid())
+  homeId      String   @map("home_id")
+  senderName  String   @map("sender_name")      // nom affiché (invité ou membre)
+  senderType  String   @default("guest") @map("sender_type") // 'guest', 'family', 'system'
+  audioUrl    String   @map("audio_url")       // URL Supabase Storage (ou local en dev)
+  durationSec Int      @default(0) @map("duration_sec")   // durée en secondes (max 30)
+  fileSizeKb Int      @default(0) @map("file_size_kb")   // taille du fichier audio
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  home        Home     @relation(fields: [homeId], references: [id], onDelete: Cascade)
+
+  @@index([homeId])
+  @@index([senderType])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("voice_messages")
 }
