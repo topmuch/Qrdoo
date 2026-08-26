@@ -13,7 +13,6 @@ import {
   Plus,
   DoorOpen,
   Activity,
-  Zap,
   Eye,
   Settings2,
   Layers,
@@ -25,11 +24,8 @@ import {
   BarChart3,
   Plug,
   Globe,
-  ShieldAlert,
-  Package,
   Users,
   CreditCard,
-  ShoppingBag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -52,10 +48,7 @@ export type ClientPage =
   | 'client-analytics'
   | 'client-automations'
   | 'client-webhooks'
-  | 'client-stock'
-  | 'client-packs'
   | 'client-artisans'
-  | 'client-marketplace'
   | 'client-monetization';
 
 interface ClientLayoutProps {
@@ -73,10 +66,7 @@ const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; 
   { key: 'client-rooms', label: 'Mes Pièces', icon: <DoorOpen className="h-5 w-5" /> },
   { key: 'client-activity', label: "Journal d'activité", icon: <Activity className="h-5 w-5" /> },
   { key: 'client-chores', label: 'Corvées & Récompenses', icon: <Sparkles className="h-5 w-5" />, badge: 'V2' },
-  { key: 'client-stock', label: 'Stock & DLC', icon: <ShieldAlert className="h-5 w-5" />, badge: 'V2' },
-  { key: 'client-packs', label: 'Packs Pré-configurés', icon: <Package className="h-5 w-5" />, badge: 'B2B' },
-  { key: 'client-artisans', label: 'Artisans & Réservations', icon: <Users className="h-5 w-5" />, badge: 'V3' },
-  { key: 'client-marketplace', label: 'Marketplace Quartier', icon: <ShoppingBag className="h-5 w-5" />, badge: 'V3' },
+  { key: 'client-artisans', label: 'Mon Quartier', icon: <Store className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-monetization', label: 'Monétisation', icon: <CreditCard className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" /> },
   { key: 'client-analytics', label: 'Statistiques Scan', icon: <BarChart3 className="h-5 w-5" />, badge: 'V3' },
@@ -94,7 +84,6 @@ const MODULE_ITEMS_V1: { key: ClientPage; label: string; icon: React.ReactNode; 
 ];
 
 const MODULE_ITEMS_V3: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
-  { key: 'client-marketplace', label: 'Marketplace', icon: <ShoppingBag className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-artisans', label: 'Mon Quartier', icon: <Store className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-artisans', label: 'Services Pro', icon: <Briefcase className="h-5 w-5" />, badge: 'V3' },
 ];
@@ -291,7 +280,7 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
                   : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
               )}
             >
-              <Zap className="h-5 w-5" />
+              <Plus className="h-5 w-5" />
               <span className="flex-1 text-left">Page activation</span>
               {activePage === 'activation-public' && <ChevronRight className="h-4 w-4" />}
             </button>

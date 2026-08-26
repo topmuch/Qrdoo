@@ -33,11 +33,13 @@ import { NotificationCenter } from '@/components/client/notifications-center';
 import { ScanAnalytics } from '@/components/client/scan-analytics';
 import { AutomationsManager } from '@/components/client/automations-manager';
 import { WebhooksManager } from '@/components/client/webhooks-manager';
-import { StockManager } from '@/components/client/stock-manager';
-import { PackManager } from '@/components/client/pack-manager';
 import { ArtisanManager } from '@/components/client/artisan-manager';
-import { MarketplaceManager } from '@/components/client/marketplace-manager';
 import { MonetizationManager } from '@/components/client/monetization-manager';
+
+// Admin pages (marketplace & B2B)
+import { AdminArtisans } from '@/components/admin/admin-artisans';
+import { AdminMarketplace } from '@/components/admin/admin-marketplace';
+import { AdminPacks } from '@/components/admin/admin-packs';
 
 function ScanAnalyticsWrapper() {
   const [homeId, setHomeId] = useState('');
@@ -158,6 +160,9 @@ function AppContent() {
         case 'physical-qr': return <ManagePhysicalQr />;
         case 'users': return <AdminUsers />;
         case 'stats': return <AdminStats />;
+        case 'admin-artisans': return <AdminArtisans />;
+        case 'admin-marketplace': return <AdminMarketplace />;
+        case 'admin-packs': return <AdminPacks />;
         default: return <StatsOverview />;
       }
     };
@@ -183,10 +188,7 @@ function AppContent() {
       case 'client-rooms': return <RoomsManager />;
       case 'client-activity': return <ActivityLogViewer />;
       case 'client-chores': return <ChoresManager />;
-      case 'client-stock': return <StockManager />;
-      case 'client-packs': return <PackManager />;
       case 'client-artisans': return <ArtisanManager />;
-      case 'client-marketplace': return <MarketplaceManager />;
       case 'client-monetization': return <MonetizationManager />;
       case 'client-notifications': return <NotificationCenter />;
       case 'client-analytics': return <ScanAnalyticsWrapper />;

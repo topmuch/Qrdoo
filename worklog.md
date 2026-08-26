@@ -896,3 +896,96 @@ Stage Summary:
 - Follows exact artisan-manager.tsx patterns: fetchHomeId, userId='dev-user-1', useState tabs, fetch/cb pattern, loading skeleton, error handling, toast feedback, Dialog modals, gradient stat cards, responsive grid
 - All French text, mobile responsive, max-h scrollable areas
 - Lint passes clean
+---
+Task ID: 3
+Agent: Frontend refactor
+Task: Make artisan-manager.tsx read-only for client (remove create professional profile functionality)
+
+Work Log:
+- Read /src/components/client/artisan-manager.tsx (1471 lines) to identify all create-professional code
+- Identified state variables to remove: createProOpen, proFormName, proFormCategory, proFormDesc, proFormLocation, proFormRate, proFormRadius, proFormUrgent, proSubmitting (lines 174-184)
+- Identified handleCreateProfile function to remove (lines 385-414)
+- Identified create-professional Dialog in tab action buttons (lines 665-739)
+- Verified Plus icon is still used by "Nouvelle demande" button in demandes tab — kept import
+- Verified UserCheck icon is still used on line 1260 — kept import
+- Verified DialogTrigger is still used by demandes dialog — kept import
+- Applied 3 edits: removed state vars, removed handleCreateProfile, removed create-pro Dialog
+- Verified no remaining references to createPro, proForm, proSubmitting, handleCreateProfile
+- Ran lint — passes clean
+- Checked dev server log — no errors
+
+Stage Summary:
+- Removed all create-professional-profile functionality from artisan-manager.tsx
+- Client can now only: browse professionals (Annuaire), create/view service requests (Mes Demandes), write/view reviews (Avis), chat (Chat)
+- No "Créer mon profil pro" button in Annuaire tab header anymore
+- All other tabs and functionality preserved unchanged
+- File reduced from 1471 to 1352 lines
+- All imports still valid (Plus reused by demandes tab)
+- Lint passes clean
+
+---
+Task ID: 4-a and 4-c
+Agent: Admin components developer
+Task: Create AdminArtisans and AdminPacks components
+
+Work Log:
+- Read worklog.md for project context
+- Read admin-users.tsx for admin component pattern (table layout, badges, dialogs, skeleton, pagination)
+- Read artisan-manager.tsx lines 58-150 for ProfessionalData type, ServiceData type, and STATUS_CONFIG pattern
+- Read pack-manager.tsx for pack display pattern and PackData structure
+- Read packs-config.ts for PACKS array and PackDefinition interface
+- Read types/database.ts for CATEGORIES array and QR_MODULE_LABELS mapping
+- Verified available shadcn components (alert-dialog, switch, textarea, skeleton, etc.)
+
+Created /src/components/admin/admin-artisans.tsx:
+- Full CRUD admin for professionals with ProfessionalData and ServiceData types
+- Stats bar: Total pros, Vérifiés, Actifs with icon cards
+- Filters: search input, category Select (from CATEGORIES), verified toggle Switch
+- Table with columns: businessName, category (Badge), location, hourlyRate (€), ratingAvg (Stars), isVerified (Switch toggle), isActive (Switch toggle), totalJobsCompleted, actions (view/edit/delete)
+- Responsive: hidden columns on sm/md/lg breakpoints
+- Click Eye button → detail Dialog showing all info (location, radius, rate, rating, reviews, jobs, response time, urgent availability, description, services table)
+- Click Pencil button → form Dialog pre-filled for editing (businessName, category, subcategory, description textarea, location, serviceRadiusKm, hourlyRate, isUrgentAvailable toggle, isVerified toggle)
+- Click Plus button → same form Dialog empty for creating new professional
+- Delete → AlertDialog confirm, soft-delete via PATCH isActive=false
+- Inline toggle for isActive and isVerified via Switch with loading state
+- API: GET/POST /api/client/professionals, GET/PATCH /api/client/professionals/[id]
+- Loading skeleton, error state with retry, empty state
+- All text in French
+
+Created /src/components/admin/admin-packs.tsx:
+- Display-only admin view of PACKS_CONFIG packs
+- Info banner explaining packs are configured in code and shown during onboarding
+- Stats: Total packs, Total QR codes, Unique modules covered (computed)
+- Grid of pack cards (responsive 1/2/3 cols) showing: gradient header with icon + badge, description, target audience, QR code count + module count badges, modules table (module type label from QR_MODULE_LABELS, room name, QR name) with max-h-48 scroll, features list in dark card
+- Future note: dashed border banner mentioning upcoming enable/disable and module customization
+- All text in French
+
+Lint: passes clean
+
+---
+Task ID: 4-b
+Agent: Admin component developer
+Task: Create AdminMarketplace component
+
+Work Log:
+- Read worklog.md for context
+- Read admin-users.tsx for admin component pattern (Dialog, Table, Badge, Select, search, pagination)
+- Read marketplace-manager.tsx (2008 lines) for types, API patterns, and CRUD handlers
+- Created /src/components/admin/admin-marketplace.tsx (519 lines)
+- Component has 5 tabs: Commerçants, Promotions, Ventes Flash, Coupons, Transactions
+- Each tab has: stat cards, filters, table view, create/edit dialog
+- Uses shadcn Table, Dialog, Tabs, Badge, Select, Progress components
+- All text in French
+- Responsive design with hidden columns on mobile
+- CRUD operations for all entities (merchants, promos, flash sales, coupons)
+- Flash sales include live countdown timer and progress bar
+- Coupons include click-to-copy code and scan action
+- Transactions tab is read-only with filters
+- Lint passes with no errors
+
+Stage Summary:
+- AdminMarketplace component created at /src/components/admin/admin-marketplace.tsx (519 lines)
+- All 5 tabs functional with proper CRUD, filters, and French UI
+- Uses same API endpoints as client marketplace-manager
+- Follows admin-users.tsx pattern for consistency
+

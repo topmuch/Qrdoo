@@ -171,17 +171,6 @@ export function ArtisanManager() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [selectedPro, setSelectedPro] = useState<ProfessionalData | null>(null);
   const [proDetailOpen, setProDetailOpen] = useState(false);
-  const [createProOpen, setCreateProOpen] = useState(false);
-
-  // Create profile form
-  const [proFormName, setProFormName] = useState('');
-  const [proFormCategory, setProFormCategory] = useState('');
-  const [proFormDesc, setProFormDesc] = useState('');
-  const [proFormLocation, setProFormLocation] = useState('');
-  const [proFormRate, setProFormRate] = useState('');
-  const [proFormRadius, setProFormRadius] = useState('10');
-  const [proFormUrgent, setProFormUrgent] = useState(false);
-  const [proSubmitting, setProSubmitting] = useState(false);
 
   // Demandes UI state
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequestData | null>(null);
@@ -379,38 +368,6 @@ export function ArtisanManager() {
     if (!reqFormProId) return [];
     const pro = allProfessionals.find((p) => p.id === reqFormProId);
     return pro?.services.filter((s) => s.isActive) || [];
-  };
-
-  // ── Annuaire handlers ───────────────────────────────────────
-  const handleCreateProfile = async () => {
-    if (!proFormName.trim()) return;
-    setProSubmitting(true);
-    try {
-      const res = await fetch('/api/client/professionals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          businessName: proFormName.trim(),
-          category: proFormCategory || undefined,
-          description: proFormDesc || undefined,
-          location: proFormLocation || undefined,
-          hourlyRate: proFormRate ? parseFloat(proFormRate) : undefined,
-          serviceRadiusKm: parseInt(proFormRadius) || 10,
-          isUrgentAvailable: proFormUrgent,
-        }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success('Profil professionnel créé avec succès');
-      setCreateProOpen(false);
-      setProFormName(''); setProFormCategory(''); setProFormDesc('');
-      setProFormLocation(''); setProFormRate(''); setProFormRadius('10'); setProFormUrgent(false);
-      fetchTabData('annuaire');
-    } catch {
-      toast.error("Erreur lors de la création du profil");
-    } finally {
-      setProSubmitting(false);
-    }
   };
 
   // ── Demandes handlers ───────────────────────────────────────
@@ -662,82 +619,6 @@ export function ArtisanManager() {
 
         <div className="flex items-center gap-2">
           {/* Tab-specific action buttons */}
-          {activeTab === 'annuaire' && (
-            <Dialog open={createProOpen} onOpenChange={(open) => { setCreateProOpen(open); }}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-md">
-                  <Plus className="h-4 w-4" />
-                  Créer mon profil pro
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[520px]">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <UserCheck className="h-5 w-5 text-emerald-500" />
-                    Créer mon profil professionnel
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="pro-name">Nom de l'entreprise *</Label>
-                    <Input id="pro-name" placeholder="Ex: Dupont Plomberie" value={proFormName} onChange={(e) => setProFormName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Catégorie</Label>
-                    <Select value={proFormCategory} onValueChange={setProFormCategory}>
-                      <SelectTrigger className="w-full"><SelectValue placeholder="Sélectionner une catégorie" /></SelectTrigger>
-                      <SelectContent>
-                        {CATEGORY_OPTIONS.map((cat) => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="pro-desc">Description</Label>
-                    <Textarea id="pro-desc" placeholder="Décrivez votre activité..." value={proFormDesc} onChange={(e) => setProFormDesc(e.target.value)} rows={3} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="pro-location">Localisation</Label>
-                      <Input id="pro-location" placeholder="Ex: Paris 11e" value={proFormLocation} onChange={(e) => setProFormLocation(e.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pro-rate">Tarif horaire (€)</Label>
-                      <Input id="pro-rate" type="number" min={0} step={0.5} placeholder="Ex: 45" value={proFormRate} onChange={(e) => setProFormRate(e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="pro-radius">Rayon d'intervention (km)</Label>
-                      <Input id="pro-radius" type="number" min={1} max={100} value={proFormRadius} onChange={(e) => setProFormRadius(e.target.value)} />
-                    </div>
-                    <div className="flex items-end gap-2 pb-1">
-                      <input
-                        id="pro-urgent"
-                        type="checkbox"
-                        checked={proFormUrgent}
-                        onChange={(e) => setProFormUrgent(e.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <Label htmlFor="pro-urgent" className="text-sm">Disponible en urgence</Label>
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setCreateProOpen(false)}>Annuler</Button>
-                  <Button
-                    onClick={handleCreateProfile}
-                    disabled={!proFormName.trim() || proSubmitting}
-                    className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
-                  >
-                    {proSubmitting ? 'Création...' : 'Créer le profil'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
-
           {activeTab === 'demandes' && (
             <Dialog open={newRequestOpen} onOpenChange={(open) => { setNewRequestOpen(open); }}>
               <DialogTrigger asChild>
