@@ -1,0 +1,1286 @@
+     1→---
+     2→Task ID: 1
+     3→Agent: Explore
+     4→Task: Research architecture patterns for modules #28-33 (Annuaire artisans, Réservation, Avis, Chat)
+     5→
+     6→Work Log:
+     7→- Read worklog.md for context
+     8→- Analyzed API route pattern from src/app/api/client/products/route.ts
+     9→- Analyzed dashboard component pattern from src/components/client/stock-manager.tsx
+    10→- Analyzed V3 display component pattern from src/components/modules/v3/InventoryDisplayV3.tsx
+    11→- Read view-content mapping from src/app/view/[slug]/view-content.tsx
+    12→- Read page routing (case statements) from src/app/page.tsx
+    13→- Read client layout sidebar from src/components/client/client-layout.tsx
+    14→- Read GradientBackground MODULE_GRADIENTS from src/components/magic/GradientBackground.tsx
+    15→- Searched for existing artisan/reservation/review/chat files in src/
+    16→- Read push sender pattern from src/lib/push-sender.ts
+    17→- Read database lib from src/lib/db.ts
+    18→- Read full Prisma schema for all marketplace models (Professional, Service, ServiceRequest, Review, ChatMessage, Notification, Merchant, Subscription, Transaction, FlashSale, Coupon)
+    19→- Read types/database.ts for all V3 business types and module type definitions
+    20→- Confirmed: NO API routes, NO V3 display components, NO client dashboard components exist yet for artisan/service_request/review/chat/reservation
+    21→
+    22→Stage Summary:
+    23→- Complete architecture pattern research for modules #28-33 documented
+    24→- Database models already exist in Prisma schema (Professional, Service, ServiceRequest, Review, ChatMessage)
+    25→- Type definitions already exist in src/types/database.ts (ServiceRequestStatus, ChatSenderType, ChatMessageType, etc.)
+    26→- No implementation files exist yet - all needs to be built from scratch
+    27→- V3 module types already registered in QR_MODULE_TYPES.V3: merchant, service_request, promo, flash_sale, coupon, emergency_service, artisan_directory
+    28→- Sidebar has placeholder V3 items ("Mon Quartier" and "Services Pro") both mapping to 'modules' key
+    29→- No gradients defined yet for artisan_directory, service_request, chat, review module types
+    30→---
+    31→Task ID: 1-4
+    32→Agent: Main
+    33→Task: Fix super-admin crash, buttons, client dashboard KPI multicolor, violet sidebar
+    34→
+    35→Work Log:
+    36→- Diagnosed super-admin crash: stats-overview.tsx line 139 calls .filter() on batch.physicalQrCodes which was undefined (API only returned _count)
+    37→- Fixed API /api/admin/stats: added physicalQrCodes to include with status select
+    38→- Made frontend defensive: added fallback for undefined physicalQrCodes array
+    39→- Added qrStatusDistribution to API response for admin-stats pie chart
+    40→- Added totalPhysicalQr and activatedQr aliases for admin-stats compatibility
+    41→- Fixed ErrorBoundary not resetting on page change: added key={adminPage} and key={clientPage}
+    42→- Enhanced ErrorBoundary with reset button and error icon
+    43→- Redesigned client-dashboard KPI cards with multicolor gradient backgrounds (emerald, amber, violet, sky)
+    44→- Redesigned client-layout sidebar with violet/purple gradient (from-violet-950 via-violet-900 to-purple-950)
+    45→- Updated sidebar active states, hover states, separator, and header badge to violet theme
+    46→
+    47→Stage Summary:
+    48→- Super-admin dashboard crash fixed (API + defensive frontend)
+    49→- All sidebar buttons now work (ErrorBoundary resets on page change)
+    50→- Client dashboard KPIs now use colorful gradient cards
+    51→- Client sidebar now uses violet/purple gradient theme
+    52→- Lint passes clean, compilation succeeds
+    53→---
+    54→Task ID: 1
+    55→Agent: Main Agent
+    56→Task: Fix Coolify build prerender error and QR activation flow
+    57→
+    58→Work Log:
+    59→- Diagnosed build error: `useSearchParams()` in client components causes prerender failure during `bun run build`
+    60→- Wrapped `AppContent` in `<Suspense>` in page.tsx
+    61→- Wrapped `ActivatePageContent` in `<Suspense>` in activate/[code]/page.tsx
+    62→- Wrapped `DemoPageContent` in `<Suspense>` in demo/[id]/page.tsx
+    63→- Changed activation flow from auto-redirect to explicit buttons ("Creer un compte et activer" + "Se connecter")
+    64→- Changed `router.replace` to `window.location.href` for full page reload (fixes useState not picking up new searchParams)
+    65→- Fixed activate API to auto-resolve homeId/roomId from authenticated user session
+    66→- Made homeId/roomId optional in activation form
+    67→- Added default content templates per module type in activate API
+    68→- Verified all flows with Agent Browser
+    69→- Pushed to GitHub
+    70→
+    71→Stage Summary:
+    72→- Build error fixed by wrapping useSearchParams() in Suspense boundaries
+    73→- Activation flow: scan QR → signup page → back to activate page with code pre-filled → choose module → activate
+    74→- Activate API no longer requires hardcoded homeId/roomId, resolves from user session
+    75→- All 5 files modified, committed and pushed to main
+    76→---
+    77→Task ID: 2
+    78→Agent: General-purpose
+    79→Task: Fix code format bug + simplify dashboard activation wizard
+    80→
+    81→Work Log:
+    82→- Fixed `formatCodeInput` regex: changed `/[^a-zA-Z0-9]/g` to `/[^a-zA-Z0-9-]/g` so dashes (e.g. `QR-BV994ZDA`) are preserved
+    83→- Removed `roomId: selectedRoomId` from `handleSingleActivate` POST body (API auto-resolves room)
+    84→- Removed `!selectedRoomId` guard from `handleSingleActivate` early return
+    85→- Made room selector optional in wizard Step 2: changed "no rooms" block from a blocking message to a note "Aucune pièce — le QR sera associé à votre maison"
+    86→- Removed `!selectedRoomId` from Step 2 "Suivant" button disabled condition
+    87→- Made Step 3 confirmation conditionally hide the room row when no room is selected
+    88→- Note: no `moduleContent` state exists in the component, so that field was not added
+    89→
+    90→Stage Summary:
+    91→- Code input now preserves dashes, matching DB format (e.g. `QR-BV994ZDA`)
+    92→- Activation wizard no longer blocks users without rooms
+    93→- Room selection is optional; API handles auto-resolution
+    94→- Confirmation step hides room row when none selected
+    95→---
+    96→Task ID: 3
+    97→Agent: Main Agent
+    98→Task: Fix "Introuvable" bug, add module content fields to activation, and improve post-activation UX
+    99→
+   100→Work Log:
+   101→- Created shared component `module-content-fields.tsx` with:
+   102→  - `MODULE_ACTIVATION_CONFIG`: field definitions for 15 modules (wifi, external_link, home_manual, note, meal_planner, guestbook, doorbell, emergency, contact, medication, energy_monitor, key_location, cleaning_schedule, shopping_list, checklist)
+   103→  - `ModuleContentFields`: reusable form component rendering per-module fields
+   104→  - `validateModuleContent`: validates required fields, returns missing labels
+   105→  - `moduleHasContentFields`: checks if a module type has configurable fields
+   106→- Fixed "Introuvable" bug in `activation-page.tsx`: separated code check try/catch from homes fetch try/catch so homes API failure doesn't overwrite code status to 'not_found'
+   107→- Updated `physical-qr-codes.tsx` (dashboard wizard):
+   108→  - Added module content fields in Step 2 after name input
+   109→  - Added content validation before activation
+   110→  - Added content preview in Step 3 confirmation
+   111→  - After activation, auto-switches to "Mes QR codes activés" tab
+   112→  - Expanded module list to 19 modules with proper icons
+   113→  - Added new icon imports (Link, UtensilsCrossed, Pill, KeyRound, Sparkles)
+   114→- Rewrote `activation-page.tsx`:
+   115→  - Fixed error handling (separate try/catch for homes fetch)
+   116→  - Added module content fields
+   117→  - Added success state with QR public slug info
+   118→  - Expanded module list to 19 modules
+   119→- Rewrote `/activate/[code]/activate-content.tsx` (public flow):
+   120→  - Replaced custom wifi/contact fields with shared `ModuleContentFields`
+   121→  - Added all 19 modules with icons from MODULE_ACTIVATION_CONFIG
+   122→  - Added content validation
+   123→  - Auto-fills name for wifi module
+   124→- Updated activate API:
+   125→  - Merges user-provided content with defaults (was replacing entirely)
+   126→  - Added default content for 8 new modules (external_link, home_manual, meal_planner, medication, energy_monitor, key_location, cleaning_schedule, guestbook, shopping_list, checklist)
+   127→
+   128→Stage Summary:
+   129→- "Introuvable" bug fixed: homes API failure no longer overwrites code check result
+   130→- All 3 activation flows (dashboard wizard, activation-page, public /activate/[code]) now show module-specific content fields
+   131→- 15 V1 modules have configurable fields (wifi: SSID+password+security, contact: name+phone+email, etc.)
+   132→- Content is validated before activation (required fields check)
+   133→- Post-activation: dashboard auto-switches to "Mes QR codes activés" tab
+   134→- All changes pass lint, compilation succeeds (200 on /)
+   135→---
+   136→Task ID: 4-a
+   137→Agent: API Agent
+   138→Task: Create public QR content API
+   139→
+   140→Work Log:
+   141→- Created /api/public/qr/[slug]/route.ts
+   142→- GET returns qrCode + parsed content JSON
+   143→- No authentication required (public endpoint)
+   144→
+   145→Stage Summary:
+   146→- Public API ready for /view/[slug] page
+   147→---
+   148→Task ID: 4-b
+   149→Agent: Display Components Agent
+   150→Task: Create V1 Display components for public QR scan
+   151→
+   152→Work Log:
+   153→- Created 10 display components in /components/modules/display/
+   154→- Each follows the established pattern: mobile-first, gradient bg, shadcn/ui
+   155→- Guestbook is interactive with visitor message form
+   156→- Shopping list and checklist show items with checkboxes
+   157→
+   158→Stage Summary:
+   159→- 10 new Display components ready for /view/[slug] page
+   160→---
+   161→Task ID: 3-a
+   162→Agent: Modules 1+5+6 Agent
+   163→Task: Premium scan page redesign, multilingual i18n, Android Wi-Fi deep link
+   164→
+   165→Work Log:
+   166→- Created scan-page-wrapper.tsx with branded header, scan counter, framer-motion animation
+   167→- Modified public QR API to include home name, scan count, and fire-and-forget scan logging
+   168→- Created /src/lib/i18n.ts with translations for 8 languages and useTranslation() hook
+   169→- Updated WifiDisplay with Android deep link, platform detection, and i18n
+   170→- Updated DoorbellDisplay with i18n translations
+   171→- Updated GenericDisplay, ContactDisplay, GuestbookDisplay, NoteDisplay with i18n
+   172→- Modified view-content.tsx to use ScanPageWrapper
+   173→
+   174→Stage Summary:
+   175→- Public scan pages now have premium branded header/footer with animation
+   176→- Scan logging tracks every QR scan with IP, UA, locale, referrer
+   177→- 8 languages supported (fr, en, es, de, nl, it, pt, ar)
+   178→- Android users get 1-tap Wi-Fi connection via intent:// deep link
+   179→- Platform detection shows appropriate UI for Android/iOS/Desktop
+   180→---
+   181→Task ID: 3-b
+   182→Agent: Modules 2+3 Agent
+   183→Task: Scan analytics dashboard + QR personnalisé avec logo
+   184→
+   185→Work Log:
+   186→- Created /src/app/api/client/scan-stats/route.ts with daily/weekly/monthly stats, charts data, locale breakdown
+   187→- Created /src/components/client/scan-analytics.tsx with 4 KPI cards, AreaChart, BarChart, recent scans table
+   188→- Created /src/lib/qr-generator.ts using qr-code-styling library
+   189→- Created /src/components/client/qr-code-display.tsx with caching, download, style/color options
+   190→- Modified physical-qr-codes.tsx to show QR preview dialog with style/color customization
+   191→- Modified client-layout.tsx to add 'client-analytics' sidebar item
+   192→- Modified page.tsx to route to ScanAnalytics
+   193→
+   194→Stage Summary:
+   195→- Real-time scan analytics with 30-day charts and locale breakdown
+   196→- Personalized QR codes with 4 styles, custom colors, optional logo
+   197→- QR preview dialog accessible from QR codes management
+   198→- Scan stats API tracks daily scans, top locales, recent activity
+   199→---
+   200→Task ID: 3-c
+   201→Agent: Main Agent
+   202→Task: Complete Module 4+7 integration - wire up sidebar, routing, test route, fix lint
+   203→
+   204→Work Log:
+   205→- Added `client-automations` and `client-webhooks` to ClientPage union type
+   206→- Created INTEGRATION_ITEMS section in sidebar with Plug and Globe icons
+   207→- Added AutomationsManager and WebhooksManager imports + routing in page.tsx
+   208→- Created missing webhook test API route with HMAC-SHA256 signing
+   209→- Fixed automations-manager.tsx: replaced undefined HomeAssistantLogo/JeedomLogo with Server/Zap icons
+   210→- Fixed automations-manager.tsx: removed template literal causing ESLint parsing error
+   211→- Fixed WifiDisplay.tsx: moved PlatformIcon outside render (static-component rule)
+   212→- Fixed i18n.ts: replaced useState/useEffect with useMemo (set-state-in-effect rule)
+   213→- Fixed webhooks-manager.tsx: wrapped effect body in async init (set-state-in-effect rule)
+   214→- All lint errors resolved, 0 errors 0 warnings
+   215→
+   216→Stage Summary:
+   217→- All 7 modules (1-7) fully integrated and linting clean
+   218→- New sidebar section 'Intégrations' with Domotique and Webhooks items
+   219→- Webhook test dispatch with HMAC signing functional
+   220→- Dev server running clean on port 3000
+   221→
+   222→---
+   223→Task ID: 1
+   224→Agent: main
+   225→Task: Fix home deletion + QR code content editing
+   226→
+   227→Work Log:
+   228→- Added DELETE method to /api/client/homes/route.ts (accepts ?id= param, uses db.home.delete with cascade)
+   229→- Updated homes-manager.tsx handleDelete to call DELETE API with loading state
+   230→- Updated qr-codes PATCH API to accept content field and update QrContent.contentJson
+   231→- Updated physical-qr-codes.tsx edit dialog to show ModuleContentFields when QR type has content
+   232→- Added editContent + editContentErrors state, parse existing contentJson on dialog open
+   233→- handleSaveEdit now validates and sends content alongside name
+   234→
+   235→Stage Summary:
+   236→- Home deletion now works end-to-end (API + frontend)
+   237→- QR code edit dialog now shows content fields (e.g. note title+body, wifi ssid+password, etc.)
+   238→- All 17 module types with content fields are editable
+   239→- Lint passes clean
+   240→
+   241→---
+   242→Task ID: V3
+   243→Agent: main
+   244→Task: Develop Version 3 - Immersive public scan pages with magic components
+   245→
+   246→Work Log:
+   247→- Installed framer-motion + canvas-confetti
+   248→- Created 10 reusable magic components in /components/magic/
+   249→  - FloatingParticles, GradientBackground, GlassCard, PulseButton, ConfettiExplosion
+   250→  - StaggerList, AnimatedCounter, SuccessCheck, MagneticIcon, PageTransition
+   251→- Created 11 V3 display components in /components/modules/v3/
+   252→  - WifiDisplayV3 (blue gradient, platform detection, glass card, copy/connect)
+   253→  - DoorbellDisplayV3 (orange, 3 action buttons, instructions, message, confetti)
+   254→  - ShoppingListDisplayV3 (green, interactive checkboxes, progress, confetti on all-checked)
+   255→  - NoteDisplayV3 (yellow, paper-like, scrollable)
+   256→  - GuestbookDisplayV3 (gold/violet, staggered entries)
+   257→  - MedicationDisplayV3 (pink, pill icon, dosage)
+   258→  - MealPlannerDisplayV3 (red/orange, meal plan text)
+   259→  - ContactDisplayV3 (blue/cyan, tap-to-copy)
+   260→  - ChecklistDisplayV3 (violet, interactive checkboxes, confetti)
+   261→  - LinkDisplayV3 (teal, PulseButton open, copy URL)
+   262→  - InfoDisplayV3 (indigo, reusable for 15+ info-based modules)
+   263→- Updated view-content.tsx to use V3 map, removed ScanPageWrapper
+   264→- Animated loading/error states with gradients
+   265→- Fixed all Next.js 16 lint rules (no setState in effect, no ref-during-render)
+   266→
+   267→Stage Summary:
+   268→- 25 files changed, 2820 insertions
+   269→- Every scan page now has immersive gradient + particles + glassmorphism + framer-motion
+   270→- Each module type has unique color palette
+   271→- Mobile-first, prefers-reduced-motion support
+   272→- Pushed to GitHub as commit c311242
+   273→
+   274→---
+   275→Task ID: V3-guestbook-upgrade
+   276→Agent: Main
+   277→Task: Upgrade GuestbookDisplayV3 with immersive "Wahou" visual enhancements
+   278→
+   279→Work Log:
+   280→- Added 10 twinkling scattered stars (TWINKLE_STARS array) positioned across the top area with opacity oscillation and staggered delays using motion.span + Star icon
+   281→- Upgraded AnimatedIcon to use pulseRings={2} and wobble props for the main book icon, with amber-colored ring (rgba(251,191,36,0.3))
+   282→- Made the 3 decorative stars twinkle with staggered animation (opacity + scale oscillation, 0.35s delay between each)
+   283→- Enhanced empty state: larger bouncing book icon (w-20 h-20), pulsing amber glow behind it, spring animation + floating y-bounce
+   284→- Enhanced entry cards: added left accent border (border-l-amber-400/60), radial gradient hover glow effect
+   285→- Added shimmer overlay on GlassCard: motion.div with diagonal linear gradient that slides across with 4s duration, 3s repeat delay
+   286→
+   287→Stage Summary:
+   288→- GuestbookDisplayV3 now has 6 visual enhancement layers: twinkling stars, wobble+pulse icon, staggered star deco, bouncing empty state with glow, gold-accented entry cards, and card shimmer
+   289→- No API or data fetching changes — purely visual upgrades
+   290→- Lint passes clean, dev server compiles without errors
+   291→
+   292→---
+   293→Task ID: V3-contact-upgrade
+   294→Agent: Main
+   295→Task: Upgrade ContactDisplayV3 with immersive "Wahou" interactions
+   296→
+   297→Work Log:
+   298→- Added `useConfetti` import from `@/components/magic` and fire confetti on successful copy with contact-themed colors (['#38bdf8', '#7dd3fc', '#ffffff', '#bae6fd'])
+   299→- Added action buttons below each contact field row:
+   300→  - Phone row: glass-styled `tel:` link button with PhoneCall icon ("Appeler")
+   301→  - Email row: glass-styled `mailto:` link button with Mail icon ("Envoyer")
+   302→  - Both use bg-white/8, backdrop-blur-sm, border-white/10, hover scale effects
+   303→- Enhanced AnimatedIcon for main User icon: added `pulseRings={2}`, `wobble`, and `ringColor="rgba(56,189,248,0.3)"`
+   304→- Enhanced hover on contact rows: added `whileHover={{ scale: 1.02 }}` and dynamic box-shadow glow (`0 0 20px rgba(56,189,248,0.15)`) via onMouseEnter/Leave
+   305→- Improved empty state: enlarged icon to w-20 h-20, added continuous floating y-bounce animation (`y: [0, -8, 0]` with repeat: Infinity)
+   306→
+   307→Stage Summary:
+   308→- ContactDisplayV3 now has 5 enhancement layers: confetti on copy, action buttons (call/email), pulse rings + wobble on icon, hover glow on rows, bouncing empty state
+   309→- No API or data fetching changes — purely visual and interaction upgrades
+   310→- Lint passes clean, no errors
+   311→
+   312→---
+   313→Task ID: V3-batch-upgrade
+   314→Agent: Main
+   315→Task: Upgrade 5 V3 display components with immersive "Wahou" effects
+   316→
+   317→Work Log:
+   318→- MedicationDisplayV3: Added pulseRings={2} + wobble on AnimatedIcon with pink ringColor, subtitle "Instructions de prise", glassmorphism inner content-card (bg-white/5 rounded-2xl p-5 border-white/10), copy dosage button with useConfetti (pink confetti colors), Copy/Check icons from lucide-react, bouncing empty state with larger icon (w-20 h-20)
+   319→- MealPlannerDisplayV3: Added pulseRings={2} + wobble with orange ringColor, subtitle "Bon appétit ! 🍽️", glassmorphism inner content-card, bouncing empty state with larger icon (w-20 h-20)
+   320→- NoteDisplayV3: Added pulseRings={2} + wobble with yellow ringColor, subtitle "Votre message", glassmorphism inner content-card, bouncing empty state with larger icon (w-20 h-20), "Copier le texte" PulseButton (variant="white") with useConfetti (yellow confetti colors)
+   321→- LinkDisplayV3: Added pulseRings={2} + wobble with teal ringColor, subtitle "Redirection automatique", glassmorphism inner content-card, PulseButton changed to variant="white", 5-second auto-redirect countdown with Clock icon + notice text, "Page de redirection ouverte" post-redirect notice, bouncing empty state with larger icon (w-20 h-20)
+   322→- InfoDisplayV3: Added pulseRings={2} + wobble with purple ringColor (rgba(124,58,237,0.3)), subtitle "Informations utiles", glassmorphism inner content-card, bouncing empty state with larger icon (w-20 h-20)
+   323→
+   324→Stage Summary:
+   325→- All 5 components upgraded with consistent "Wahou" effects: animated pulse rings, wobble animation, module-specific subtitles, glassmorphism inner cards, and bouncing empty states
+   326→- Medication: copy button with pink confetti
+   327→- Note: PulseButton "Copier le texte" with yellow confetti
+   328→- Link: white variant PulseButton + 5s auto-redirect countdown
+   329→- No API or data fetching changes — purely visual and interaction upgrades
+   330→- Lint passes clean (0 errors, 0 warnings), dev server compiles without errors
+   331→
+   332→---
+   333→Task ID: V3-magic-polish
+   334→Agent: Main
+   335→Task: Polish magic components + upgrade all V3 displays to match reference template
+   336→
+   337→Work Log:
+   338→- Enhanced GradientBackground: added animated background waves (3 rotating gradient circles via Framer Motion)
+   339→- Fixed PulseButton: replaced broken CSS group-hover shine with Framer Motion animated shine sweep on hover, added `variant="white"` for solid white buttons with colored text
+   340→- Upgraded AnimatedIcon (in PageTransition.tsx): added `pulseRings` (0-3 expanding ring animations), `wobble` (gentle rotation), and `ringColor` props
+   341→- Upgraded GlassCard: changed to `backdrop-blur-2xl` for advanced glassmorphism
+   342→- WifiDisplayV3: added 3 pulse rings + wobble on icon, "Bienvenue ! 🎉" title with subtitle, "● Sécurisé" green badge, variant="white" primary button
+   343→- GuestbookDisplayV3: twinkling stars, wobble+pulse icon, gold-accented entries, card shimmer overlay
+   344→- ContactDisplayV3: confetti on copy, tel:/mailto: action buttons, hover glow on rows
+   345→- MedicationDisplayV3: copy button with confetti, pulse rings, glass inner card
+   346→- MealPlannerDisplayV3: pulse rings, subtitle, glass inner card
+   347→- NoteDisplayV3: PulseButton "Copier le texte" with confetti, pulse rings
+   348→- LinkDisplayV3: white variant button, 5s auto-redirect countdown, pulse rings
+   349→- InfoDisplayV3: pulse rings, subtitle, glass inner card
+   350→- ShoppingListDisplayV3: pulse rings + wobble on icon (emerald)
+   351→- ChecklistDisplayV3: pulse rings + wobble on icon (violet)
+   352→- Fixed ShoppingList+Checklist bug: parse body text into items when structured items array not present
+   353→
+   354→Stage Summary:
+   355→- 15 files modified across magic/ and modules/v3/
+   356→- All public pages now have: animated background waves, pulse ring icons with wobble, glassmorphism cards (backdrop-blur-2xl), working shine effect on buttons
+   357→- Per-module subtitles and interactive features (confetti on copy, action buttons, auto-redirect)
+   358→- Lint passes clean, page compilation verified (200 OK)
+   359→---
+   360→Task ID: 2-a
+   361→Agent: API Builder
+   362→Task: Create products API routes (CRUD, instances, DLC/stock alerting)
+   363→
+   364→Work Log:
+   365→- Created /api/client/products/route.ts: GET with filter=all|dlc|stock, POST to create product with instances ordered by expiryDate asc
+   366→- Created /api/client/products/[id]/route.ts: PATCH for updating name/category/minStockThreshold/currentStock/isOnShoppingList, DELETE with cascade
+   367→- Created /api/client/products/instances/route.ts: POST to create ProductInstance, PATCH via ?instanceId= query param for SQLite compatibility (status: fresh|consumed|expired|discarded)
+   368→- Created /api/client/products/check-alerts/route.ts: POST endpoint that checks DLC alerts (J-0 auto-expire + J-1/2/3 warnings) and stock alerts (currentStock <= minStockThreshold), creates notifications with 24h dedup, sends push via sendPushToHome(), sets isOnShoppingList=true for low stock
+   369→- Used JS-side filtering for stock threshold comparison (SQLite field comparison limitation)
+   370→- Followed existing patterns: try/catch, console.error with prefix, French error messages, NextResponse.json
+   371→- Lint passes clean (0 errors, 0 warnings)
+   372→
+   373→Stage Summary:
+   374→- 4 API route files created covering full product CRUD, instance management, and automated DLC/stock alerting
+   375→- DLC alerting: auto-marks J-0 instances as expired, creates notifications + push for J-0/1/2/3 with 24h dedup
+   376→- Stock alerting: flags low-stock products, sets isOnShoppingList, creates notifications + push with 24h dedup
+   377→- All routes use existing db import, push-sender, and follow chores API patterns
+   378→- Dev server compiles without errors
+   379→
+   380→---
+   381→Task ID: 3
+   382→Agent: UI Builder
+   383→Task: Create StockManager dashboard component
+   384→
+   385→Work Log:
+   386→- Read worklog.md, ChoresManager component, and all 4 product API routes to understand patterns and API shape
+   387→- Created /src/components/client/stock-manager.tsx as 'use client' named export component
+   388→- Implemented 3 tabs (Produits, Alertes DLC, Stock Bas) using custom button group with active state and gradient styling
+   389→- Tab Produits: product cards with name, category badge (8 categories with distinct colors), stock counter (green/red), minStockThreshold, "En liste de courses" badge
+   390→- Product cards: expand/collapse instances sub-list, stock +/- buttons, delete button
+   391→- Instance sub-list: each instance shows purchaseDate, expiryDate, status badge (Frais=green, Bientôt périmé=yellow, Expiré=red, Consommé=gray, Jeté=gray)
+   392→- Add instance dialog per product with purchaseDate and expiryDate date inputs
+   393→- Add product dialog with name, category dropdown (8 options), minStockThreshold (default 1), currentStock (default 0)
+   394→- Tab Alertes DLC: fetches with filter=dlc, shows product name + all expiring instances with J-0/J-1/J-2/J-3 badges color-coded (red/orange/yellow/light-yellow)
+   395→- Tab Stock Bas: fetches with filter=stock, shows product name, currentStock/minStockThreshold with progress bar, "Ajouté à la liste de courses" badge
+   396→- "Vérifier les alertes" button: POST to /api/client/products/check-alerts, shows toast with result counts
+   397→- 3 KPI stat cards with gradient backgrounds (Produits=orange, Stock bas=red, Liste de courses=emerald)
+   398→- Loading skeletons, empty states, error handling with toast, Loader2 spinner for alert check
+   399→- Follows ChoresManager pattern: useSession not needed (no user-specific data), fetch homes on mount, auto-select first home
+   400→- French UI throughout, mobile-first responsive design, shadcn components (Card, Button, Badge, Dialog, Input, Label, Select, Skeleton)
+   401→- Lucide icons: Package, Plus, Trash2, AlertTriangle, ShoppingCart, Clock, CheckCircle, ChevronDown, ChevronUp, Minus, ShieldAlert, Loader2
+   402→
+   403→Stage Summary:
+   404→- StockManager component created with full product CRUD, instance management, DLC alerting, and stock monitoring
+   405→- 3 tabs with distinct views: product list with expandable instances, DLC alert cards with J-X badges, stock progress bars
+   406→- Lint passes clean (0 errors, 0 warnings), dev server compiles successfully
+   407→
+   408→---
+   409→Task ID: 4
+   410→Agent: V3 Builder
+   411→Task: Create InventoryDisplayV3 immersive scan page
+   412→
+   413→Work Log:
+   414→- Added `inventory: { from: '#b91c1c', via: '#dc2626', to: '#f97316' }` to MODULE_GRADIENTS in GradientBackground.tsx (red-to-orange theme for food alerts/urgency)
+   415→- Created InventoryDisplayV3.tsx following exact MedicationDisplayV3 pattern
+   416→- Component uses 'use client', accepts { content, qrCodeId, qrName } props
+   417→- GradientBackground with moduleType="inventory" (red-orange gradient)
+   418→- FloatingParticles color="rgba(255,255,255,0.2)" count={15}
+   419→- AnimatedIcon with Package icon, pulseRings={2}, wobble, ringColor="rgba(220,38,38,0.3)"
+   420→- AnimatedTitle with content.title || 'Inventaire' and subtitle "Stock & Dates Limite de Consommation"
+   421→- GlassCard with backdrop-blur-2xl
+   422→- 3 stat badges in a row: Total produits, Périm. bientôt (warning/critical count), Stock bas (low stock count)
+   423→- Product list in bg-white/5 rounded-2xl p-5 border-white/10 with stagger animations (0.1*i delay)
+   424→- Each item shows: name, quantity+unit, expiry date with Clock icon, status badge
+   425→- Status colors: fresh=green, warning=yellow, critical=red, expired=gray
+   426→- Empty state with bouncing Package icon (w-20 h-20, text-white/30) and "Aucun produit dans l'inventaire"
+   427→- BrandedFooter delay={1}
+   428→- No useConfetti (no copy action), all text in French
+   429→- Helper functions: getStatusColor, getStatusLabel, formatDate
+   430→- Lint passes clean (0 errors, 0 warnings), dev server compiles successfully
+   431→
+   432→Stage Summary:
+   433→- InventoryDisplayV3.tsx created with full immersive scan page: red-orange gradient, pulse ring icon, 3 KPI badges, staggered product list with status badges
+   434→- Inventory gradient entry added to MODULE_GRADIENTS for automatic color theming
+   435→- Lint passes clean, dev server compiles without errors
+   436→
+   437→---
+   438→Task ID: 2-b
+   439→Agent: API Agent
+   440→Task: Create packs config + packs API routes
+   441→
+   442→Work Log:
+   443→- Created /src/lib/packs-config.ts with exported types PackQRDefinition and PackDefinition and const PACKS array containing 5 pack definitions:
+   444→  1. airbnb-serenite (5 QR codes: wifi, home_manual, doorbell, guestbook, checklist)
+   445→  2. famille (15 QR codes: wifi, home_manual, note, shopping_list, meal_planner, checklist, medication, key_location, cleaning_schedule, guestbook, contact, doorbell, energy_monitor, checklist, note)
+   446→  3. bureau (10 QR codes: wifi, home_manual, note, checklist, contact, doorbell, external_link, note, guestbook, checklist)
+   447→  4. bouclier-avis (1 QR code: checkout_feedback)
+   448→  5. upselling (1 QR code: service_menu)
+   449→- Each pack includes: id, name, description, icon (lucide), color (tailwind gradient), targetAudience, badge, qrCodes with defaultContent, features
+   450→- Created /src/app/api/client/packs/route.ts with two endpoints:
+   451→  - GET /api/client/packs?homeId=xxx: Returns all packs enriched with installedCount/totalCount per pack and per-QR installed status (matched by moduleType::name)
+   452→  - POST /api/client/packs/install: Installs a pack — finds or creates rooms by roomName, creates QrCode + QrContent for each non-duplicate QR, uses db.$transaction for atomicity, creates ActivityLog entries, skips already-installed QR codes
+   453→- Follows existing patterns: NextRequest/NextResponse, db import, crypto for publicSlug, French error messages, console.error with prefix
+   454→- No Prisma model needed — packs are pure TypeScript config
+   455→- Lint passes clean (0 errors, 0 warnings), dev server compiles without errors
+   456→
+   457→Stage Summary:
+   458→- 2 files created: packs-config.ts (config) and packs/route.ts (API)
+   459→- GET returns all 5 packs with per-QR installation status for any given home
+   460→- POST installs a pack atomically: auto-creates rooms, creates QR codes + content, skips duplicates
+   461→- No PhysicalQrCode created (pack installs are virtual QR codes)
+   462→- Lint clean, dev server healthy
+   463→
+   464→---
+   465→Task ID: 3-a
+   466→Agent: Main
+   467→Task: Create CheckoutFeedbackDisplayV3 + ServiceMenuDisplayV3 + gradient entries
+   468→
+   469→Work Log:
+   470→- Added 2 entries to MODULE_GRADIENTS in GradientBackground.tsx:
+   471→  - checkout_feedback: { from: '#d97706', via: '#f59e0b', to: '#fbbf24' } (amber/gold)
+   472→  - service_menu: { from: '#7c3aed', via: '#8b5cf6', to: '#a78bfa' } (violet/purple)
+   473→- Created CheckoutFeedbackDisplayV3.tsx — "Bouclier Anti-Mauvais Avis" scan page:
+   474→  - Amber gradient (moduleType="checkout_feedback"), FloatingParticles (12, white/0.2)
+   475→  - ShieldCheck icon with pulseRings={2}, wobble, amber ringColor
+   476→  - AnimatedTitle with configurable title/subtitle from content
+   477→  - Optional customMessage with Heart icon in glass card
+   478→  - Interactive 5-star rating with hover effects (whileHover scale 1.2), rating labels in French
+   479→  - Comment textarea in glassmorphism style
+   480→  - Submit button (white bg, amber text) with spinner loading state
+   481→  - POST to /api/public/feedback on submit (visual-only, no API needed yet)
+   482→  - AnimatePresence toggles between form and success view with Check icon animation
+   483→  - All text in French
+   484→- Created ServiceMenuDisplayV3.tsx — "Upselling Automatisé" scan page:
+   485→  - Violet gradient (moduleType="service_menu"), FloatingParticles (15, white/0.15)
+   486→  - TrendingUp icon with pulseRings={2}, wobble, violet ringColor
+   487→  - AnimatedTitle with configurable title/subtitle from content
+   488→  - Service cards list from content.items array with stagger animation (0.1 * index)
+   489→  - Each card: glass card with icon (mapped via ICON_MAP with 12 lucide icons + Sparkles fallback), name, description, amber-300 price, "Réserver" button with whileTap scale
+   490→  - Empty state: bouncing TrendingUp icon
+   491→  - Optional contactMessage at bottom with MessageCircle icon
+   492→  - All text in French
+   493→- Fixed React Compiler lint error: changed useMemo dependency from content?.items to content
+   494→
+   495→Stage Summary:
+   496→- 3 files modified/created (GradientBackground.tsx, CheckoutFeedbackDisplayV3.tsx, ServiceMenuDisplayV3.tsx)
+   497→- 2 new gradient entries for checkout_feedback (amber) and service_menu (violet) modules
+   498→- CheckoutFeedbackDisplayV3: full interactive feedback form with star rating, comment, submit with AnimatePresence success state
+   499→- ServiceMenuDisplayV3: upselling service cards with icon mapping, stagger animations, reserve buttons
+   500→- Lint passes clean (0 errors, 0 warnings), dev server compiles without errors
+   501→---
+   502→Task ID: 4
+   503→Agent: Main
+   504→Task: Create PackManager component with pack cards, install flow, and progress tracking
+   505→
+   506→Work Log:
+   507→- Read worklog.md, stock-manager.tsx (patterns), packs-config.ts (pack definitions), and /api/client/packs/route.ts (API shape)
+   508→- Created /api/client/packs/install/route.ts — dedicated POST endpoint for pack installation (delegates same logic as packs POST)
+   509→- Created /src/components/client/pack-manager.tsx — 'use client' named export PackManager component
+   510→- Component fetches homes from /api/client/homes on mount, picks first home
+   511→- Fetches packs with installation status from /api/client/packs?homeId=...
+   512→- Renders responsive grid (1/2/3 cols) of pack cards with:
+   513→  - Gradient header bar (pack.color classes) with badge + icon + name
+   514→  - Description text
+   515→  - Target audience badge (muted, outline)
+   516→  - Features list in dark bg-slate-900 container with Check icons and text-white/80
+   517→  - QR code count indicator
+   518→  - Progress bar (installedCount/totalCount) when partially or fully installed
+   519→  - Smart install button: primary (not installed), amber (partial), green disabled (fully installed)
+   520→  - Loading spinner during installation
+   521→- Empty state with Home icon when no home found
+   522→- Loading skeleton state
+   523→- Toast notifications on success/error
+   524→- French UI throughout
+   525→- Lint passes clean, dev server compiles successfully
+   526→
+   527→Stage Summary:
+   528→- PackManager component created at /src/components/client/pack-manager.tsx
+   529→- Install API route created at /api/client/packs/install/route.ts
+   530→- 5 packs rendered as cards with install/progress UI
+   531→- Lint clean, no compilation errors
+   532→
+   533→---
+   534→Task ID: 3
+   535→Agent: API Builder
+   536→Task: Build 8 API routes for professionals, service requests, reviews, and chat
+   537→
+   538→Work Log:
+   539→- Read worklog.md, reference route patterns (products, products/[id], products/instances)
+   540→- Read prisma/schema.prisma for Professional, Service, ServiceRequest, Review, ChatMessage models
+   541→- Read src/types/database.ts for type constants (SERVICE_REQUEST_STATUSES, PRICE_UNITS, URGENCY_LEVELS, CHAT_SENDER_TYPES, CHAT_MESSAGE_TYPES, CATEGORIES)
+   542→- Read src/lib/push-sender.ts for sendPushToUser and sendPushToHome patterns
+   543→- Created /api/client/professionals/route.ts: GET (list with category/location/isVerified/urgent filters, includes services+review summary, limit 20), POST (create professional, auto-set isVerified=false, isActive=true)
+   544→- Created /api/client/professionals/[id]/route.ts: GET (single with services+reviews), PATCH (update all fields), DELETE (soft delete isActive=false)
+   545→- Created /api/client/professionals/[id]/services/route.ts: GET (list services for professional), POST (create service with priceUnit validation)
+   546→- Created /api/client/service-requests/route.ts: GET (list by homeId with optional status filter, includes professional+service+unreadChatCount), POST (create with push notification to professional via sendPushToUser)
+   547→- Created /api/client/service-requests/[id]/route.ts: GET (single with professional+service+reviews+chatMessages asc), PATCH (update status/finalPrice/commissionAmount/preferredDate, sends push to homeowner via sendPushToHome on status change)
+   548→- Created /api/client/reviews/route.ts: GET (list with professionalId/serviceRequestId/userId filters, includes user info), POST (create with 1-5 integer rating validation, recalcProfessionalRating after creation)
+   549→- Created /api/client/reviews/[id]/route.ts: GET (single with user+professional+serviceRequest), PATCH (update rating/comment with recalc), DELETE (hard delete with recalc)
+   550→- Created /api/client/chat/[serviceRequestId]/route.ts: GET (messages ordered asc, optional markRead=true&readerId to mark other party's unread messages), POST (send message with push notification to other party)
+   551→- All routes use NextRequest/NextResponse, try/catch with French error messages, db from @/lib/db
+   552→- Lint passes clean with zero errors
+   553→
+   554→Stage Summary:
+   555→- 8 API route files created across 4 resource domains (professionals, service-requests, reviews, chat)
+   556→- Total endpoints: 16 (3 GET+POST, 2 GET+PATCH+DELETE, 2 GET+POST, 1 GET+PATCH)
+   557→- Push notifications integrated: service request creation -> professional, status change -> homeowner, chat message -> other party
+   558→- Professional rating recalculation on review create/update/delete
+   559→- All validation uses French error messages following existing patterns
+   560→- Lint clean, zero errors
+   561→
+   562→---
+   563→Task ID: 4
+   564→Agent: Frontend
+   565→Task: Create ArtisanManager dashboard component (4-tab artisan marketplace UI)
+   566→
+   567→Work Log:
+   568→- Read worklog.md for prior context (Tasks 1-3 completed)
+   569→- Read stock-manager.tsx (977 lines) for dashboard component patterns: state management, tab system, dialog forms, skeleton loading, empty states, stat cards
+   570→- Read client-layout.tsx to understand sidebar navigation and HomeContext (no HomeContext exists — followed stock-manager pattern of fetching homeId from /api/client/homes)
+   571→- Read database.ts types: CATEGORIES (48 entries), ServiceRequestStatus, UrgencyLevel, ChatSenderType, ChatMessageType
+   572→- Read Prisma schema for Professional, Service, ServiceRequest, Review, ChatMessage models
+   573→- Created /src/components/client/artisan-manager.tsx (1470 lines) with 4 tabs:
+   574→  - Tab 1 "Annuaire": Search bar with category filter, professional grid cards (name, category badge, star rating, location, isVerified, hourlyRate, isUrgentAvailable), detail dialog with full description + services + prices, create profile dialog
+   575→  - Tab 2 "Mes Demandes": Service request list with color-coded status badges (pending=yellow, accepted=blue, in_progress=purple, completed=green, cancelled=gray, disputed=red), urgency badges, detail dialog with status timeline + chat preview, new request dialog (professional select, service select, description, datetime-local, urgency, address), cancel button for pending requests
+   576→  - Tab 3 "Avis": "Avis laissés" section (reviews written), "Avis reçus" section (reviews received if professional), pending reviews for completed service requests, star rating dialog (1-5 clickable stars) + comment textarea
+   577→  - Tab 4 "Chat": Conversation list with last message preview + unread count badge, chat dialog with scrollable messages (homeowner=right/primary, professional=left/muted, system=centered), time display (HH:mm), read indicator, input bar with send button, 3-second polling when dialog open
+   578→- All API calls match Task 3 endpoints: GET/POST /api/client/professionals, GET/POST/PATCH /api/client/service-requests/[id], GET/POST /api/client/reviews, GET/POST /api/client/chat/[serviceRequestId]
+   579→- Followed stock-manager patterns: stat cards with gradients, tab system, Skeleton loading, empty states with icons, toast notifications, custom scrollbar styling
+   580→- Fixed typo (extra 'n' character) in pending reviews button
+   581→- Lint passes clean, no TypeScript errors in artisan-manager.tsx
+   582→- Used hardcoded userId='dev-user-1' as specified
+   583→
+   584→Stage Summary:
+   585→- Single comprehensive component: /src/components/client/artisan-manager.tsx (1470 lines)
+   586→- 4 fully functional tabs: Annuaire, Mes Demandes, Avis, Chat
+   587→- All real API calls to backend endpoints from Task 3
+   588→- Production-quality: loading states, empty states, error handling, responsive design, dark mode support
+   589→- Exported as `export function ArtisanManager()`
+   590→
+   591→---
+   592→Task ID: 5
+   593→Agent: V3 Display Components
+   594→Task: Create 3 V3 immersive display components (ArtisanDirectory, ServiceRequest, Review) and update GradientBackground
+   595→
+   596→Work Log:
+   597→- Read worklog.md for prior task context
+   598→- Read canonical V3 pattern from InventoryDisplayV3.tsx (structure, imports, animation timing)
+   599→- Read form-based V3 example from CheckoutFeedbackDisplayV3.tsx (star rating, AnimatePresence, submit flow)
+   600→- Read GradientBackground.tsx MODULE_GRADIENTS map and magic/index.ts exports
+   601→- Added 3 new gradient entries to MODULE_GRADIENTS: artisan_directory (teal), service_request (violet), review (amber)
+   602→- Created ArtisanDirectoryDisplayV3.tsx: Store icon with pulse rings, 3 stat badges, category filter chips, professional cards with stagger animations, contact dialog with service request form, empty state, loading spinner, fetch from /api/client/professionals
+   603→- Created ServiceRequestDisplayV3.tsx: Briefcase icon with pulse rings, category select (15 artisan categories), description textarea, urgency selector (3 levels), datetime-local input, address pre-fill, photo note, POST to /api/client/service-requests, validation (description + date required), success animation with request ID
+   604→- Created ReviewDisplayV3.tsx: Star icon with pulse rings, professional name + service display, 5 interactive stars with hover effect, comment textarea, POST to /api/client/reviews with anonymous userId, thank you animation with checkmark
+   605→- All 3 components follow V3 pattern exactly: GradientBackground > FloatingParticles > AnimatedIcon > AnimatedTitle > GlassCard > BrandedFooter
+   606→- ESLint passes clean, no errors
+   607→- Dev server compiled successfully
+   608→
+   609→Stage Summary:
+   610→- 3 new V3 display components created:
+   611→  - /src/components/modules/v3/ArtisanDirectoryDisplayV3.tsx
+   612→  - /src/components/modules/v3/ServiceRequestDisplayV3.tsx
+   613→  - /src/components/modules/v3/ReviewDisplayV3.tsx
+   614→- GradientBackground.tsx updated with 3 new MODULE_GRADIENTS entries
+   615→- All components use correct gradient themes, animation timings, and magic component exports
+   616→---
+   617→Task ID: 6
+   618→Agent: Chat Service Setup
+   619→Task: Create WebSocket chat mini-service for real-time chat relaying
+   620→
+   621→Work Log:
+   622→- Read worklog.md for project context
+   623→- Examined existing WebSocket example at /home/z/my-project/examples/websocket/server.ts for established patterns
+   624→- Created /home/z/my-project/mini-services/chat-service/package.json with socket.io dependency
+   625→- Created /home/z/my-project/mini-services/chat-service/index.ts with Socket.IO server on port 3004
+   626→- Followed established patterns from examples/websocket/server.ts: createServer + Server constructor, path:'/', CORS, pingTimeout/pingInterval, graceful shutdown handlers
+   627→- Implemented 5 event handlers: join:request, leave:request, chat:message, chat:typing, chat:read
+   628→- Service only relays messages in real-time; persistence handled by REST API
+   629→- Installed dependencies via bun install (socket.io@4.8.3)
+   630→- Started service in background, verified running on port 3004 (PID confirmed via ps)
+   631→
+   632→Stage Summary:
+   633→- Chat WebSocket mini-service created at /home/z/my-project/mini-services/chat-service/
+   634→- Running on port 3004 with event-based room management per serviceRequestId
+   635→- Supports: join/leave rooms, message relay, typing indicators, read receipts
+   636→- Uses Map<string, Set<string>> for tracking room membership
+   637→- Frontend connects via io('/?XTransformPort=3004') through Caddy gateway---
+   638→Task ID: 3
+   639→Agent: Main Orchestrator
+   640→Task: Build #28-33 Annuaire artisans + réservation + avis + chat
+   641→
+   642→Work Log:
+   643→- Analyzed Prisma schema (Professional, Service, ServiceRequest, Review, ChatMessage models)
+   644→- Researched existing architecture patterns (API routes, dashboard components, V3 displays)
+   645→- Built 8 API route files (16 endpoints) for professionals, services, service-requests, reviews, chat
+   646→- Built ArtisanManager dashboard component (1470 lines, 4 tabs: Annuaire, Demandes, Avis, Chat)
+   647→- Built 3 V3 immersive display components (ArtisanDirectory, ServiceRequest, Review)
+   648→- Built Chat WebSocket mini-service on port 3004 (Socket.IO)
+   649→- Added 3 gradient entries to GradientBackground (artisan_directory, service_request, review)
+   650→- Integrated into sidebar (DASHBOARD_ITEMS + MODULE_ITEMS_V3), page.tsx routing, view-content.tsx mapping
+   651→- All API endpoints verified working
+   652→- Lint passes clean
+   653→
+   654→Stage Summary:
+   655→- Modules #28-33 fully implemented with API, Dashboard, V3 displays, and real-time chat
+   656→- 16 API endpoints across 4 resource domains
+   657→- 4-tab dashboard: Annuaire artisans, Mes Demandes (réservations), Avis, Chat
+   658→- 3 V3 QR scan pages with immersive gradient backgrounds
+   659→- WebSocket chat service on port 3004
+   660→- Push notifications integrated for service request and chat events
+   661→
+   662→---
+   663→Task ID: 2
+   664→Agent: API Builder
+   665→Task: Build Subscription, Transaction, and Billing API routes (7 files)
+   666→
+   667→Work Log:
+   668→- Installed stripe@22.5.0 package
+   669→- Added STRIPE_SECRET_KEY= and STRIPE_WEBHOOK_SECRET= to .env (empty = simulation mode)
+   670→- Created directories: subscriptions/[id]/portal, transactions/[id], billing/plans, webhooks/stripe
+   671→- Built /api/client/subscriptions/route.ts (GET list with dynamic include, POST create with simulation/Stripe modes)
+   672→- Built /api/client/subscriptions/[id]/route.ts (GET with transactions, PATCH update status/plan, DELETE cancel)
+   673→- Built /api/client/subscriptions/[id]/portal/route.ts (POST Stripe Customer Portal session, simulation returns null URL)
+   674→- Built /api/client/transactions/route.ts (GET list with pagination, POST create with type/status validation)
+   675→- Built /api/client/transactions/[id]/route.ts (GET single, PATCH update status, DELETE soft-delete to refunded)
+   676→- Built /api/client/billing/plans/route.ts (GET returns 3 plans, POST initiates purchase with plan validation)
+   677→- Built /api/webhooks/stripe/route.ts (POST with signature verification, handles checkout.completed, subscription.updated, subscription.deleted, invoice.payment_failed)
+   678→- All routes follow existing patterns: NextRequest/NextResponse, French error messages, try/catch, db from @/lib/db
+   679→- Simulation mode: when STRIPE_SECRET_KEY is empty, creates DB records directly without calling Stripe
+   680→- Stripe mode: dynamic import of stripe, Checkout Sessions, Customer Portal, webhook signature verification
+   681→- Fixed lint error (semicolons in type annotation)
+   682→- Final lint: clean, no errors
+   683→
+   684→Stage Summary:
+   685→- 7 API route files created for billing/monetization system
+   686→- Full simulation mode support for development without Stripe keys
+   687→- Stripe integration ready for production (checkout sessions, portal, webhooks)
+   688→- Consistent French error messages and validation using const arrays from types/database.ts
+   689→
+   690→---
+   691→Task ID: 3
+   692→Agent: Component Builder
+   693→Task: Create MonetizationManager client dashboard component
+   694→
+   695→Work Log:
+   696→- Read worklog.md for context and prior task patterns
+   697→- Read artisan-manager.tsx (lines 1-100, 200-280) for imports, types, fetchHomeId pattern
+   698→- Read types/database.ts (lines 50-86, 175-219) for SubscriptionTier, SubscriptionStatus, TransactionType, TransactionStatus types
+   699→- Confirmed Tabs component exists in ui/ (Tabs, TabsList, TabsTrigger, TabsContent)
+   700→- Created /home/z/my-project/src/components/client/monetization-manager.tsx (971 lines)
+   701→- Ran bun run lint — passed with zero errors
+   702→- Verified dev server compilation via dev.log
+   703→
+   704→Component Structure:
+   705→- 'use client' component exported as `MonetizationManager`
+   706→- 3 tabs via shadcn Tabs: Plans & Tarifs, Mon Abonnement, Transactions
+   707→- Tab 1: 3 stat cards (revenue, active subs, tx count) + responsive 3-col pricing grid with featured gradient border
+   708→- Tab 2: Current subscription card with Stripe portal/cancel/change-plan actions + subscription history list
+   709→- Tab 3: Filterable transaction list with type/status dropdowns, color-coded badges, amount formatting
+   710→- 3 dialogs: choose plan (subscriberType select + checkout URL), cancel confirmation, change plan
+   711→- Full loading states with Skeleton, empty states with icons, toast notifications
+   712→- Custom scrollbar styling, responsive layout (mobile-first), French locale formatting
+   713→- Uses dev-user-1 as demo userId, follows artisan-manager fetch patterns
+   714→
+   715→Stage Summary:
+   716→- Production-quality monetization dashboard component created (971 lines)
+   717→- All 3 tabs fully implemented with loading, empty, and data states
+   718→- Dialog flows for subscribe, cancel, change plan, and Stripe portal redirect
+   719→- Consistent with project patterns (shadcn/ui, French labels, sonner toasts, Tailwind responsive)
+   720→
+   721→---
+   722→Task ID: 4
+   723→Agent: V3 Integrator
+   724→Task: Create V3 PricingDisplayV3 component and integrate across view-content, sidebar, and routing
+   725→
+   726→Work Log:
+   727→- Read worklog.md for context and prior task patterns
+   728→- Read ServiceRequestDisplayV3.tsx (full file, 346 lines) for V3 display component pattern
+   729→- Read GradientBackground.tsx (lines 1-30) for MODULE_GRADIENTS map structure
+   730→- Read magic/index.ts for available exports
+   731→- Read view-content.tsx (full file) for V3_DISPLAY_MAP pattern
+   732→- Read client-layout.tsx (full file) for ClientPage type union and DASHBOARD_ITEMS
+   733→- Read page.tsx (full file) for renderClientPage switch-case pattern
+   734→- Confirmed MonetizationManager already exists at monetization-manager.tsx
+   735→- Created /home/z/my-project/src/components/modules/v3/PricingDisplayV3.tsx
+   736→- Added `pricing: { from: '#059669', via: '#10b981', to: '#6ee7b7' }` to MODULE_GRADIENTS in GradientBackground.tsx
+   737→- Added `import PricingDisplayV3` and `pricing: PricingDisplayV3 as DisplayComponentType` to view-content.tsx
+   738→- Added `CreditCard` import, `'client-monetization'` to ClientPage union, and sidebar entry to client-layout.tsx
+   739→- Added `import { MonetizationManager }` and `case 'client-monetization'` to page.tsx
+   740→- Ran bun run lint — passed with zero errors
+   741→
+   742→Component Structure (PricingDisplayV3.tsx):
+   743→- 'use client' V3 immersive display, props: { content, qrCodeId, qrName }
+   744→- V3 pattern: GradientBackground(moduleType="pricing") > FloatingParticles > div.relative-z-10 > AnimatedIcon(Crown) > AnimatedTitle > motion.div > GlassCard > BrandedFooter
+   745→- 3 stat badges: '3 plans disponibles', 'Sans engagement', 'Annulez à tout moment'
+   746→- Fetches plans from /api/client/billing/plans on mount
+   747→- 3-column responsive pricing grid with CheckCircle feature lists
+   748→- Featured/premium card has special bg-white/15 border-emerald-400/50 with "Populaire" badge
+   749→- Subscribe POSTs to /api/client/billing/plans with subscriberId/subscriberType/planId
+   750→- Success state: checkmark animation + "Abonnement confirmé !" message
+   751→- Loading state with spinner, error-silent fallback
+   752→
+   753→Integration Edits:
+   754→- GradientBackground.tsx: pricing gradient entry (emerald theme)
+   755→- view-content.tsx: import + V3_DISPLAY_MAP mapping
+   756→- client-layout.tsx: CreditCard icon, client-monetization type, DASHBOARD_ITEMS entry after client-artisans
+   757→- page.tsx: MonetizationManager import + case in renderClientPage
+   758→
+   759→Stage Summary:
+   760→- PricingDisplayV3 V3 component created and fully integrated
+   761→- All 4 integration points completed (gradient, view-content, sidebar, routing)
+   762→- Lint passes cleanly
+   763→---
+   764→Task ID: 2-4
+   765→Agent: Main Orchestrator
+   766→Task: Build #34-36 Stripe/Monetisation (schema prêt, intégration paiement)
+   767→
+   768→Work Log:
+   769→- Analyzed Prisma schema (Subscription, Transaction models) and existing types
+   770→- Installed stripe@22.5.0 package
+   771→- Built 7 API route files (simulation mode + real Stripe mode)
+   772→- Built MonetizationManager dashboard (971 lines, 3 tabs: Plans & Tarifs, Mon Abonnement, Transactions)
+   773→- Built PricingDisplayV3 immersive V3 page (emerald gradient, Crown icon, pricing cards)
+   774→- Added pricing gradient to GradientBackground
+   775→- Integrated into sidebar (Monétisation V3), page.tsx routing, view-content.tsx mapping
+   776→- Verified Plans API returns all 3 plans with features
+   777→- Verified Subscriptions API returns empty array
+   778→- Lint passes clean
+   779→
+   780→Stage Summary:
+   781→- Modules #34-36 fully implemented with simulation mode (no Stripe keys needed)
+   782→- 7 API endpoints: subscriptions CRUD, transactions CRUD, billing plans, Stripe webhook, portal
+   783→- 3-tab dashboard: Plans & Tarifs (pricing cards), Mon Abonnement (manage/cancel), Transactions (filtered history)
+   784→- V3 PricingDisplay for QR scan with responsive pricing grid
+   785→- Stripe Checkout Session flow ready (activated when STRIPE_SECRET_KEY is set)
+   786→- Stripe Customer Portal integration for self-service management
+   787→- Webhook handler for checkout.completed, subscription.updated, subscription.deleted, invoice.payment_failed
+   788→
+   789→---
+   790→Task ID: 2-a
+   791→Agent: API routes developer
+   792→Task: Create all marketplace API routes (11 files)
+   793→
+   794→Work Log:
+   795→- Read worklog.md for project context and existing patterns
+   796→- Read prisma/schema.prisma lines 405-875 for Merchant, Promo, PromoRedemption, FlashSale, Coupon, CouponScan, MerchantPhoto models
+   797→- Read existing route patterns from src/app/api/client/professionals/route.ts and src/app/api/client/reviews/route.ts
+   798→- Created all required directory structures with mkdir -p for nested dynamic routes
+   799→- Created src/app/api/client/merchants/route.ts — GET (list with category/isVerified/isActive/search/homeId filters, include merchantPhotos ordered) + POST (create with userId=dev-user-1)
+   800→- Created src/app/api/client/merchants/[id]/route.ts — GET (detail with photos, valid promos, coupon count, active flash sales) + PATCH (update fields) + DELETE (soft delete isActive=false)
+   801→- Created src/app/api/client/merchants/[id]/photos/route.ts — GET (list ordered by sortOrder) + POST (add photo with url required, altText/sortOrder/isCover optional)
+   802→- Created src/app/api/client/promos/route.ts — GET (list with merchantId/category/source/isActive filters, include merchant name+logo) + POST (create promo)
+   803→- Created src/app/api/client/promos/[id]/route.ts — GET (detail with merchant + redemption count) + PATCH (update fields) + DELETE (hard delete)
+   804→- Created src/app/api/client/promos/[id]/redeem/route.ts — POST (create PromoRedemption + increment redemptionsCount)
+   805→- Created src/app/api/client/flash-sales/route.ts — GET (list with merchantId filter, status default 'active', include merchant, order by startsAt desc) + POST (create with status='scheduled')
+   806→- Created src/app/api/client/flash-sales/[id]/route.ts — GET (detail with merchant, promo, coupon count) + PATCH (update + status transitions) + DELETE (set status='cancelled')
+   807→- Created src/app/api/client/coupons/route.ts — GET (list for userId=dev-user-1, include merchant name, status filter, order by createdAt desc) + POST (claim coupon with random 8-char code, qrCodeData JSON)
+   808→- Created src/app/api/client/coupons/[id]/scan/route.ts — POST (create CouponScan, increment currentUses, auto-set status='used' when maxUses reached, calculate commission)
+   809→- Created src/app/api/client/marketplace/stats/route.ts — GET (aggregate stats: totalMerchants, activePromos, activeFlashSales, myCoupons, totalRedemptions, totalScans via Promise.all)
+   810→- Ran bun run lint — passed clean with no errors
+   811→- Verified dev server compiles routes without errors
+   812→
+   813→Stage Summary:
+   814→- 11 API route files created covering the full marketplace module: merchants (CRUD + photos), promos (CRUD + redeem), flash-sales (CRUD), coupons (claim + scan), marketplace stats
+   815→- All routes follow the established project patterns: NextRequest/NextResponse, db import from @/lib/db, try/catch with 500 errors, userId='dev-user-1'
+   816→- Proper HTTP status codes: 201 for creates, 200 for updates/deletes, 400 for validation, 404 for not found
+   817→- All Prisma queries use camelCase field names (mapped via @map in schema)
+   818→---
+   819→Task ID: 2-b
+   820→Agent: V3 display components developer
+   821→Task: Create Marketplace, FlashSale, and Coupon V3 display components
+   822→
+   823→Work Log:
+   824→- Read worklog.md for full project context
+   825→- Read ArtisanDirectoryDisplayV3.tsx as reference pattern for V3 display components
+   826→- Read all magic components: GradientBackground, GlassCard, FloatingParticles, PageTransition (AnimatedIcon, AnimatedTitle, BrandedFooter)
+   827→- Read magic/index.ts to understand exports
+   828→- Confirmed UI components available: Badge, Button, Card, Tabs, Input, etc.
+   829→- Created /src/components/modules/v3/MarketplaceDisplayV3.tsx
+   830→  - Uses GradientBackground moduleType='marketplace' (rose/pink gradient)
+   831→  - ShoppingBag icon with AnimatedIcon + pulse rings + wobble
+   832→  - AnimatedTitle: "Marketplace Quartier"
+   833→  - Search bar at top (filters by name)
+   834→  - Category filter chips: Tous, Boulangerie, Boucherie, Épicerie, Pharmacie, Restauration, Beauté, Autre
+   835→  - Grid of merchant cards (2 cols mobile, 3 desktop) with logo, name, category badge, rating stars, address, phone, "Voir" button
+   836→  - Click card expands to show: description, opening hours, photos carousel, active promos list
+   837→  - Fetches merchants from /api/client/merchants, promos from /api/client/promos
+   838→  - FloatingParticles + BrandedFooter
+   839→- Created /src/components/modules/v3/FlashSaleDisplayV3.tsx
+   840→  - Uses GradientBackground moduleType='flash_sale' (orange/red gradient)
+   841→  - Zap icon with AnimatedIcon + pulse rings + wobble
+   842→  - AnimatedTitle: "Ventes Flash"
+   843→  - Countdown timer (hours:minutes:seconds) per flash sale, updates every second via useEffect+setInterval
+   844→  - Flash sale cards with: image placeholder, title, discount % badge, original price (strikethrough), flash price (large), progress bar (currentRedemptions/maxRedemptions), "Récupérer" button
+   845→  - Geofence indicator (MapPin icon) when geofenceRequired
+   846→  - Empty state: "Aucune vente flash active" with clock icon
+   847→  - Filters out expired sales (endsAt < now)
+   848→  - Fetches from /api/client/flash-sales?status=active
+   849→  - FloatingParticles + BrandedFooter
+   850→- Created /src/components/modules/v3/CouponDisplayV3.tsx
+   851→  - Uses GradientBackground moduleType='coupon' (emerald/green gradient)
+   852→  - Ticket icon with AnimatedIcon + pulse rings + wobble
+   853→  - AnimatedTitle: "Mes Coupons"
+   854→  - Ticket-style cards with dashed border and torn edge effect (circle cutouts on sides)
+   855→  - Each coupon: merchant name, discount label, code (monospace, copyable via navigator.clipboard.writeText), valid dates, status badge (active=green, used=gray, expired=red)
+   856→  - QR code placeholder (7x7 grid pattern, no library needed)
+   857→  - Tabs: Actifs | Utilisés | Expirés with count badges
+   858→  - Copy button with check feedback animation
+   859→  - Fetches from /api/client/coupons
+   860→  - FloatingParticles + BrandedFooter
+   861→- Edited /src/components/magic/GradientBackground.tsx to add 3 new MODULE_GRADIENTS entries:
+   862→  - marketplace: { from: '#e11d48', via: '#f43f5e', to: '#fda4af' }
+   863→  - flash_sale: { from: '#ea580c', via: '#f97316', to: '#fb923c' }
+   864→  - coupon: { from: '#059669', via: '#10b981', to: '#6ee7b7' }
+   865→- Ran bun run lint — passed clean with no errors
+   866→- Verified dev server continues running without compilation errors
+   867→
+   868→Stage Summary:
+   869→- 3 V3 display components created following exact ArtisanDirectoryDisplayV3 pattern
+   870→- All use 'use client', framer-motion, magic components, French text, mobile-first responsive design
+   871→- All accept { content, qrCodeId?, qrName? } props with default export function pattern
+   872→- 3 gradient entries added to MODULE_GRADIENTS for marketplace, flash_sale, coupon module types
+   873→- Lint passes clean
+   874→---
+   875→Task ID: 2-c
+   876→Agent: Dashboard component developer
+   877→Task: Build MarketplaceManager dashboard component (5 tabs)
+   878→
+   879→Work Log:
+   880→- Read worklog.md for project context
+   881→- Read artisan-manager.tsx as reference pattern (full 1471 lines)
+   882→- Read all marketplace Prisma models: Merchant, Promo, FlashSale, Coupon, Transaction
+   883→- Read all existing API routes: merchants (GET/POST), merchants/[id] (GET/PATCH/DELETE), promos (GET/POST), promos/[id]/redeem (POST), flash-sales (GET/POST), flash-sales/[id] (GET/PATCH/DELETE), coupons (GET/POST), coupons/[id]/scan (POST), transactions (GET/POST)
+   884→- Created /src/components/client/marketplace-manager.tsx with 5 tabs
+   885→- Ran lint check - passes clean
+   886→- Checked dev server log - no errors
+   887→
+   888→Stage Summary:
+   889→- MarketplaceManager component created at /src/components/client/marketplace-manager.tsx
+   890→- 5 tabs: Commerçants (Store), Promotions (Tag), Ventes Flash (Zap), Coupons (Ticket), Transactions (Receipt)
+   891→- Tab 1 (Commerçants): Stats bar (total/verified/active), search + category filter, 2-col grid cards with name/category/address/phone/rating/verified badge/isActive toggle/delete, detail modal with photos/promo count/opening hours, create merchant dialog
+   892→- Tab 2 (Promotions): Stats bar (total/active/redeemed), merchant/category/status filters, promo cards with price strikethrough/redeem button/views/redemptions/validUntil, create promo dialog
+   893→- Tab 3 (Ventes Flash): Stats bar (total/active with pulsing dot/scheduled/expired, 4-col on lg), flash sale cards with live countdown timer/progress bar/status badges (scheduled=yellow/active=green+pulsing/expired=gray/cancelled=red), activate/cancel status transitions, create flash sale dialog with merchant→promo cascade
+   894→- Tab 4 (Coupons): Stats bar (total/active/used/total economy), sub-tab filter (Actifs/Utilisés/Expirés), ticket-style cards with dashed border/cutout circles/discount display/monospace code with copy button/validity dates, scan button for active coupons, claim coupon dialog with discountType (percentage/fixed/bogof)
+   895→- Tab 5 (Transactions): Stats bar (total/amount/this month), type/status filters, transaction list with date/type/amount/status badge/payer/receiver
+   896→- Follows exact artisan-manager.tsx patterns: fetchHomeId, userId='dev-user-1', useState tabs, fetch/cb pattern, loading skeleton, error handling, toast feedback, Dialog modals, gradient stat cards, responsive grid
+   897→- All French text, mobile responsive, max-h scrollable areas
+   898→- Lint passes clean
+   899→---
+   900→Task ID: 3
+   901→Agent: Frontend refactor
+   902→Task: Make artisan-manager.tsx read-only for client (remove create professional profile functionality)
+   903→
+   904→Work Log:
+   905→- Read /src/components/client/artisan-manager.tsx (1471 lines) to identify all create-professional code
+   906→- Identified state variables to remove: createProOpen, proFormName, proFormCategory, proFormDesc, proFormLocation, proFormRate, proFormRadius, proFormUrgent, proSubmitting (lines 174-184)
+   907→- Identified handleCreateProfile function to remove (lines 385-414)
+   908→- Identified create-professional Dialog in tab action buttons (lines 665-739)
+   909→- Verified Plus icon is still used by "Nouvelle demande" button in demandes tab — kept import
+   910→- Verified UserCheck icon is still used on line 1260 — kept import
+   911→- Verified DialogTrigger is still used by demandes dialog — kept import
+   912→- Applied 3 edits: removed state vars, removed handleCreateProfile, removed create-pro Dialog
+   913→- Verified no remaining references to createPro, proForm, proSubmitting, handleCreateProfile
+   914→- Ran lint — passes clean
+   915→- Checked dev server log — no errors
+   916→
+   917→Stage Summary:
+   918→- Removed all create-professional-profile functionality from artisan-manager.tsx
+   919→- Client can now only: browse professionals (Annuaire), create/view service requests (Mes Demandes), write/view reviews (Avis), chat (Chat)
+   920→- No "Créer mon profil pro" button in Annuaire tab header anymore
+   921→- All other tabs and functionality preserved unchanged
+   922→- File reduced from 1471 to 1352 lines
+   923→- All imports still valid (Plus reused by demandes tab)
+   924→- Lint passes clean
+   925→
+   926→---
+   927→Task ID: 4-a and 4-c
+   928→Agent: Admin components developer
+   929→Task: Create AdminArtisans and AdminPacks components
+   930→
+   931→Work Log:
+   932→- Read worklog.md for project context
+   933→- Read admin-users.tsx for admin component pattern (table layout, badges, dialogs, skeleton, pagination)
+   934→- Read artisan-manager.tsx lines 58-150 for ProfessionalData type, ServiceData type, and STATUS_CONFIG pattern
+   935→- Read pack-manager.tsx for pack display pattern and PackData structure
+   936→- Read packs-config.ts for PACKS array and PackDefinition interface
+   937→- Read types/database.ts for CATEGORIES array and QR_MODULE_LABELS mapping
+   938→- Verified available shadcn components (alert-dialog, switch, textarea, skeleton, etc.)
+   939→
+   940→Created /src/components/admin/admin-artisans.tsx:
+   941→- Full CRUD admin for professionals with ProfessionalData and ServiceData types
+   942→- Stats bar: Total pros, Vérifiés, Actifs with icon cards
+   943→- Filters: search input, category Select (from CATEGORIES), verified toggle Switch
+   944→- Table with columns: businessName, category (Badge), location, hourlyRate (€), ratingAvg (Stars), isVerified (Switch toggle), isActive (Switch toggle), totalJobsCompleted, actions (view/edit/delete)
+   945→- Responsive: hidden columns on sm/md/lg breakpoints
+   946→- Click Eye button → detail Dialog showing all info (location, radius, rate, rating, reviews, jobs, response time, urgent availability, description, services table)
+   947→- Click Pencil button → form Dialog pre-filled for editing (businessName, category, subcategory, description textarea, location, serviceRadiusKm, hourlyRate, isUrgentAvailable toggle, isVerified toggle)
+   948→- Click Plus button → same form Dialog empty for creating new professional
+   949→- Delete → AlertDialog confirm, soft-delete via PATCH isActive=false
+   950→- Inline toggle for isActive and isVerified via Switch with loading state
+   951→- API: GET/POST /api/client/professionals, GET/PATCH /api/client/professionals/[id]
+   952→- Loading skeleton, error state with retry, empty state
+   953→- All text in French
+   954→
+   955→Created /src/components/admin/admin-packs.tsx:
+   956→- Display-only admin view of PACKS_CONFIG packs
+   957→- Info banner explaining packs are configured in code and shown during onboarding
+   958→- Stats: Total packs, Total QR codes, Unique modules covered (computed)
+   959→- Grid of pack cards (responsive 1/2/3 cols) showing: gradient header with icon + badge, description, target audience, QR code count + module count badges, modules table (module type label from QR_MODULE_LABELS, room name, QR name) with max-h-48 scroll, features list in dark card
+   960→- Future note: dashed border banner mentioning upcoming enable/disable and module customization
+   961→- All text in French
+   962→
+   963→Lint: passes clean
+   964→
+   965→---
+   966→Task ID: 4-b
+   967→Agent: Admin component developer
+   968→Task: Create AdminMarketplace component
+   969→
+   970→Work Log:
+   971→- Read worklog.md for context
+   972→- Read admin-users.tsx for admin component pattern (Dialog, Table, Badge, Select, search, pagination)
+   973→- Read marketplace-manager.tsx (2008 lines) for types, API patterns, and CRUD handlers
+   974→- Created /src/components/admin/admin-marketplace.tsx (519 lines)
+   975→- Component has 5 tabs: Commerçants, Promotions, Ventes Flash, Coupons, Transactions
+   976→- Each tab has: stat cards, filters, table view, create/edit dialog
+   977→- Uses shadcn Table, Dialog, Tabs, Badge, Select, Progress components
+   978→- All text in French
+   979→- Responsive design with hidden columns on mobile
+   980→- CRUD operations for all entities (merchants, promos, flash sales, coupons)
+   981→- Flash sales include live countdown timer and progress bar
+   982→- Coupons include click-to-copy code and scan action
+   983→- Transactions tab is read-only with filters
+   984→- Lint passes with no errors
+   985→
+   986→Stage Summary:
+   987→- AdminMarketplace component created at /src/components/admin/admin-marketplace.tsx (519 lines)
+   988→- All 5 tabs functional with proper CRUD, filters, and French UI
+   989→- Uses same API endpoints as client marketplace-manager
+   990→- Follows admin-users.tsx pattern for consistency
+   991→
+   992→---
+   993→Task ID: 2
+   994→Agent: Main
+   995→Task: Étape 2 — Scan-to-Onboard /setup/[token] flow
+   996→
+   997→Work Log:
+   998→- Read worklog.md for project context
+   999→- Explored existing auth patterns (next-auth, register API, login-form, activate/[code] pattern)
+  1000→- Read Prisma schema: QrBatch (no name/packType fields), PhysicalQrCode (has isClaimed, hubSlug, claimedByUserId), Home (has pinHash), Subscription (has maxHomes, plan types)
+  1001→- Read middleware.ts to understand public paths
+  1002→- Created /src/app/api/setup/[token]/route.ts (GET + POST)
+  1003→  - GET: validates activationCode, returns plaque info or 'claimed' status
+  1004→  - POST: creates user (or uses existing), hashes PIN with bcrypt, generates unique hubSlug, creates Home, claims plaque, creates Subscription with 14-day trial, creates HomeMember with 'owner' role
+  1005→- Added /setup and /hub to middleware publicPaths
+  1006→- Created /src/app/setup/[token]/page.tsx ('use client' + SessionProvider + Suspense pattern matching activate/[code])
+  1007→- Created /src/app/setup/[token]/setup-content.tsx — Full multi-step animated setup flow:
+  1008→  - Step 1 (Welcome): Animated QR icon, plaque info badge, feature preview grid (WiFi, Sécurité, Famille)
+  1009→  - Step 2 (Account): Name/email/password fields with Framer Motion, pre-fills if logged in, show/hide password
+  1010→  - Step 3 (Plan): 3 plan cards (Famille 49€/an, Airbnb Solo 9.90€/mois with POPULAIRE badge, Airbnb Pro 199€/an) with feature expand, 14-day trial mention
+  1011→  - Step 4 (PIN): iOS-style numpad, 4-digit PIN input with dot display, confirm PIN with green/red validation
+  1012→  - Step 5 (Home): Home name input + recap card (account, email, plan, PIN, home name)
+  1013→  - Step 6 (Success): Celebration animation, auto-redirect to dashboard or hub
+  1014→  - Full slide animations (AnimatePresence + direction), progress bar, dark violet theme
+  1015→- Fixed TS errors: QrBatch doesn't have name/packType, changed to batchId/quantity
+  1016→- Fixed React Context error: page.tsx must be 'use client' to use SessionProvider
+  1017→- Verified: GET /setup/TEST-1234 → 200 (renders 'Plaque non trouvée' error page)
+  1018→- Verified: GET /api/setup/TEST-1234 → 404 {error: 'Plaque non trouvée'} (correct API response)
+  1019→- Lint passes clean
+  1020→
+  1021→Stage Summary:
+  1022→- 3 files created: api/setup/[token]/route.ts, setup/[token]/page.tsx, setup/[token]/setup-content.tsx
+  1023→- 1 file modified: middleware.ts (added /setup and /hub to publicPaths)
+  1024→- Complete Scan-to-Onboard flow: 6-step Framer Motion animated wizard
+  1025→- API handles both new user creation and existing user linking
+  1026→- PIN hashed with bcrypt, hubSlug auto-generated from home name + random hex suffix
+  1027→- Subscription created with 14-day trial, plan stored on User.selectedPlan
+  1028→---
+  1029→Task ID: 3
+  1030→Agent: Main
+  1031→Task: Étape 3 — QR Code Hub /hub/[slug]
+  1032→
+  1033→Work Log:
+  1034→- Explored existing patterns: view/[slug] public page, API public/qr/[slug], Room/QrCode relations, V3 display components, VoiceMessage model, MODULE_GRADIENTS, QR_MODULE_LABELS
+  1035→- Created /src/app/api/public/hub/[slug]/route.ts (GET + POST)
+  1036→  - GET: looks up PhysicalQrCode by hubSlug (where isClaimed=true, homeId not null), fetches Home, guest rooms (non-private QR codes), family rooms (all QR codes), last 10 voice messages. Returns structured JSON.
+  1037→  - POST: verifies 4-digit PIN via bcrypt.compare against home.pinHash. Returns 401 on incorrect, 200 on success.
+  1038→- Created /src/app/hub/[slug]/page.tsx — thin server component wrapper with Suspense
+  1039→- Created /src/app/hub/[slug]/hub-content.tsx — Full hub UI:
+  1040→  - 4 views: mode-select, pin, guest, family with AnimatePresence transitions
+  1041→  - Mode-select: home header with animated icon, 2 gradient buttons (Invité=emerald, Famille=violet), voice messages preview list
+  1042→  - PIN modal: iOS-style numpad (3x4 grid), auto-submit on 4th digit, error animation, loading state
+  1043→  - Guest view: shows only non-private QR modules grouped by room, quick WiFi card with network/password
+  1044→  - Family view: shows ALL modules including private (with lock badge), grouped by room
+  1045→  - Room section: icon per room type (20+ mappings: salon→Sofa, cuisine→Utensils, etc.)
+  1046→  - Module cards: gradient icon from MODULE_GRADIENTS, label from QR_MODULE_LABELS, click→/view/[slug], hover arrow
+  1047→  - DynamicIcon component pattern to avoid 'component created during render' ESLint error
+  1048→  - Sticky header with back button and mode badge (INVITÉ/FAMILLE)
+  1049→  - Fixed footer
+  1050→  - Dark slate theme (bg-slate-900 via slate-800)
+  1051→- Verified: GET /api/public/hub/test-slug → 404 {error: 'Hub non trouvé'} (correct)
+  1052→- Verified: GET /hub/test-slug → HTTP 200, no errors (renders error state correctly)
+  1053→- Verified: /hub already in middleware publicPaths (added in Étape 2)
+  1054→- Lint passes clean
+  1055→
+  1056→Stage Summary:
+  1057→- 3 files created: api/public/hub/[slug]/route.ts, hub/[slug]/page.tsx, hub/[slug]/hub-content.tsx
+  1058→- Complete hub page with 4 views: mode selection, PIN verification, guest mode, family mode
+  1059→- Public API returns guest rooms (non-private) and family rooms (all) for conditional rendering
+  1060→- PIN verification via bcrypt compare
+  1061→- Room→QR code hierarchy with module-type icons and gradient backgrounds
+  1062→- WiFi quick-access card when wifi module present
+  1063→---
+  1064→Task ID: 4
+  1065→Agent: Main
+  1066→Task: Étape 4 — Hub inner views + voice recording + API sync + validation
+  1067→
+  1068→Work Log:
+  1069→- Created /public/uploads/voice/ directory for local audio storage (dev mode)
+  1070→- Created /src/app/api/public/hub/[slug]/voice/route.ts (GET + POST)
+  1071→  - GET: lists voice messages for a hub (max 50, ordered by createdAt desc)
+  1072→  - POST: uploads audio file (FormData), validates audio mime type, max 30s, saves to public/uploads/voice/, creates VoiceMessage DB record with auto-generated filename, returns audioUrl
+  1073→- Upgraded /src/app/hub/[slug]/hub-content.tsx with 3 new components:
+  1074→  - VoicePlayer: audio playback with play/pause button, progress bar, duration display, auto-cleanup on unmount
+  1075→  - VoiceRecorder: full recording flow using MediaRecorder API (webm/opus), 30s max with auto-stop, live recording indicator with pulse animation, progress bar, cancel/stop buttons, post-recording name input dialog, FormData upload to API, toast notifications
+  1076→  - Voice section in guest view: section header + VoiceRecorder + scrollable VoicePlayer list
+  1077→- Fixed React 19 compatibility: useRef requires initial value (changed to `useRef<T | null>(null)`)
+  1078→- Fixed setup-content.tsx: removed unused @ts-expect-error directives (3), fixed `plan.popular` with `'popular' in plan` type guard
+  1079→- Validation results (all via HTTP + server logs, zero errors):
+  1080→  - `GET /` → 200 ✅
+  1081→  - `GET /hub/test-slug` → 200 ✅ (renders error state correctly)
+  1082→  - `GET /setup/TEST` → 200 ✅ (renders error state correctly)
+  1083→  - `GET /api/public/hub/test-slug` → 404 {"error":"Hub non trouvé"} ✅
+  1084→  - `GET /api/setup/TEST-1234` → 404 {"error":"Plaque non trouvée"} ✅
+  1085→  - `bun run lint` → clean ✅
+  1086→  - No runtime/compilation errors in dev.log ✅
+  1087→  - Note: agent-browser validation blocked by Turbopack OOM crashes (3-4 compiled routes max in sandbox)
+  1088→
+  1089→Stage Summary:
+  1090→- 1 file created: api/public/hub/[slug]/voice/route.ts
+  1091→- 2 files modified: hub-content.tsx (voice recording/playback), setup-content.tsx (TS fixes)
+  1092→- Full voice recording flow: mic button → recording UI → name input → upload → refresh list
+  1093→- Voice playback: play/pause, progress bar, duration
+  1094→- All 4 new pages/APIs validated via HTTP status codes
+  1095→
+  1096→---
+  1097→Task ID: 5
+  1098→Agent: Main
+  1099→Task: Étape 5 — Final integration, Settings page, Landing page V3 upgrade
+  1100→
+  1101→Work Log:
+  1102→- Integrated StockManager, PackManager, MarketplaceManager into client sidebar (new MARKETPLACE_ITEMS section)
+  1103→- Added client-stock, client-packs, client-marketplace to ClientPage type union
+  1104→- Reorganized sidebar: DASHBOARD_ITEMS (with Stock), MARKETPLACE_ITEMS (Artisans, Marketplace, Packs, Monetization), INTEGRATION_ITEMS (with Settings), MODULE_ITEMS_V1, MODULE_ITEMS_V3 (Services Pro only)
+  1105→- Added 3 new routing cases in page.tsx (client-stock, client-packs, client-marketplace)
+  1106→- Created SettingsPage component (6 cards: Profil, Préférences Hub, Notifications, Apparence, Sécurité, À propos)
+  1107→- Replaced PlaceholderPage with SettingsPage in page.tsx routing
+  1108→- Upgraded Landing page: added V3 Nouveautés section (Hub, Artisans, Marketplace, Voice, Inventaire, Packs), updated pricing to 3 plans (Famille 49€/an, Airbnb Solo 9.90€/mois, Airbnb Pro 199€/an), updated testimonials for V3 features, added Hub FAQ, updated footer links
+  1109→- Version bumped to v3.0.0 in client and admin footers
+  1110→- All lint passes clean, dev server compiles with 200 OK
+  1111→
+  1112→Stage Summary:
+  1113→- 4 files created/modified: client-layout.tsx, page.tsx, settings-page.tsx, hero-section.tsx, super-admin-layout.tsx
+  1114→- 3 previously built components now fully integrated (StockManager, PackManager, MarketplaceManager)
+  1115→- Settings page with 6 functional sections replaces placeholder
+  1116→- Landing page upgraded with V3 feature showcase, 3-tier pricing, updated testimonials
+  1117→- Sidebar reorganized into 5 logical sections
+  1118→- Version bumped to v3.0.0
+  1119→
+  1120→---
+  1121→Task ID: 1
+  1122→Agent: Main
+  1123→Task: ÉTAPE 1 — Create/upgrade 5 magic reusable components for Setup & Hub pages
+  1124→
+  1125→Work Log:
+  1126→- Assessed existing magic components (GlassCard, FloatingParticles, SuccessCheck, ConfettiExplosion, GradientBackground)
+  1127→- Created **AnimatedGradient.tsx** — Animated gradient background with 3 presets (setup=violet/indigo, hub-guest=emerald/teal, hub-family=purple/fuchsia). Uses CSS keyframes with 20s infinite, 400% background-size, plus radial glow + bottom vignette.
+  1128→- Upgraded **GlassCard.tsx** — Added `glow` prop for colored shadow, `light` prop for reduced blur performance mode.
+  1129→- Created **NumericKeypad.tsx** — iOS-style 3x4 numeric keypad with: animated PIN dots (pulsing active dot, spring-filled dots), glassmorphism buttons with whileTap scale 0.9, iOS sub-labels (ABC, DEF...), backspace key, hidden accessible input, `onComplete`/`onChange`/`onBackspace` callbacks.
+  1130→- Created **SuccessAnimation.tsx** — Combines animated checkmark (spring scale+rotate entrance, glow ring pulse) with canvas-confetti via useConfetti hook. AnimatePresence for enter/exit.
+  1131→- Upgraded **FloatingParticles.tsx** — Enhanced with unique per-instance keyframes, horizontal drift, varied opacity (0.15-0.6), unique animation IDs to prevent conflicts, proper cleanup.
+  1132→- Updated **index.ts** barrel exports with AnimatedGradient, NumericKeypad, SuccessAnimation + GradientPreset type.
+  1133→- Fixed strict lint errors (no setState in effects, no ref access during render).
+  1134→
+  1135→Stage Summary:
+  1136→- 5 components ready: AnimatedGradient (new), GlassCard (upgraded), NumericKeypad (new), FloatingParticles (upgraded), SuccessAnimation (new)
+  1137→- All pass `bun run lint` with zero errors
+  1138→- Dev server compiles successfully
+  1139→- Components designed mobile-first, fully accessible (aria-labels, hidden inputs)
+  1140→
+  1141→---
+  1142→Task ID: 2
+  1143→Agent: Main
+  1144→Task: ÉTAPE 2 — Rewrite /setup/[token]/page.tsx with 5-step immersive wizard
+  1145→
+  1146→Work Log:
+  1147→- Read existing setup-content.tsx (938 lines, 6 steps: welcome, account, plan, pin, home, success)
+  1148→- Read API route /api/setup/[token]/route.ts to understand data contract
+  1149→- Rewrote page.tsx wrapper with matching fallback theme
+  1150→- Completely rewrote setup-content.tsx with new design:
+  1151→  - 5 steps instead of 6 (merged plan selection into config step)
+  1152→  - Step 1 (Welcome): Animated Home icon with spring + rotate, feature pills (WiFi/Security/Family), shimmer CTA button, plaque badge
+  1153→  - Step 2 (Account): Glassmorphism inputs (bg-white/10 backdrop-blur), Google sign-in button, eye toggle for password, shimmer continue button
+  1154→  - Step 3 (PIN): NumericKeypad component (from magic/), auto-advance on 4-digit completion, Fingerprint icon
+  1155→  - Step 4 (Config): Compact 3-column plan selector (Famille/Airbnb Solo/Airbnb Pro), home name input, adaptive fields (WiFi for Famille, emergency phone for Airbnb), summary GlassCard, submit with loading state
+  1156→  - Step 5 (Success): SuccessAnimation with confetti, “Tester mon Hub” CTA, summary card, auto-redirect
+  1157→- Uses AnimatedGradient preset='setup', FloatingParticles, GlassCard from magic components
+  1158→- AnimatePresence slide transitions between steps (directional)
+  1159→- Error states (not_found, error) use GlassCard with matching gradient
+  1160→- Already-claimed state shows Hub access button
+  1161→- Fixed parsing error (stray 'n' character) and lint
+  1162→- Verified: lint passes, dev server compiles setup route (200), browser shows correct error state for invalid token
+  1163→
+  1164→Stage Summary:
+  1165→- /setup/[token] fully redesigned with immersive glassmorphism UI
+  1166→- 5-step wizard: Welcome → Account → PIN → Config → Success
+  1167→- Plan selection embedded in Step 4 (Configuration rapide)
+  1168→- Adaptive config fields based on selected plan
+  1169→- All API integration preserved (token validation, account creation, PIN, hub creation)
+  1170→
+  1171→---
+  1172→Task ID: 3
+  1173→Agent: Main
+  1174→Task: ÉTAPE 3 — Rewrite /hub/[slug]/page.tsx with immersive home screen + PIN modal
+  1175→
+  1176→Work Log:
+  1177→- Read existing hub-content.tsx (577 lines) with mode-select, PIN inline, guest/family views, voice recorder/player
+  1178→- Read API route /api/public/hub/[slug]/route.ts (GET hub data + POST PIN verify)
+  1179→- Rewrote page.tsx as client component with matching emerald fallback
+  1180→- Completely rewrote hub-content.tsx with immersive design:
+  1181→  - **Mode-select screen**: Home name as H1, owner subtitle, stats (pièces/modules), Settings gear (rotate 90° on tap)
+  1182→  - **Two big gradient buttons**: 
+  1183→    - Mode Invité (emerald→teal, shimmer hover, User icon, module count badges)
+  1184→    - Mode Famille (purple→fuchsia, Lock icon, PIN required badge, shimmer hover)
+  1185→  - **PIN Modal**: Full-screen overlay (bg-black/60 backdrop-blur-sm), GlassCard, NumericKeypad from magic/, cancel button, used for both family access and settings access
+  1186→  - **Guest view**: WiFi quick card, VoiceRecorder, VoicePlayer, room grid with ModuleCards
+  1187→  - **Family view**: Room grid with ModuleCards (private badge)
+  1188→  - Background changes: hub-guest preset for mode-select+guest, hub-family preset for family
+  1189→  - FloatingParticles on all views
+  1190→  - All cards use bg-white/10 backdrop-blur-xl border-white/20 glassmorphism
+  1191→- VoicePlayer and VoiceRecorder preserved from original with updated glass styling
+  1192→- PinModal is a separate component with AnimatePresence enter/exit
+  1193→- Verified: lint passes, route compiles 200, error state renders in browser
+  1194→
+  1195→Stage Summary:
+  1196→- /hub/[slug] fully redesigned with immersive glassmorphism UI
+  1197→- Dynamic gradient that shifts based on active mode (emerald guest → purple family)
+  1198→- PIN modal with NumericKeypad and GlassCard
+  1199→- Settings gear opens PIN modal
+  1200→- All API integration preserved
+  1201→
+  1202→---
+  1203→Task ID: 4
+  1204→Agent: Main
+  1205→Task: ÉTAPE 4 — Rewrite Hub internal views (Guest enhanced + Family dashboard)
+  1206→
+  1207→Work Log:
+  1208→- Read existing hub-content.tsx (813 lines) to understand current structure
+  1209→- Read API route /api/public/hub/[slug]/route.ts to understand data contract
+  1210→- Read QR_MODULE_LABELS from database.ts to understand all module types
+  1211→- Read GlassCard component for props reference
+  1212→- Rewrote hub-content.tsx (~950 lines) with enhanced views:
+  1213→
+  1214→  **Guest View (Enhanced):**
+  1215→  - 4 Quick Access Cards in a 2x2 responsive grid:
+  1216→    1. WifiQuickCard — network name, password with show/hide toggle, copy-to-clipboard with toast feedback, green gradient accent
+  1217→    2. MessagesQuickCard — voice message count badge, latest sender preview, cyan gradient accent
+  1218→    3. RulesQuickCard — rules count, first rule preview, amber gradient accent, tap to open RulesDetailView
+  1219→    4. ContactQuickCard — phone with tap-to-call, email, rose gradient accent
+  1220→  - Standalone VoiceRecorder below quick cards
+  1221→  - Voice messages list with VoicePlayer
+  1222→  - Modules par pièce section (rooms excluding quick-access modules)
+  1223→  - RulesDetailView sub-view with numbered rule list
+  1224→
+  1225→  **Family View (6-card Dashboard):**
+  1226→  - 2-column grid with staggered animations
+  1227→  - Up to 4 FamilyRoomCard components (rooms from database with icons, module counts, private badges)
+  1228→  - FamilyActionCard for Répondeur (voice messages count, rose gradient)
+  1229→  - FamilyActionCard for Paramètres (settings, slate gradient, opens PIN modal)
+  1230→  - "Plus de pièces" overflow card if > 4 rooms
+  1231→  - RoomDetailView sub-view when tapping a room card (back button, module grid)
+  1232→  - VoiceDetailView sub-view when tapping Répondeur (back button, recorder + messages)
+  1233→
+  1234→  **Navigation & Transitions:**
+  1235→  - Directional slide variants (left/right) based on navigation direction
+  1236→  - slideDirection state to track forward/back movement
+  1237→  - goBack helper with smart return (room-detail → family, rules-detail → guest)
+  1238→  - HubView type extended: mode-select | guest | family | room-detail | voice-detail | rules-detail
+  1239→  - selectedRoomId and selectedRulesContent state for sub-views
+  1240→  - AnimatedGradient preset dynamically switches (hub-guest vs hub-family)
+  1241→
+  1242→- Fixed RoomSection JSX bug (missing braces for map expression)
+  1243→- Verified: lint passes clean, dev server compiles 200, no console errors in browser
+  1244→
+  1245→Stage Summary:
+  1246→- hub-content.tsx rewritten with ~950 lines of immersive glassmorphism UI
+  1247→- Guest view: 4 quick-access cards (WiFi/Messages/Rules/Contact) + voice + room modules
+  1248→- Family view: 6-card dashboard (rooms + Répondeur + Paramètres) + sub-views
+  1249→- 6 new components: WifiQuickCard, RulesQuickCard, ContactQuickCard, MessagesQuickCard, FamilyRoomCard, FamilyActionCard, RoomDetailView, VoiceDetailView, RulesDetailView
+  1250→- Directional slide transitions with AnimatePresence custom variants
+  1251→- All existing functionality preserved (PIN modal, voice recorder/player, API integration)
+  1252→- Zero lint errors, zero console errors
+  1253→
+  1254→
+  1255→---
+  1256→Task ID: 5
+  1257→Agent: Main
+  1258→Task: ÉTAPE 5 — Responsive mobile testing (375px) and final polish
+  1259→
+  1260→Work Log:
+  1261→- Code review at 375px viewport width identified 8 issues
+  1262→- Fixed invalid `ml-7.5` Tailwind class → `ml-[30px]` in RoomDetailView
+  1263→- Restructured Guest quick access: WiFi card pulled out of 2x2 grid as full-width hero card above remaining cards (Messages, Rules, Contact stay in grid)
+  1264→- Reduced Family dashboard card padding: `p-6` → `p-5`, icon `h-14 w-14` → `h-11 w-11`, text `text-lg` → `text-base`
+  1265→- Reduced Family dashboard gradient blob: `h-28 w-28 -bottom-6 -left-6` → `h-20 w-20 -bottom-4 -left-4`
+  1266→- Increased all back button touch targets: `h-10 w-10` (40px) → `h-11 w-11` (44px) in RoomDetailView, VoiceDetailView, RulesDetailView
+  1267→- Added `scrollbar-thin` utility class to globals.css (4px WebKit scrollbar + Firefox thin, white/15 track)
+  1268→- Applied `scrollbar-thin` to: voice messages list, voice detail list, mode-select voice preview
+  1269→- Added iOS safe area insets: `pt-[max(1.5rem,env(safe-area-inset-top))]` on both hub and setup headers
+  1270→- Added iOS safe area footer: `pb-[max(1.25rem,env(safe-area-inset-bottom))]` with `mt-auto` for sticky bottom
+  1271→- Tightened setup plan selector: `gap-2` → `gap-1.5`, `p-3` → `p-2.5`, icon `w-8 h-8` → `w-7 h-7 rounded-lg`, `mb-1.5` → `mb-1`
+  1272→- Fixed literal `\n` character bug in setup password eye toggle (line 583)
+  1273→- Verified: lint passes clean, dev server compiles both routes, zero console errors at 375px
+  1274→- Browser verification at 375×812 (iPhone X): hub error state, setup error state, main page all render correctly
+  1275→
+  1276→Stage Summary:
+  1277→- 12 responsive fixes applied across 3 files (hub-content.tsx, setup-content.tsx, globals.css)
+  1278→- All touch targets now ≥ 44px (back buttons h-11 w-11)
+  1279→- WiFi card full-width for proper password row interaction at 375px
+  1280→- Family dashboard cards proportionally scaled for ~158px column width
+  1281→- iOS safe area insets on header top and footer bottom
+  1282→- Custom thin scrollbar utility for glassmorphism scrollable areas
+  1283→- Literal \n JSX bug fixed in setup password toggle
+  1284→- Zero lint errors, zero console errors, all routes compile 200
+  1285→
+  1286→
