@@ -327,3 +327,80 @@ Stage Summary:
 - All public pages now have: animated background waves, pulse ring icons with wobble, glassmorphism cards (backdrop-blur-2xl), working shine effect on buttons
 - Per-module subtitles and interactive features (confetti on copy, action buttons, auto-redirect)
 - Lint passes clean, page compilation verified (200 OK)
+---
+Task ID: 2-a
+Agent: API Builder
+Task: Create products API routes (CRUD, instances, DLC/stock alerting)
+
+Work Log:
+- Created /api/client/products/route.ts: GET with filter=all|dlc|stock, POST to create product with instances ordered by expiryDate asc
+- Created /api/client/products/[id]/route.ts: PATCH for updating name/category/minStockThreshold/currentStock/isOnShoppingList, DELETE with cascade
+- Created /api/client/products/instances/route.ts: POST to create ProductInstance, PATCH via ?instanceId= query param for SQLite compatibility (status: fresh|consumed|expired|discarded)
+- Created /api/client/products/check-alerts/route.ts: POST endpoint that checks DLC alerts (J-0 auto-expire + J-1/2/3 warnings) and stock alerts (currentStock <= minStockThreshold), creates notifications with 24h dedup, sends push via sendPushToHome(), sets isOnShoppingList=true for low stock
+- Used JS-side filtering for stock threshold comparison (SQLite field comparison limitation)
+- Followed existing patterns: try/catch, console.error with prefix, French error messages, NextResponse.json
+- Lint passes clean (0 errors, 0 warnings)
+
+Stage Summary:
+- 4 API route files created covering full product CRUD, instance management, and automated DLC/stock alerting
+- DLC alerting: auto-marks J-0 instances as expired, creates notifications + push for J-0/1/2/3 with 24h dedup
+- Stock alerting: flags low-stock products, sets isOnShoppingList, creates notifications + push with 24h dedup
+- All routes use existing db import, push-sender, and follow chores API patterns
+- Dev server compiles without errors
+
+---
+Task ID: 3
+Agent: UI Builder
+Task: Create StockManager dashboard component
+
+Work Log:
+- Read worklog.md, ChoresManager component, and all 4 product API routes to understand patterns and API shape
+- Created /src/components/client/stock-manager.tsx as 'use client' named export component
+- Implemented 3 tabs (Produits, Alertes DLC, Stock Bas) using custom button group with active state and gradient styling
+- Tab Produits: product cards with name, category badge (8 categories with distinct colors), stock counter (green/red), minStockThreshold, "En liste de courses" badge
+- Product cards: expand/collapse instances sub-list, stock +/- buttons, delete button
+- Instance sub-list: each instance shows purchaseDate, expiryDate, status badge (Frais=green, Bientôt périmé=yellow, Expiré=red, Consommé=gray, Jeté=gray)
+- Add instance dialog per product with purchaseDate and expiryDate date inputs
+- Add product dialog with name, category dropdown (8 options), minStockThreshold (default 1), currentStock (default 0)
+- Tab Alertes DLC: fetches with filter=dlc, shows product name + all expiring instances with J-0/J-1/J-2/J-3 badges color-coded (red/orange/yellow/light-yellow)
+- Tab Stock Bas: fetches with filter=stock, shows product name, currentStock/minStockThreshold with progress bar, "Ajouté à la liste de courses" badge
+- "Vérifier les alertes" button: POST to /api/client/products/check-alerts, shows toast with result counts
+- 3 KPI stat cards with gradient backgrounds (Produits=orange, Stock bas=red, Liste de courses=emerald)
+- Loading skeletons, empty states, error handling with toast, Loader2 spinner for alert check
+- Follows ChoresManager pattern: useSession not needed (no user-specific data), fetch homes on mount, auto-select first home
+- French UI throughout, mobile-first responsive design, shadcn components (Card, Button, Badge, Dialog, Input, Label, Select, Skeleton)
+- Lucide icons: Package, Plus, Trash2, AlertTriangle, ShoppingCart, Clock, CheckCircle, ChevronDown, ChevronUp, Minus, ShieldAlert, Loader2
+
+Stage Summary:
+- StockManager component created with full product CRUD, instance management, DLC alerting, and stock monitoring
+- 3 tabs with distinct views: product list with expandable instances, DLC alert cards with J-X badges, stock progress bars
+- Lint passes clean (0 errors, 0 warnings), dev server compiles successfully
+
+---
+Task ID: 4
+Agent: V3 Builder
+Task: Create InventoryDisplayV3 immersive scan page
+
+Work Log:
+- Added `inventory: { from: '#b91c1c', via: '#dc2626', to: '#f97316' }` to MODULE_GRADIENTS in GradientBackground.tsx (red-to-orange theme for food alerts/urgency)
+- Created InventoryDisplayV3.tsx following exact MedicationDisplayV3 pattern
+- Component uses 'use client', accepts { content, qrCodeId, qrName } props
+- GradientBackground with moduleType="inventory" (red-orange gradient)
+- FloatingParticles color="rgba(255,255,255,0.2)" count={15}
+- AnimatedIcon with Package icon, pulseRings={2}, wobble, ringColor="rgba(220,38,38,0.3)"
+- AnimatedTitle with content.title || 'Inventaire' and subtitle "Stock & Dates Limite de Consommation"
+- GlassCard with backdrop-blur-2xl
+- 3 stat badges in a row: Total produits, Périm. bientôt (warning/critical count), Stock bas (low stock count)
+- Product list in bg-white/5 rounded-2xl p-5 border-white/10 with stagger animations (0.1*i delay)
+- Each item shows: name, quantity+unit, expiry date with Clock icon, status badge
+- Status colors: fresh=green, warning=yellow, critical=red, expired=gray
+- Empty state with bouncing Package icon (w-20 h-20, text-white/30) and "Aucun produit dans l'inventaire"
+- BrandedFooter delay={1}
+- No useConfetti (no copy action), all text in French
+- Helper functions: getStatusColor, getStatusLabel, formatDate
+- Lint passes clean (0 errors, 0 warnings), dev server compiles successfully
+
+Stage Summary:
+- InventoryDisplayV3.tsx created with full immersive scan page: red-orange gradient, pulse ring icon, 3 KPI badges, staggered product list with status badges
+- Inventory gradient entry added to MODULE_GRADIENTS for automatic color theming
+- Lint passes clean, dev server compiles without errors
