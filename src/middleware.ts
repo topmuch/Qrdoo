@@ -9,6 +9,8 @@ export default withAuth({
       const publicPaths = [
         '/',
         '/api/auth',
+        '/setup',
+        '/hub',
       ];
       if (publicPaths.some((p) => pathname.startsWith(p))) return true;
 

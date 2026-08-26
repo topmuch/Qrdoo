@@ -989,3 +989,39 @@ Stage Summary:
 - Uses same API endpoints as client marketplace-manager
 - Follows admin-users.tsx pattern for consistency
 
+---
+Task ID: 2
+Agent: Main
+Task: Étape 2 — Scan-to-Onboard /setup/[token] flow
+
+Work Log:
+- Read worklog.md for project context
+- Explored existing auth patterns (next-auth, register API, login-form, activate/[code] pattern)
+- Read Prisma schema: QrBatch (no name/packType fields), PhysicalQrCode (has isClaimed, hubSlug, claimedByUserId), Home (has pinHash), Subscription (has maxHomes, plan types)
+- Read middleware.ts to understand public paths
+- Created /src/app/api/setup/[token]/route.ts (GET + POST)
+  - GET: validates activationCode, returns plaque info or 'claimed' status
+  - POST: creates user (or uses existing), hashes PIN with bcrypt, generates unique hubSlug, creates Home, claims plaque, creates Subscription with 14-day trial, creates HomeMember with 'owner' role
+- Added /setup and /hub to middleware publicPaths
+- Created /src/app/setup/[token]/page.tsx ('use client' + SessionProvider + Suspense pattern matching activate/[code])
+- Created /src/app/setup/[token]/setup-content.tsx — Full multi-step animated setup flow:
+  - Step 1 (Welcome): Animated QR icon, plaque info badge, feature preview grid (WiFi, Sécurité, Famille)
+  - Step 2 (Account): Name/email/password fields with Framer Motion, pre-fills if logged in, show/hide password
+  - Step 3 (Plan): 3 plan cards (Famille 49€/an, Airbnb Solo 9.90€/mois with POPULAIRE badge, Airbnb Pro 199€/an) with feature expand, 14-day trial mention
+  - Step 4 (PIN): iOS-style numpad, 4-digit PIN input with dot display, confirm PIN with green/red validation
+  - Step 5 (Home): Home name input + recap card (account, email, plan, PIN, home name)
+  - Step 6 (Success): Celebration animation, auto-redirect to dashboard or hub
+  - Full slide animations (AnimatePresence + direction), progress bar, dark violet theme
+- Fixed TS errors: QrBatch doesn't have name/packType, changed to batchId/quantity
+- Fixed React Context error: page.tsx must be 'use client' to use SessionProvider
+- Verified: GET /setup/TEST-1234 → 200 (renders 'Plaque non trouvée' error page)
+- Verified: GET /api/setup/TEST-1234 → 404 {error: 'Plaque non trouvée'} (correct API response)
+- Lint passes clean
+
+Stage Summary:
+- 3 files created: api/setup/[token]/route.ts, setup/[token]/page.tsx, setup/[token]/setup-content.tsx
+- 1 file modified: middleware.ts (added /setup and /hub to publicPaths)
+- Complete Scan-to-Onboard flow: 6-step Framer Motion animated wizard
+- API handles both new user creation and existing user linking
+- PIN hashed with bcrypt, hubSlug auto-generated from home name + random hex suffix
+- Subscription created with 14-day trial, plan stored on User.selectedPlan
