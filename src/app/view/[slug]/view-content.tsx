@@ -1,28 +1,24 @@
 'use client';
 
 import { use, useState, useEffect } from 'react';
-import { Loader2, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ScanPageWrapper } from '@/components/modules/scan-page-wrapper';
+import { motion } from 'framer-motion';
+import { Loader2, AlertCircle, QrCode } from 'lucide-react';
 
-// Dedicated display components (existing)
-import { WifiDisplay } from '@/components/modules/wifi/WifiDisplay';
-import { LinkDisplay } from '@/components/modules/link/LinkDisplay';
-import { InfoDisplay } from '@/components/modules/info/InfoDisplay';
-import { DoorbellDisplay } from '@/components/modules/doorbell/DoorbellDisplay';
+// ─── V3 Immersive Display Components ─────────────────────────────────────
+import WifiDisplayV3 from '@/components/modules/v3/WifiDisplayV3';
+import DoorbellDisplayV3 from '@/components/modules/v3/DoorbellDisplayV3';
+import ShoppingListDisplayV3 from '@/components/modules/v3/ShoppingListDisplayV3';
+import NoteDisplayV3 from '@/components/modules/v3/NoteDisplayV3';
+import GuestbookDisplayV3 from '@/components/modules/v3/GuestbookDisplayV3';
+import MedicationDisplayV3 from '@/components/modules/v3/MedicationDisplayV3';
+import MealPlannerDisplayV3 from '@/components/modules/v3/MealPlannerDisplayV3';
+import ContactDisplayV3 from '@/components/modules/v3/ContactDisplayV3';
+import ChecklistDisplayV3 from '@/components/modules/v3/ChecklistDisplayV3';
+import LinkDisplayV3 from '@/components/modules/v3/LinkDisplayV3';
+import InfoDisplayV3 from '@/components/modules/v3/InfoDisplayV3';
+import { GradientBackground } from '@/components/magic';
 
-// V1 display components (new)
-import { NoteDisplay } from '@/components/modules/display/NoteDisplay';
-import { MealPlannerDisplay } from '@/components/modules/display/MealPlannerDisplay';
-import { ContactDisplay } from '@/components/modules/display/ContactDisplay';
-import { MedicationDisplay } from '@/components/modules/display/MedicationDisplay';
-import { EnergyMonitorDisplay } from '@/components/modules/display/EnergyMonitorDisplay';
-import { KeyLocationDisplay } from '@/components/modules/display/KeyLocationDisplay';
-import { CleaningScheduleDisplay } from '@/components/modules/display/CleaningScheduleDisplay';
-import { GuestbookDisplay } from '@/components/modules/display/GuestbookDisplay';
-import { ShoppingListDisplay } from '@/components/modules/display/ShoppingListDisplay';
-import { ChecklistDisplay } from '@/components/modules/display/ChecklistDisplay';
-import { GenericDisplay } from '@/components/modules/display/GenericDisplay';
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface QrData {
   qrCode: { id: string; name: string; type: string; publicSlug: string; isActive: boolean; homeName?: string | null };
@@ -36,72 +32,40 @@ type DisplayComponentType = React.ComponentType<{
   qrName?: string;
 }>;
 
-const DISPLAY_MAP: Record<string, DisplayComponentType> = {
-  // V1 core (dedicated displays)
-  wifi: WifiDisplay as DisplayComponentType,
-  external_link: LinkDisplay as DisplayComponentType,
-  doorbell: DoorbellDisplay,
-  // V1 core (info-based)
-  home_manual: InfoDisplay as DisplayComponentType,
-  house_rules: InfoDisplay as DisplayComponentType,
-  visitor_info: InfoDisplay as DisplayComponentType,
-  // V1 extended (new displays)
-  note: NoteDisplay,
-  meal_planner: MealPlannerDisplay,
-  contact: ContactDisplay,
-  medication: MedicationDisplay,
-  energy_monitor: EnergyMonitorDisplay,
-  key_location: KeyLocationDisplay,
-  cleaning_schedule: CleaningScheduleDisplay,
-  guestbook: GuestbookDisplay,
-  shopping_list: ShoppingListDisplay,
-  checklist: ChecklistDisplay,
-  // V2 info-based (reuse InfoDisplay)
-  appliance_manual: InfoDisplay as DisplayComponentType,
-  wifi_reset: InfoDisplay as DisplayComponentType,
-  first_aid: InfoDisplay as DisplayComponentType,
-  emergency_contacts: InfoDisplay as DisplayComponentType,
-  home_network: InfoDisplay as DisplayComponentType,
-  recycling_info: InfoDisplay as DisplayComponentType,
-  utility_shutoff: InfoDisplay as DisplayComponentType,
-  garage_instructions: InfoDisplay as DisplayComponentType,
-  laundry_guide: InfoDisplay as DisplayComponentType,
-  // V2 generic (use GenericDisplay)
-  inventory: GenericDisplay,
-  chore: GenericDisplay,
-  timer: GenericDisplay,
-  recipe: GenericDisplay,
-  pet_info: GenericDisplay,
-  plant_care: GenericDisplay,
-  delivery: GenericDisplay,
-  baby_sitter: GenericDisplay,
-  pet_sitter: GenericDisplay,
-  rental_guest: GenericDisplay,
-  airbnb_guest: GenericDisplay,
-  shared_calendar: GenericDisplay,
-  package_tracking: GenericDisplay,
-  entertainment: GenericDisplay,
-  music_room: GenericDisplay,
-  game_room: GenericDisplay,
-  library: GenericDisplay,
-  photo_gallery: GenericDisplay,
-  family_board: GenericDisplay,
-  announcement: GenericDisplay,
-  mood_tracker: GenericDisplay,
-  habit_tracker: GenericDisplay,
-  weather_station: GenericDisplay,
-  smart_home_control: GenericDisplay,
-  voice_assistant: GenericDisplay,
-  // V3
-  merchant: GenericDisplay,
-  service_request: GenericDisplay,
-  promo: GenericDisplay,
-  flash_sale: GenericDisplay,
-  coupon: GenericDisplay,
-  emergency_service: GenericDisplay,
-  artisan_directory: GenericDisplay,
+// ─── V3 Display Map (immersive pages) ────────────────────────────────────────
+
+const V3_DISPLAY_MAP: Record<string, DisplayComponentType> = {
+  // Dedicated immersive displays
+  wifi: WifiDisplayV3 as DisplayComponentType,
+  doorbell: DoorbellDisplayV3,
+  external_link: LinkDisplayV3 as DisplayComponentType,
+  note: NoteDisplayV3,
+  guestbook: GuestbookDisplayV3,
+  medication: MedicationDisplayV3,
+  meal_planner: MealPlannerDisplayV3,
+  contact: ContactDisplayV3,
+  shopping_list: ShoppingListDisplayV3,
+  checklist: ChecklistDisplayV3,
+
+  // Info-based modules → InfoDisplayV3 (adapts gradient per moduleType)
+  home_manual: InfoDisplayV3 as DisplayComponentType,
+  house_rules: InfoDisplayV3 as DisplayComponentType,
+  visitor_info: InfoDisplayV3 as DisplayComponentType,
+  appliance_manual: InfoDisplayV3 as DisplayComponentType,
+  wifi_reset: InfoDisplayV3 as DisplayComponentType,
+  first_aid: InfoDisplayV3 as DisplayComponentType,
+  emergency_contacts: InfoDisplayV3 as DisplayComponentType,
+  home_network: InfoDisplayV3 as DisplayComponentType,
+  recycling_info: InfoDisplayV3 as DisplayComponentType,
+  utility_shutoff: InfoDisplayV3 as DisplayComponentType,
+  garage_instructions: InfoDisplayV3 as DisplayComponentType,
+  laundry_guide: InfoDisplayV3 as DisplayComponentType,
+  energy_monitor: InfoDisplayV3 as DisplayComponentType,
+  key_location: InfoDisplayV3 as DisplayComponentType,
+  cleaning_schedule: InfoDisplayV3 as DisplayComponentType,
 };
 
+// ─── Page Component ─────────────────────────────────────────────────────────
 
 export function ViewPageContent({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = use(params);
@@ -130,49 +94,90 @@ export function ViewPageContent({ params }: { params: Promise<{ slug: string }> 
     fetchQr();
   }, [slug]);
 
-  // Loading
+  // ── Loading ──
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-white">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-          <p className="text-sm text-muted-foreground">Chargement...</p>
+      <GradientBackground from="#059669" via="#10b981" to="#34d399" animate={false}>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+            >
+              <QrCode className="h-10 w-10 text-white" />
+            </motion.div>
+            <p className="text-white/70 text-sm">Chargement...</p>
+          </div>
         </div>
-      </div>
+      </GradientBackground>
     );
   }
 
-  // Error
+  // ── Error ──
   if (error || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-white p-4">
-        <div className="max-w-md w-full text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-            <AlertCircle className="h-8 w-8 text-red-600" />
+      <GradientBackground from="#dc2626" via="#ef4444" to="#fca5a5" animate={false}>
+        <div className="min-h-screen flex items-center justify-center p-6">
+          <div className="max-w-sm w-full text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 150 }}
+              className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm"
+            >
+              <AlertCircle className="h-10 w-10 text-white" />
+            </motion.div>
+            <motion.h1
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-2xl font-bold text-white mb-2"
+            >
+              QR code introuvable
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="text-white/70 text-sm mb-8"
+            >
+              {error || `Le code ${slug} ne correspond à aucun QR actif.`}
+            </motion.p>
+            <motion.a
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              href="/"
+              className="inline-block bg-white/15 hover:bg-white/25 text-white font-medium py-3 px-8 rounded-2xl backdrop-blur-sm border border-white/20 transition-colors"
+            >
+              Retour à l'accueil
+            </motion.a>
           </div>
-          <h1 className="text-xl font-bold mb-2">QR code introuvable</h1>
-          <p className="text-sm text-muted-foreground mb-6">
-            {error || `Le code ${slug} ne correspond à aucun QR actif.`}
-          </p>
-          <Button variant="outline" onClick={() => { window.location.href = '/'; }}>
-            Retour à l'accueil
-          </Button>
         </div>
-      </div>
+      </GradientBackground>
     );
   }
 
-  // Render the appropriate display component wrapped in ScanPageWrapper
-  const { qrCode, content, scanCount, homeName } = data;
-  const DisplayComponent = DISPLAY_MAP[qrCode.type] || GenericDisplay;
+  // ── Render V3 Display ──
+  const { qrCode, content } = data;
+  const DisplayComponent = V3_DISPLAY_MAP[qrCode.type];
 
-  return (
-    <ScanPageWrapper homeName={homeName} scanCount={scanCount}>
+  if (DisplayComponent) {
+    return (
       <DisplayComponent
         content={content}
         qrCodeId={qrCode.id}
         qrName={qrCode.name}
       />
-    </ScanPageWrapper>
+    );
+  }
+
+  // Fallback for unknown module types (still V3 styled)
+  return (
+    <InfoDisplayV3
+      content={content}
+      qrCodeId={qrCode.id}
+      qrName={qrCode.name}
+    />
   );
 }
