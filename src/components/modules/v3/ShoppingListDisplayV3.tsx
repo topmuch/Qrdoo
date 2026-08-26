@@ -28,10 +28,23 @@ interface ShoppingListDisplayV3Props {
   qrName?: string;
 }
 
+/** Parse body text (line-separated or bullet list) into structured items */
+function parseBodyToItems(body: string): ShoppingItem[] {
+  if (!body?.trim()) return [];
+  return body
+    .split('\n')
+    .map((line) => line.replace(/^[-•*]\s*/, '').trim())
+    .filter((line) => line.length > 0)
+    .map((text) => ({ text, checked: false }));
+}
+
 export default function ShoppingListDisplayV3({ content, qrCodeId, qrName }: ShoppingListDisplayV3Props) {
   const rawTitle: string = content?.title || 'Ma liste de courses';
   const rawBody: string = content?.body || '';
-  const rawItems: ShoppingItem[] = Array.isArray(content?.items) ? content.items : [];
+  const hasStructuredItems = Array.isArray(content?.items) && content.items.length > 0;
+  const rawItems: ShoppingItem[] = hasStructuredItems
+    ? content.items
+    : parseBodyToItems(rawBody);
 
   const [items, setItems] = useState<ShoppingItem[]>(rawItems);
   const [allCheckedTriggered, setAllCheckedTriggered] = useState(false);
@@ -78,9 +91,9 @@ export default function ShoppingListDisplayV3({ content, qrCodeId, qrName }: Sho
           </h1>
         </AnimatedTitle>
 
-        {/* Body subtitle */}
+        {/* Body subtitle — only show if not used as items source */}
         <AnimatePresence>
-          {rawBody && (
+          {rawBody && hasStructuredItems && (
             <motion.p
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

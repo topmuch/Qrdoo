@@ -28,10 +28,23 @@ interface ChecklistDisplayV3Props {
   qrName?: string;
 }
 
+/** Parse body text (line-separated or bullet list) into structured items */
+function parseBodyToItems(body: string): ChecklistItem[] {
+  if (!body?.trim()) return [];
+  return body
+    .split('\n')
+    .map((line) => line.replace(/^[-•*]\s*/, '').trim())
+    .filter((line) => line.length > 0)
+    .map((text) => ({ text, checked: false }));
+}
+
 export default function ChecklistDisplayV3({ content, qrCodeId, qrName }: ChecklistDisplayV3Props) {
   const rawTitle: string = content?.title || 'Ma liste';
   const rawBody: string = content?.body || '';
-  const rawItems: ChecklistItem[] = Array.isArray(content?.items) ? content.items : [];
+  const hasStructuredItems = Array.isArray(content?.items) && content.items.length > 0;
+  const rawItems: ChecklistItem[] = hasStructuredItems
+    ? content.items
+    : parseBodyToItems(rawBody);
 
   const [items, setItems] = useState<ChecklistItem[]>(rawItems);
   const { fire } = useConfetti();
@@ -76,9 +89,9 @@ export default function ChecklistDisplayV3({ content, qrCodeId, qrName }: Checkl
           </h1>
         </AnimatedTitle>
 
-        {/* Body subtitle */}
+        {/* Body subtitle — only show if not used as items source */}
         <AnimatePresence>
-          {rawBody && (
+          {rawBody && hasStructuredItems && (
             <motion.p
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
