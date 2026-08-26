@@ -1,0 +1,796 @@
+     1→'use client';
+     2→
+     3→import { useEffect, useState, useCallback } from 'react';
+     4→import { useSession } from 'next-auth/react';
+     5→import { toast } from 'sonner';
+     6→import {
+     7→  Star,
+     8→  Trophy,
+     9→  CheckCircle,
+    10→  XCircle,
+    11→  Plus,
+    12→  Edit,
+    13→  Trash2,
+    14→  Clock,
+    15→  Users,
+    16→  Sparkles,
+    17→  ListChecks,
+    18→  Medal,
+    19→  Crown,
+    20→} from 'lucide-react';
+    21→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    22→import { Button } from '@/components/ui/button';
+    23→import { Badge } from '@/components/ui/badge';
+    24→import { Input } from '@/components/ui/input';
+    25→import { Label } from '@/components/ui/label';
+    26→import { Separator } from '@/components/ui/separator';
+    27→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    28→import {
+    29→  Dialog,
+    30→  DialogContent,
+    31→  DialogHeader,
+    32→  DialogTitle,
+    33→  DialogFooter,
+    34→  DialogTrigger,
+    35→} from '@/components/ui/dialog';
+    36→import {
+    37→  Select,
+    38→  SelectContent,
+    39→  SelectItem,
+    40→  SelectTrigger,
+    41→  SelectValue,
+    42→} from '@/components/ui/select';
+    43→import { Skeleton } from '@/components/ui/skeleton';
+    44→import { Textarea } from '@/components/ui/textarea';
+    45→
+    46→// ── Types ──────────────────────────────────────────────────────
+    47→interface ChoreData {
+    48→  id: string;
+    49→  title: string;
+    50→  description: string | null;
+    51→  pointsValue: number;
+    52→  frequency: string;
+    53→  assignedToUserId: string | null;
+    54→  isActive: boolean;
+    55→  createdAt: string;
+    56→  assignedTo: { id: string; fullName: string | null; email: string } | null;
+    57→  _count: { completions: number };
+    58→}
+    59→
+    60→interface CompletionData {
+    61→  id: string;
+    62→  choreId: string;
+    63→  childUserId: string;
+    64→  pointsEarned: number;
+    65→  completedAt: string;
+    66→  status: string;
+    67→  chore: { id: string; title: string; pointsValue: number };
+    68→  child: { id: string; fullName: string | null; email: string };
+    69→}
+    70→
+    71→interface MemberData {
+    72→  id: string;
+    73→  userId: string;
+    74→  homeId: string;
+    75→  role: string;
+    76→  nickname: string | null;
+    77→  points: number;
+    78→  user: { id: string; fullName: string | null; email: string };
+    79→}
+    80→
+    81→interface HomeData {
+    82→  id: string;
+    83→  name: string;
+    84→}
+    85→
+    86→const FREQUENCY_LABELS: Record<string, string> = {
+    87→  once: 'Ponctuelle',
+    88→  daily: 'Quotidienne',
+    89→  weekly: 'Hebdomadaire',
+    90→  monthly: 'Mensuelle',
+    91→};
+    92→
+    93→const FREQUENCY_COLORS: Record<string, string> = {
+    94→  once: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+    95→  daily: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300',
+    96→  weekly: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+    97→  monthly: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+    98→};
+    99→
+   100→// ── Component ──────────────────────────────────────────────────
+   101→export function ChoresManager() {
+   102→  const { data: session } = useSession();
+   103→  const userId = session?.user?.id;
+   104→
+   105→  // Data state
+   106→  const [homeId, setHomeId] = useState<string | null>(null);
+   107→  const [chores, setChores] = useState<ChoreData[]>([]);
+   108→  const [members, setMembers] = useState<MemberData[]>([]);
+   109→  const [pendingCompletions, setPendingCompletions] = useState<CompletionData[]>([]);
+   110→  const [loading, setLoading] = useState(true);
+   111→
+   112→  // UI state
+   113→  const [filter, setFilter] = useState<'all' | 'active' | 'completed-today'>('active');
+   114→  const [dialogOpen, setDialogOpen] = useState(false);
+   115→  const [editingChore, setEditingChore] = useState<ChoreData | null>(null);
+   116→
+   117→  // Form state
+   118→  const [formTitle, setFormTitle] = useState('');
+   119→  const [formDescription, setFormDescription] = useState('');
+   120→  const [formPoints, setFormPoints] = useState('10');
+   121→  const [formFrequency, setFormFrequency] = useState('once');
+   122→  const [formAssignedTo, setFormAssignedTo] = useState<string>('none');
+   123→  const [submitting, setSubmitting] = useState(false);
+   124→
+   125→  const childMembers = members.filter((m) => m.role === 'child');
+   126→
+   127→  // ── Fetch data ──────────────────────────────────────────────
+   128→  const fetchData = useCallback(async () => {
+   129→    try {
+   130→      // Get first home
+   131→      const homesRes = await fetch('/api/client/homes');
+   132→      const homesData = await homesRes.json();
+   133→      const homes: HomeData[] = homesData.homes || [];
+   134→      const firstHomeId = homes[0]?.id;
+   135→
+   136→      if (!firstHomeId) {
+   137→        setLoading(false);
+   138→        return;
+   139→      }
+   140→
+   141→      setHomeId(firstHomeId);
+   142→
+   143→      // Fetch chores, members, and pending completions in parallel
+   144→      const [choresRes, membersRes] = await Promise.all([
+   145→        fetch(`/api/client/chores?homeId=${firstHomeId}&status=all`),
+   146→        fetch(`/api/client/homes/${firstHomeId}/members`),
+   147→      ]);
+   148→
+   149→      const choresData = await choresRes.json();
+   150→      const membersData = await membersRes.json();
+   151→
+   152→      const choresList: ChoreData[] = choresData.chores || [];
+   153→      const membersList: MemberData[] = membersData.members || [];
+   154→
+   155→      setChores(choresList);
+   156→      setMembers(membersList);
+   157→
+   158→      // Fetch all pending completions for this home
+   159→      if (choresList.length > 0) {
+   160→        const choreIds = choresList.map((c) => c.id).join(',');
+   161→        const completionsRes = await fetch(`/api/client/chores?homeId=${firstHomeId}&status=all`);
+   162→        const completionsData = await completionsRes.json();
+   163→        const allChores: ChoreData[] = completionsData.chores || [];
+   164→
+   165→        // Gather all completion IDs from chores that have pending completions
+   166→        const allPending: CompletionData[] = [];
+   167→        for (const chore of allChores) {
+   168→          if (chore._count.completions > 0) {
+   169→            // We need to get completions separately - let's use the chore id
+   170→            // For now, we'll track pending completions from the validate flow
+   171→          }
+   172→        }
+   173→
+   174→        // Fetch pending completions from all chores
+   175→        const pendingRes = await fetch(`/api/client/chores?homeId=${firstHomeId}&status=all`);
+   176→        // Since we don't have a dedicated endpoint for all completions, we'll manage pending completions locally
+   177→      }
+   178→    } catch {
+   179→      toast.error('Erreur lors du chargement des données');
+   180→    } finally {
+   181→      setLoading(false);
+   182→    }
+   183→  }, []);
+   184→
+   185→  useEffect(() => {
+   186→    fetchData();
+   187→  }, [fetchData]);
+   188→
+   189→  // ── Computed values ─────────────────────────────────────────
+   190→  const activeChores = chores.filter((c) => c.isActive);
+   191→  const filteredChores = (() => {
+   192→    switch (filter) {
+   193→      case 'active':
+   194→        return chores.filter((c) => c.isActive);
+   195→      case 'completed-today':
+   196→        return chores.filter((c) => c._count.completions > 0);
+   197→      default:
+   198→        return chores;
+   199→    }
+   200→  })();
+   201→
+   202→  const totalValidatedPoints = childMembers.reduce((sum, m) => sum + m.points, 0);
+   203→  const sortedChildren = [...childMembers].sort((a, b) => b.points - a.points);
+   204→
+   205→  // Pending completions: we track locally via the completions made in the session
+   206→  const [localPending, setLocalPending] = useState<CompletionData[]>([]);
+   207→
+   208→  // ── Handlers ────────────────────────────────────────────────
+   209→  const resetForm = () => {
+   210→    setFormTitle('');
+   211→    setFormDescription('');
+   212→    setFormPoints('10');
+   213→    setFormFrequency('once');
+   214→    setFormAssignedTo('none');
+   215→    setEditingChore(null);
+   216→  };
+   217→
+   218→  const openCreateDialog = () => {
+   219→    resetForm();
+   220→    setDialogOpen(true);
+   221→  };
+   222→
+   223→  const openEditDialog = (chore: ChoreData) => {
+   224→    setEditingChore(chore);
+   225→    setFormTitle(chore.title);
+   226→    setFormDescription(chore.description || '');
+   227→    setFormPoints(String(chore.pointsValue));
+   228→    setFormFrequency(chore.frequency);
+   229→    setFormAssignedTo(chore.assignedToUserId || 'none');
+   230→    setDialogOpen(true);
+   231→  };
+   232→
+   233→  const handleSubmit = async () => {
+   234→    if (!formTitle.trim() || !homeId) return;
+   235→
+   236→    setSubmitting(true);
+   237→    try {
+   238→      const payload: Record<string, unknown> = {
+   239→        homeId,
+   240→        title: formTitle.trim(),
+   241→        description: formDescription.trim() || undefined,
+   242→        pointsValue: parseInt(formPoints) || 10,
+   243→        frequency: formFrequency,
+   244→        assignedToUserId: formAssignedTo === 'none' ? undefined : formAssignedTo,
+   245→      };
+   246→
+   247→      if (editingChore) {
+   248→        const res = await fetch(`/api/client/chores/${editingChore.id}`, {
+   249→          method: 'PUT',
+   250→          headers: { 'Content-Type': 'application/json' },
+   251→          body: JSON.stringify(payload),
+   252→        });
+   253→        if (!res.ok) throw new Error('Erreur lors de la mise à jour');
+   254→        toast.success('Corvée mise à jour avec succès');
+   255→      } else {
+   256→        const res = await fetch('/api/client/chores', {
+   257→          method: 'POST',
+   258→          headers: { 'Content-Type': 'application/json' },
+   259→          body: JSON.stringify(payload),
+   260→        });
+   261→        if (!res.ok) throw new Error('Erreur lors de la création');
+   262→        toast.success('Corvée créée avec succès');
+   263→      }
+   264→
+   265→      setDialogOpen(false);
+   266→      resetForm();
+   267→      fetchData();
+   268→    } catch {
+   269→      toast.error(editingChore ? 'Erreur lors de la mise à jour' : 'Erreur lors de la création');
+   270→    } finally {
+   271→      setSubmitting(false);
+   272→    }
+   273→  };
+   274→
+   275→  const handleDelete = async (choreId: string) => {
+   276→    if (!confirm('Supprimer cette corvée et toutes ses complétions ?')) return;
+   277→
+   278→    try {
+   279→      const res = await fetch(`/api/client/chores/${choreId}`, { method: 'DELETE' });
+   280→      if (!res.ok) throw new Error();
+   281→      toast.success('Corvée supprimée');
+   282→      fetchData();
+   283→    } catch {
+   284→      toast.error('Erreur lors de la suppression');
+   285→    }
+   286→  };
+   287→
+   288→  const handleComplete = async (choreId: string, childId: string) => {
+   289→    try {
+   290→      const res = await fetch(`/api/client/chores/${choreId}/complete`, {
+   291→        method: 'POST',
+   292→        headers: { 'Content-Type': 'application/json' },
+   293→        body: JSON.stringify({ childUserId: childId }),
+   294→      });
+   295→      if (!res.ok) throw new Error();
+   296→      const completion = await res.json();
+   297→      setLocalPending((prev) => [completion, ...prev]);
+   298→      toast.success('Corvée marquée comme terminée ! En attente de validation.');
+   299→      fetchData();
+   300→    } catch {
+   301→      toast.error("Erreur lors de l'enregistrement de la complétion");
+   302→    }
+   303→  };
+   304→
+   305→  const handleValidate = async (choreId: string, completionId: string, action: 'validate' | 'reject') => {
+   306→    if (!userId) return;
+   307→
+   308→    try {
+   309→      const res = await fetch(`/api/client/chores/${choreId}/validate`, {
+   310→        method: 'POST',
+   311→        headers: { 'Content-Type': 'application/json' },
+   312→        body: JSON.stringify({
+   313→          completionId,
+   314→          validatorUserId: userId,
+   315→          action,
+   316→        }),
+   317→      });
+   318→      if (!res.ok) throw new Error();
+   319→
+   320→      if (action === 'validate') {
+   321→        toast.success('Corvée validée ! Points ajoutés.');
+   322→      } else {
+   323→        toast.info('Corvée refusée.');
+   324→      }
+   325→
+   326→      setLocalPending((prev) => prev.filter((p) => p.id !== completionId));
+   327→      fetchData();
+   328→    } catch {
+   329→      toast.error('Erreur lors de la validation');
+   330→    }
+   331→  };
+   332→
+   333→  const allPendingCompletions = localPending;
+   334→
+   335→  // ── Loading skeleton ────────────────────────────────────────
+   336→  if (loading) {
+   337→    return (
+   338→      <div className="space-y-6">
+   339→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   340→          {Array.from({ length: 3 }).map((_, i) => (
+   341→            <Skeleton key={i} className="h-28 rounded-2xl" />
+   342→          ))}
+   343→        </div>
+   344→        <Skeleton className="h-64 rounded-xl" />
+   345→        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   346→          <Skeleton className="h-96 rounded-xl" />
+   347→          <Skeleton className="h-96 rounded-xl" />
+   348→        </div>
+   349→      </div>
+   350→    );
+   351→  }
+   352→
+   353→  if (!homeId) {
+   354→    return (
+   355→      <div className="flex flex-col items-center justify-center py-20 text-center">
+   356→        <div className="rounded-2xl border-2 border-dashed border-muted-foreground/25 p-12 max-w-md">
+   357→          <ListChecks className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+   358→          <p className="text-lg font-semibold">Aucune maison</p>
+   359→          <p className="mt-2 text-sm text-muted-foreground">Créez d'abord une maison pour gérer les corvées.</p>
+   360→        </div>
+   361→      </div>
+   362→    );
+   363→  }
+   364→
+   365→  // ── Rank colors for leaderboard ─────────────────────────────
+   366→  const getRankStyle = (index: number) => {
+   367→    if (index === 0) return 'bg-gradient-to-r from-amber-400 to-yellow-500 text-white';
+   368→    if (index === 1) return 'bg-gradient-to-r from-slate-300 to-slate-400 text-white';
+   369→    if (index === 2) return 'bg-gradient-to-r from-orange-400 to-amber-600 text-white';
+   370→    return 'bg-muted text-muted-foreground';
+   371→  };
+   372→
+   373→  const getRankIcon = (index: number) => {
+   374→    if (index === 0) return <Crown className="h-3.5 w-3.5" />;
+   375→    if (index === 1) return <Medal className="h-3.5 w-3.5" />;
+   376→    if (index === 2) return <Medal className="h-3.5 w-3.5" />;
+   377→    return <span className="text-xs font-bold">{index + 1}</span>;
+   378→  };
+   379→
+   380→  const getInitial = (name: string | null) => {
+   381→    return (name || '?')[0].toUpperCase();
+   382→  };
+   383→
+   384→  // ── Render ──────────────────────────────────────────────────
+   385→  return (
+   386→    <div className="space-y-6">
+   387→      {/* Section 1 - Header + Stats */}
+   388→      <div>
+   389→        <div className="flex items-center gap-3 mb-1">
+   390→          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600">
+   391→            <Sparkles className="h-5 w-5 text-white" />
+   392→          </div>
+   393→          <div>
+   394→            <h2 className="text-2xl font-bold tracking-tight">Corvées & Récompenses</h2>
+   395→            <p className="text-sm text-muted-foreground">Gérez les tâches ménagères et motivez les enfants avec des points</p>
+   396→          </div>
+   397→        </div>
+   398→      </div>
+   399→
+   400→      {/* Stat cards */}
+   401→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   402→        {/* Active chores */}
+   403→        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600 p-5 text-white shadow-lg">
+   404→          <div className="flex items-center justify-between">
+   405→            <div className="space-y-1">
+   406→              <p className="text-sm font-medium text-white/80">Corvées actives</p>
+   407→              <p className="text-3xl font-bold tabular-nums">{activeChores.length}</p>
+   408→            </div>
+   409→            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+   410→              <ListChecks className="h-6 w-6" />
+   411→            </div>
+   412→          </div>
+   413→          <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
+   414→          <div className="absolute -right-2 -bottom-6 h-16 w-16 rounded-full bg-white/5" />
+   415→        </div>
+   416→
+   417→        {/* Pending validations */}
+   418→        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 p-5 text-white shadow-lg">
+   419→          <div className="flex items-center justify-between">
+   420→            <div className="space-y-1">
+   421→              <p className="text-sm font-medium text-white/80">En attente</p>
+   422→              <p className="text-3xl font-bold tabular-nums">{allPendingCompletions.length}</p>
+   423→            </div>
+   424→            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+   425→              <Clock className="h-6 w-6" />
+   426→            </div>
+   427→          </div>
+   428→          <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
+   429→          <div className="absolute -right-2 -bottom-6 h-16 w-16 rounded-full bg-white/5" />
+   430→        </div>
+   431→
+   432→        {/* Total validated points */}
+   433→        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-violet-400 via-purple-500 to-fuchsia-600 p-5 text-white shadow-lg">
+   434→          <div className="flex items-center justify-between">
+   435→            <div className="space-y-1">
+   436→              <p className="text-sm font-medium text-white/80">Points distribués</p>
+   437→              <p className="text-3xl font-bold tabular-nums">{totalValidatedPoints}</p>
+   438→            </div>
+   439→            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+   440→              <Star className="h-6 w-6" />
+   441→            </div>
+   442→          </div>
+   443→          <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
+   444→          <div className="absolute -right-2 -bottom-6 h-16 w-16 rounded-full bg-white/5" />
+   445→        </div>
+   446→      </div>
+   447→
+   448→      {/* Section 2 - Create/Edit Chore Dialog */}
+   449→      <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+   450→        <DialogTrigger asChild>
+   451→          <Button className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-md">
+   452→            <Plus className="h-4 w-4" />
+   453→            Nouvelle corvée
+   454→          </Button>
+   455→        </DialogTrigger>
+   456→        <DialogContent className="sm:max-w-[480px]">
+   457→          <DialogHeader>
+   458→            <DialogTitle className="flex items-center gap-2">
+   459→              <Sparkles className="h-5 w-5 text-emerald-500" />
+   460→              {editingChore ? 'Modifier la corvée' : 'Nouvelle corvée'}
+   461→            </DialogTitle>
+   462→          </DialogHeader>
+   463→
+   464→          <div className="space-y-4 py-2">
+   465→            <div className="space-y-2">
+   466→              <Label htmlFor="chore-title">Titre *</Label>
+   467→              <Input
+   468→                id="chore-title"
+   469→                placeholder="Ex: Ranger la chambre"
+   470→                value={formTitle}
+   471→                onChange={(e) => setFormTitle(e.target.value)}
+   472→              />
+   473→            </div>
+   474→
+   475→            <div className="space-y-2">
+   476→              <Label htmlFor="chore-description">Description</Label>
+   477→              <Textarea
+   478→                id="chore-description"
+   479→                placeholder="Détails de la corvée..."
+   480→                value={formDescription}
+   481→                onChange={(e) => setFormDescription(e.target.value)}
+   482→                rows={3}
+   483→              />
+   484→            </div>
+   485→
+   486→            <div className="grid grid-cols-2 gap-4">
+   487→              <div className="space-y-2">
+   488→                <Label htmlFor="chore-points">Points</Label>
+   489→                <Input
+   490→                  id="chore-points"
+   491→                  type="number"
+   492→                  min={1}
+   493→                  value={formPoints}
+   494→                  onChange={(e) => setFormPoints(e.target.value)}
+   495→                />
+   496→              </div>
+   497→
+   498→              <div className="space-y-2">
+   499→                <Label>Fréquence</Label>
+   500→                <Select value={formFrequency} onValueChange={setFormFrequency}>
+   501→                  <SelectTrigger className="w-full">
+   502→                    <SelectValue />
+   503→                  </SelectTrigger>
+   504→                  <SelectContent>
+   505→                    <SelectItem value="once">Ponctuelle</SelectItem>
+   506→                    <SelectItem value="daily">Quotidienne</SelectItem>
+   507→                    <SelectItem value="weekly">Hebdomadaire</SelectItem>
+   508→                    <SelectItem value="monthly">Mensuelle</SelectItem>
+   509→                  </SelectContent>
+   510→                </Select>
+   511→              </div>
+   512→            </div>
+   513→
+   514→            <div className="space-y-2">
+   515→              <Label>Assigné à</Label>
+   516→              <Select value={formAssignedTo} onValueChange={setFormAssignedTo}>
+   517→                <SelectTrigger className="w-full">
+   518→                  <SelectValue placeholder="Sélectionner un enfant" />
+   519→                </SelectTrigger>
+   520→                <SelectContent>
+   521→                  <SelectItem value="none">Non assigné</SelectItem>
+   522→                  {childMembers.map((child) => (
+   523→                    <SelectItem key={child.userId} value={child.userId}>
+   524→                      {child.nickname || child.user.fullName || child.user.email}
+   525→                    </SelectItem>
+   526→                  ))}
+   527→                </SelectContent>
+   528→              </Select>
+   529→            </div>
+   530→          </div>
+   531→
+   532→          <DialogFooter>
+   533→            <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>
+   534→              Annuler
+   535→            </Button>
+   536→            <Button
+   537→              onClick={handleSubmit}
+   538→              disabled={!formTitle.trim() || submitting}
+   539→              className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
+   540→            >
+   541→              {submitting ? 'Enregistrement...' : editingChore ? 'Mettre à jour' : 'Créer'}
+   542→            </Button>
+   543→          </DialogFooter>
+   544→        </DialogContent>
+   545→      </Dialog>
+   546→
+   547→      {/* Section 3 - Two-column layout */}
+   548→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   549→        {/* Left: Liste des corvées */}
+   550→        <Card>
+   551→          <CardHeader className="pb-3">
+   552→            <div className="flex items-center justify-between">
+   553→              <CardTitle className="flex items-center gap-2 text-base">
+   554→                <ListChecks className="h-4 w-4" />
+   555→                Liste des corvées
+   556→              </CardTitle>
+   557→              <Badge variant="secondary">{filteredChores.length}</Badge>
+   558→            </div>
+   559→            <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+   560→              <TabsList className="h-8">
+   561→                <TabsTrigger value="active" className="text-xs px-3 h-7">Actives</TabsTrigger>
+   562→                <TabsTrigger value="all" className="text-xs px-3 h-7">Toutes</TabsTrigger>
+   563→                <TabsTrigger value="completed-today" className="text-xs px-3 h-7">Complétées</TabsTrigger>
+   564→              </TabsList>
+   565→            </Tabs>
+   566→          </CardHeader>
+   567→          <CardContent>
+   568→            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+   569→              {filteredChores.length === 0 ? (
+   570→                <div className="text-center py-8">
+   571→                  <ListChecks className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+   572→                  <p className="text-sm text-muted-foreground">Aucune corvée trouvée</p>
+   573→                  <Button variant="link" size="sm" className="mt-2" onClick={openCreateDialog}>
+   574→                    <Plus className="h-3.5 w-3.5 mr-1" />
+   575→                    Créer une corvée
+   576→                  </Button>
+   577→                </div>
+   578→              ) : (
+   579→                filteredChores.map((chore) => (
+   580→                  <div
+   581→                    key={chore.id}
+   582→                    className={`rounded-xl border p-4 transition-all hover:shadow-sm ${
+   583→                      !chore.isActive ? 'opacity-60' : ''
+   584→                    }`}
+   585→                  >
+   586→                    <div className="flex items-start justify-between gap-3">
+   587→                      <div className="flex-1 min-w-0">
+   588→                        <div className="flex items-center gap-2 flex-wrap">
+   589→                          <h4 className="font-medium text-sm">{chore.title}</h4>
+   590→                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border-0 ${FREQUENCY_COLORS[chore.frequency] || ''}`}>
+   591→                            {FREQUENCY_LABELS[chore.frequency] || chore.frequency}
+   592→                          </Badge>
+   593→                          <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-0">
+   594→                            <Star className="h-2.5 w-2.5 mr-0.5" />
+   595→                            {chore.pointsValue} pts
+   596→                          </Badge>
+   597→                        </div>
+   598→                        {chore.description && (
+   599→                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{chore.description}</p>
+   600→                        )}
+   601→                        <div className="flex items-center gap-2 mt-2">
+   602→                          {chore.assignedTo ? (
+   603→                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+   604→                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+   605→                                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+   606→                                  {getInitial(chore.assignedTo.fullName)}
+   607→                                </span>
+   608→                              </div>
+   609→                              {chore.assignedTo.fullName || chore.assignedTo.email}
+   610→                            </div>
+   611→                          ) : (
+   612→                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+   613→                              <Users className="h-3 w-3" />
+   614→                              Non assigné
+   615→                            </span>
+   616→                          )}
+   617→                          <span className="text-xs text-muted-foreground">
+   618→                            · {chore._count.completions} complétion{chore._count.completions !== 1 ? 's' : ''}
+   619→                          </span>
+   620→                        </div>
+   621→                      </div>
+   622→
+   623→                      <div className="flex items-center gap-1 shrink-0">
+   624→                        {chore.assignedToUserId && chore.isActive && (
+   625→                          <Button
+   626→                            variant="ghost"
+   627→                            size="icon"
+   628→                            className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+   629→                            title="Marquer comme terminée"
+   630→                            onClick={() => handleComplete(chore.id, chore.assignedToUserId!)}
+   631→                          >
+   632→                            <CheckCircle className="h-4 w-4" />
+   633→                          </Button>
+   634→                        )}
+   635→                        <Button
+   636→                          variant="ghost"
+   637→                          size="icon"
+   638→                          className="h-7 w-7"
+   639→                          onClick={() => openEditDialog(chore)}
+   640→                        >
+   641→                          <Edit className="h-3.5 w-3.5" />
+   642→                        </Button>
+   643→                        <Button
+   644→                          variant="ghost"
+   645→                          size="icon"
+   646→                          className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-50"
+   647→                          onClick={() => handleDelete(chore.id)}
+   648→                        >
+   649→                          <Trash2 className="h-3.5 w-3.5" />
+   650→                        </Button>
+   651→                      </div>
+   652→                    </div>
+   653→                  </div>
+   654→                ))
+   655→              )}
+   656→            </div>
+   657→          </CardContent>
+   658→        </Card>
+   659→
+   660→        {/* Right: Classement enfants + Validations en attente */}
+   661→        <div className="space-y-6">
+   662→          {/* Leaderboard */}
+   663→          <Card>
+   664→            <CardHeader className="pb-3">
+   665→              <CardTitle className="flex items-center gap-2 text-base">
+   666→                <Trophy className="h-4 w-4 text-amber-500" />
+   667→                Classement enfants
+   668→              </CardTitle>
+   669→            </CardHeader>
+   670→            <CardContent>
+   671→              {sortedChildren.length === 0 ? (
+   672→                <div className="text-center py-8">
+   673→                  <Users className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+   674→                  <p className="text-sm text-muted-foreground">Aucun enfant dans la maison</p>
+   675→                  <p className="text-xs text-muted-foreground mt-1">Ajoutez des membres avec le rôle &quot;enfant&quot;</p>
+   676→                </div>
+   677→              ) : (
+   678→                <div className="space-y-2">
+   679→                  {sortedChildren.map((child, index) => (
+   680→                    <div
+   681→                      key={child.id}
+   682→                      className={`flex items-center gap-3 rounded-xl p-3 transition-all ${
+   683→                        index < 3 ? 'bg-gradient-to-r from-amber-50/80 to-transparent dark:from-amber-950/20' : ''
+   684→                      }`}
+   685→                    >
+   686→                      {/* Rank badge */}
+   687→                      <div
+   688→                        className={`flex h-7 w-7 items-center justify-center rounded-full shrink-0 ${getRankStyle(index)}`}
+   689→                      >
+   690→                        {getRankIcon(index)}
+   691→                      </div>
+   692→
+   693→                      {/* Avatar */}
+   694→                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white font-bold text-sm shrink-0">
+   695→                        {getInitial(child.nickname || child.user.fullName)}
+   696→                      </div>
+   697→
+   698→                      {/* Name + points */}
+   699→                      <div className="flex-1 min-w-0">
+   700→                        <p className="text-sm font-medium truncate">
+   701→                          {child.nickname || child.user.fullName || child.user.email}
+   702→                        </p>
+   703→                        <div className="flex items-center gap-1">
+   704→                          <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
+   705→                          <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+   706→                            {child.points} points
+   707→                          </span>
+   708→                        </div>
+   709→                      </div>
+   710→
+   711→                      {/* Points bar */}
+   712→                      {sortedChildren.length > 0 && sortedChildren[0].points > 0 && (
+   713→                        <div className="hidden sm:block w-16 h-1.5 bg-muted rounded-full overflow-hidden shrink-0">
+   714→                          <div
+   715→                            className="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all"
+   716→                            style={{ width: `${Math.min(100, (child.points / Math.max(1, sortedChildren[0].points)) * 100)}%` }}
+   717→                          />
+   718→                        </div>
+   719→                      )}
+   720→                    </div>
+   721→                  ))}
+   722→                </div>
+   723→              )}
+   724→            </CardContent>
+   725→          </Card>
+   726→
+   727→          {/* Pending validations */}
+   728→          <Card>
+   729→            <CardHeader className="pb-3">
+   730→              <div className="flex items-center justify-between">
+   731→                <CardTitle className="flex items-center gap-2 text-base">
+   732→                  <Clock className="h-4 w-4 text-orange-500" />
+   733→                  Validations en attente
+   734→                </CardTitle>
+   735→                {allPendingCompletions.length > 0 && (
+   736→                  <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 border-0">
+   737→                    {allPendingCompletions.length}
+   738→                  </Badge>
+   739→                )}
+   740→              </div>
+   741→            </CardHeader>
+   742→            <CardContent>
+   743→              {allPendingCompletions.length === 0 ? (
+   744→                <div className="text-center py-6">
+   745→                  <CheckCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+   746→                  <p className="text-sm text-muted-foreground">Aucune validation en attente</p>
+   747→                </div>
+   748→              ) : (
+   749→                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+   750→                  {allPendingCompletions.map((completion) => (
+   751→                    <div key={completion.id} className="rounded-xl border p-3 bg-orange-50/50 dark:bg-orange-950/10">
+   752→                      <div className="flex items-start justify-between gap-2">
+   753→                        <div className="flex-1 min-w-0">
+   754→                          <p className="text-sm font-medium">{completion.chore.title}</p>
+   755→                          <div className="flex items-center gap-2 mt-1">
+   756→                            <span className="text-xs text-muted-foreground">
+   757→                              {completion.child.fullName || completion.child.email}
+   758→                            </span>
+   759→                            <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-0">
+   760→                              +{completion.pointsEarned} pts
+   761→                            </Badge>
+   762→                          </div>
+   763→                        </div>
+   764→                        <div className="flex items-center gap-1 shrink-0">
+   765→                          <Button
+   766→                            variant="ghost"
+   767→                            size="sm"
+   768→                            className="h-7 px-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 text-xs gap-1"
+   769→                            onClick={() => handleValidate(completion.choreId, completion.id, 'validate')}
+   770→                          >
+   771→                            <CheckCircle className="h-3.5 w-3.5" />
+   772→                            Valider
+   773→                          </Button>
+   774→                          <Button
+   775→                            variant="ghost"
+   776→                            size="sm"
+   777→                            className="h-7 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 text-xs gap-1"
+   778→                            onClick={() => handleValidate(completion.choreId, completion.id, 'reject')}
+   779→                          >
+   780→                            <XCircle className="h-3.5 w-3.5" />
+   781→                            Refuser
+   782→                          </Button>
+   783→                        </div>
+   784→                      </div>
+   785→                    </div>
+   786→                  ))}
+   787→                </div>
+   788→              )}
+   789→            </CardContent>
+   790→          </Card>
+   791→        </div>
+   792→      </div>
+   793→    </div>
+   794→  );
+   795→}
+   796→
