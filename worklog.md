@@ -786,3 +786,113 @@ Stage Summary:
 - Stripe Customer Portal integration for self-service management
 - Webhook handler for checkout.completed, subscription.updated, subscription.deleted, invoice.payment_failed
 
+---
+Task ID: 2-a
+Agent: API routes developer
+Task: Create all marketplace API routes (11 files)
+
+Work Log:
+- Read worklog.md for project context and existing patterns
+- Read prisma/schema.prisma lines 405-875 for Merchant, Promo, PromoRedemption, FlashSale, Coupon, CouponScan, MerchantPhoto models
+- Read existing route patterns from src/app/api/client/professionals/route.ts and src/app/api/client/reviews/route.ts
+- Created all required directory structures with mkdir -p for nested dynamic routes
+- Created src/app/api/client/merchants/route.ts — GET (list with category/isVerified/isActive/search/homeId filters, include merchantPhotos ordered) + POST (create with userId=dev-user-1)
+- Created src/app/api/client/merchants/[id]/route.ts — GET (detail with photos, valid promos, coupon count, active flash sales) + PATCH (update fields) + DELETE (soft delete isActive=false)
+- Created src/app/api/client/merchants/[id]/photos/route.ts — GET (list ordered by sortOrder) + POST (add photo with url required, altText/sortOrder/isCover optional)
+- Created src/app/api/client/promos/route.ts — GET (list with merchantId/category/source/isActive filters, include merchant name+logo) + POST (create promo)
+- Created src/app/api/client/promos/[id]/route.ts — GET (detail with merchant + redemption count) + PATCH (update fields) + DELETE (hard delete)
+- Created src/app/api/client/promos/[id]/redeem/route.ts — POST (create PromoRedemption + increment redemptionsCount)
+- Created src/app/api/client/flash-sales/route.ts — GET (list with merchantId filter, status default 'active', include merchant, order by startsAt desc) + POST (create with status='scheduled')
+- Created src/app/api/client/flash-sales/[id]/route.ts — GET (detail with merchant, promo, coupon count) + PATCH (update + status transitions) + DELETE (set status='cancelled')
+- Created src/app/api/client/coupons/route.ts — GET (list for userId=dev-user-1, include merchant name, status filter, order by createdAt desc) + POST (claim coupon with random 8-char code, qrCodeData JSON)
+- Created src/app/api/client/coupons/[id]/scan/route.ts — POST (create CouponScan, increment currentUses, auto-set status='used' when maxUses reached, calculate commission)
+- Created src/app/api/client/marketplace/stats/route.ts — GET (aggregate stats: totalMerchants, activePromos, activeFlashSales, myCoupons, totalRedemptions, totalScans via Promise.all)
+- Ran bun run lint — passed clean with no errors
+- Verified dev server compiles routes without errors
+
+Stage Summary:
+- 11 API route files created covering the full marketplace module: merchants (CRUD + photos), promos (CRUD + redeem), flash-sales (CRUD), coupons (claim + scan), marketplace stats
+- All routes follow the established project patterns: NextRequest/NextResponse, db import from @/lib/db, try/catch with 500 errors, userId='dev-user-1'
+- Proper HTTP status codes: 201 for creates, 200 for updates/deletes, 400 for validation, 404 for not found
+- All Prisma queries use camelCase field names (mapped via @map in schema)
+---
+Task ID: 2-b
+Agent: V3 display components developer
+Task: Create Marketplace, FlashSale, and Coupon V3 display components
+
+Work Log:
+- Read worklog.md for full project context
+- Read ArtisanDirectoryDisplayV3.tsx as reference pattern for V3 display components
+- Read all magic components: GradientBackground, GlassCard, FloatingParticles, PageTransition (AnimatedIcon, AnimatedTitle, BrandedFooter)
+- Read magic/index.ts to understand exports
+- Confirmed UI components available: Badge, Button, Card, Tabs, Input, etc.
+- Created /src/components/modules/v3/MarketplaceDisplayV3.tsx
+  - Uses GradientBackground moduleType='marketplace' (rose/pink gradient)
+  - ShoppingBag icon with AnimatedIcon + pulse rings + wobble
+  - AnimatedTitle: "Marketplace Quartier"
+  - Search bar at top (filters by name)
+  - Category filter chips: Tous, Boulangerie, Boucherie, Épicerie, Pharmacie, Restauration, Beauté, Autre
+  - Grid of merchant cards (2 cols mobile, 3 desktop) with logo, name, category badge, rating stars, address, phone, "Voir" button
+  - Click card expands to show: description, opening hours, photos carousel, active promos list
+  - Fetches merchants from /api/client/merchants, promos from /api/client/promos
+  - FloatingParticles + BrandedFooter
+- Created /src/components/modules/v3/FlashSaleDisplayV3.tsx
+  - Uses GradientBackground moduleType='flash_sale' (orange/red gradient)
+  - Zap icon with AnimatedIcon + pulse rings + wobble
+  - AnimatedTitle: "Ventes Flash"
+  - Countdown timer (hours:minutes:seconds) per flash sale, updates every second via useEffect+setInterval
+  - Flash sale cards with: image placeholder, title, discount % badge, original price (strikethrough), flash price (large), progress bar (currentRedemptions/maxRedemptions), "Récupérer" button
+  - Geofence indicator (MapPin icon) when geofenceRequired
+  - Empty state: "Aucune vente flash active" with clock icon
+  - Filters out expired sales (endsAt < now)
+  - Fetches from /api/client/flash-sales?status=active
+  - FloatingParticles + BrandedFooter
+- Created /src/components/modules/v3/CouponDisplayV3.tsx
+  - Uses GradientBackground moduleType='coupon' (emerald/green gradient)
+  - Ticket icon with AnimatedIcon + pulse rings + wobble
+  - AnimatedTitle: "Mes Coupons"
+  - Ticket-style cards with dashed border and torn edge effect (circle cutouts on sides)
+  - Each coupon: merchant name, discount label, code (monospace, copyable via navigator.clipboard.writeText), valid dates, status badge (active=green, used=gray, expired=red)
+  - QR code placeholder (7x7 grid pattern, no library needed)
+  - Tabs: Actifs | Utilisés | Expirés with count badges
+  - Copy button with check feedback animation
+  - Fetches from /api/client/coupons
+  - FloatingParticles + BrandedFooter
+- Edited /src/components/magic/GradientBackground.tsx to add 3 new MODULE_GRADIENTS entries:
+  - marketplace: { from: '#e11d48', via: '#f43f5e', to: '#fda4af' }
+  - flash_sale: { from: '#ea580c', via: '#f97316', to: '#fb923c' }
+  - coupon: { from: '#059669', via: '#10b981', to: '#6ee7b7' }
+- Ran bun run lint — passed clean with no errors
+- Verified dev server continues running without compilation errors
+
+Stage Summary:
+- 3 V3 display components created following exact ArtisanDirectoryDisplayV3 pattern
+- All use 'use client', framer-motion, magic components, French text, mobile-first responsive design
+- All accept { content, qrCodeId?, qrName? } props with default export function pattern
+- 3 gradient entries added to MODULE_GRADIENTS for marketplace, flash_sale, coupon module types
+- Lint passes clean
+---
+Task ID: 2-c
+Agent: Dashboard component developer
+Task: Build MarketplaceManager dashboard component (5 tabs)
+
+Work Log:
+- Read worklog.md for project context
+- Read artisan-manager.tsx as reference pattern (full 1471 lines)
+- Read all marketplace Prisma models: Merchant, Promo, FlashSale, Coupon, Transaction
+- Read all existing API routes: merchants (GET/POST), merchants/[id] (GET/PATCH/DELETE), promos (GET/POST), promos/[id]/redeem (POST), flash-sales (GET/POST), flash-sales/[id] (GET/PATCH/DELETE), coupons (GET/POST), coupons/[id]/scan (POST), transactions (GET/POST)
+- Created /src/components/client/marketplace-manager.tsx with 5 tabs
+- Ran lint check - passes clean
+- Checked dev server log - no errors
+
+Stage Summary:
+- MarketplaceManager component created at /src/components/client/marketplace-manager.tsx
+- 5 tabs: Commerçants (Store), Promotions (Tag), Ventes Flash (Zap), Coupons (Ticket), Transactions (Receipt)
+- Tab 1 (Commerçants): Stats bar (total/verified/active), search + category filter, 2-col grid cards with name/category/address/phone/rating/verified badge/isActive toggle/delete, detail modal with photos/promo count/opening hours, create merchant dialog
+- Tab 2 (Promotions): Stats bar (total/active/redeemed), merchant/category/status filters, promo cards with price strikethrough/redeem button/views/redemptions/validUntil, create promo dialog
+- Tab 3 (Ventes Flash): Stats bar (total/active with pulsing dot/scheduled/expired, 4-col on lg), flash sale cards with live countdown timer/progress bar/status badges (scheduled=yellow/active=green+pulsing/expired=gray/cancelled=red), activate/cancel status transitions, create flash sale dialog with merchant→promo cascade
+- Tab 4 (Coupons): Stats bar (total/active/used/total economy), sub-tab filter (Actifs/Utilisés/Expirés), ticket-style cards with dashed border/cutout circles/discount display/monospace code with copy button/validity dates, scan button for active coupons, claim coupon dialog with discountType (percentage/fixed/bogof)
+- Tab 5 (Transactions): Stats bar (total/amount/this month), type/status filters, transaction list with date/type/amount/status badge/payer/receiver
+- Follows exact artisan-manager.tsx patterns: fetchHomeId, userId='dev-user-1', useState tabs, fetch/cb pattern, loading skeleton, error handling, toast feedback, Dialog modals, gradient stat cards, responsive grid
+- All French text, mobile responsive, max-h scrollable areas
+- Lint passes clean

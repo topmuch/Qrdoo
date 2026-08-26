@@ -29,6 +29,7 @@ import {
   Package,
   Users,
   CreditCard,
+  ShoppingBag,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -54,6 +55,7 @@ export type ClientPage =
   | 'client-stock'
   | 'client-packs'
   | 'client-artisans'
+  | 'client-marketplace'
   | 'client-monetization';
 
 interface ClientLayoutProps {
@@ -74,6 +76,7 @@ const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; 
   { key: 'client-stock', label: 'Stock & DLC', icon: <ShieldAlert className="h-5 w-5" />, badge: 'V2' },
   { key: 'client-packs', label: 'Packs Pré-configurés', icon: <Package className="h-5 w-5" />, badge: 'B2B' },
   { key: 'client-artisans', label: 'Artisans & Réservations', icon: <Users className="h-5 w-5" />, badge: 'V3' },
+  { key: 'client-marketplace', label: 'Marketplace Quartier', icon: <ShoppingBag className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-monetization', label: 'Monétisation', icon: <CreditCard className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" /> },
   { key: 'client-analytics', label: 'Statistiques Scan', icon: <BarChart3 className="h-5 w-5" />, badge: 'V3' },
@@ -91,6 +94,7 @@ const MODULE_ITEMS_V1: { key: ClientPage; label: string; icon: React.ReactNode; 
 ];
 
 const MODULE_ITEMS_V3: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
+  { key: 'client-marketplace', label: 'Marketplace', icon: <ShoppingBag className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-artisans', label: 'Mon Quartier', icon: <Store className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-artisans', label: 'Services Pro', icon: <Briefcase className="h-5 w-5" />, badge: 'V3' },
 ];

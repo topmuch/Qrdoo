@@ -26,6 +26,9 @@ export const MODULE_GRADIENTS: Record<string, { from: string; via: string; to: s
   service_request:   { from: '#7c3aed', via: '#8b5cf6', to: '#c4b5fd' },
   review:            { from: '#d97706', via: '#f59e0b', to: '#fbbf24' },
   pricing:           { from: '#059669', via: '#10b981', to: '#6ee7b7' },
+  marketplace:       { from: '#e11d48', via: '#f43f5e', to: '#fda4af' },
+  flash_sale:        { from: '#ea580c', via: '#f97316', to: '#fb923c' },
+  coupon:            { from: '#059669', via: '#10b981', to: '#6ee7b7' },
 };
 
 const DEFAULT_GRADIENT = { from: '#059669', via: '#10b981', to: '#34d399' };

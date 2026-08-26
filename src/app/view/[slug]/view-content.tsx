@@ -23,6 +23,9 @@ import ArtisanDirectoryDisplayV3 from '@/components/modules/v3/ArtisanDirectoryD
 import ServiceRequestDisplayV3 from '@/components/modules/v3/ServiceRequestDisplayV3';
 import ReviewDisplayV3 from '@/components/modules/v3/ReviewDisplayV3';
 import PricingDisplayV3 from '@/components/modules/v3/PricingDisplayV3';
+import MarketplaceDisplayV3 from '@/components/modules/v3/MarketplaceDisplayV3';
+import FlashSaleDisplayV3 from '@/components/modules/v3/FlashSaleDisplayV3';
+import CouponDisplayV3 from '@/components/modules/v3/CouponDisplayV3';
 import { GradientBackground } from '@/components/magic';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -60,6 +63,9 @@ const V3_DISPLAY_MAP: Record<string, DisplayComponentType> = {
   service_request: ServiceRequestDisplayV3 as DisplayComponentType,
   review: ReviewDisplayV3 as DisplayComponentType,
   pricing: PricingDisplayV3 as DisplayComponentType,
+  marketplace: MarketplaceDisplayV3 as DisplayComponentType,
+  flash_sale: FlashSaleDisplayV3 as DisplayComponentType,
+  coupon: CouponDisplayV3 as DisplayComponentType,
 
   // Info-based modules → InfoDisplayV3 (adapts gradient per moduleType)
   home_manual: InfoDisplayV3 as DisplayComponentType,
