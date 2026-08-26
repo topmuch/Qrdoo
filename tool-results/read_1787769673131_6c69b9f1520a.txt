@@ -1,0 +1,457 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useCallback, useRef } from 'react';
+     4→import { toast } from 'sonner';
+     5→import {
+     6→  Store, Tag, Zap, Ticket, Receipt, Plus, Search, Trash2, Loader2,
+     7→  Edit, QrCode, Play, Ban, Eye, Star, ShieldCheck, XCircle, CheckCircle,
+     8→} from 'lucide-react';
+     9→import {
+    10→  Card, CardContent, CardDescription, CardHeader, CardTitle,
+    11→} from '@/components/ui/card';
+    12→import {
+    13→  Dialog, DialogContent, DialogDescription, DialogFooter,
+    14→  DialogHeader, DialogTitle, DialogTrigger,
+    15→} from '@/components/ui/dialog';
+    16→import {
+    17→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    18→} from '@/components/ui/select';
+    19→import {
+    20→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    21→} from '@/components/ui/table';
+    22→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    23→import { Badge } from '@/components/ui/badge';
+    24→import { Button } from '@/components/ui/button';
+    25→import { Input } from '@/components/ui/input';
+    26→import { Label } from '@/components/ui/label';
+    27→import { Skeleton } from '@/components/ui/skeleton';
+    28→import { Progress } from '@/components/ui/progress';
+    29→
+    30→// ── Types ──────────────────────────────────────────────────────
+    31→interface MerchantData {
+    32→  id: string; name: string; category: string | null; description: string | null;
+    33→  address: string | null; phone: string | null; website: string | null;
+    34→  openingHours: string; isVerified: boolean; ratingAvg: number; isActive: boolean;
+    35→  createdAt: string;
+    36→}
+    37→
+    38→interface PromoData {
+    39→  id: string; merchantId: string | null; title: string; description: string | null;
+    40→  originalPrice: number | null; promoPrice: number | null;
+    41→  validFrom: string | null; validUntil: string | null; category: string | null;
+    42→  source: string; viewsCount: number; redemptionsCount: number; createdAt: string;
+    43→  merchant: { id: string; name: string } | null;
+    44→}
+    45→
+    46→interface FlashSaleData {
+    47→  id: string; promoId: string; merchantId: string; title: string | null;
+    48→  description: string | null; originalPrice: number | null; flashPrice: number;
+    49→  startsAt: string; endsAt: string; maxRedemptions: number | null;
+    50→  currentRedemptions: number; status: string; costEuros: number; createdAt: string;
+    51→  merchant: { id: string; name: string } | null;
+    52→}
+    53→
+    54→interface CouponData {
+    55→  id: string; merchantId: string; code: string; discountType: string;
+    56→  discountValue: number; maxUses: number; currentUses: number;
+    57→  validFrom: string | null; validUntil: string | null; status: string; createdAt: string;
+    58→  merchant: { id: string; name: string } | null;
+    59→}
+    60→
+    61→interface TransactionData {
+    62→  id: string; type: string; payerId: string | null; receiverId: string | null;
+    63→  amount: number; currency: string; status: string; createdAt: string;
+    64→}
+    65→
+    66→// ── Constants ──────────────────────────────────────────────────
+    67→const CATEGORIES = ['Boulangerie', 'Boucherie', 'Épicerie', 'Pharmacie', 'Restauration', 'Beauté', 'Autre'];
+    68→
+    69→const FLASH_STATUS: Record<string, { label: string; cls: string }> = {
+    70→  scheduled: { label: 'Programmée', cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border-0' },
+    71→  active: { label: 'Active', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-0' },
+    72→  expired: { label: 'Expirée', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-0' },
+    73→  cancelled: { label: 'Annulée', cls: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-0' },
+    74→};
+    75→
+    76→const TXN_STATUS: Record<string, { label: string; cls: string }> = {
+    77→  pending: { label: 'En attente', cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border-0' },
+    78→  completed: { label: 'Terminé', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-0' },
+    79→  failed: { label: 'Échoué', cls: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-0' },
+    80→  refunded: { label: 'Remboursé', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-0' },
+    81→};
+    82→
+    83→const COUPON_STATUS: Record<string, { label: string; cls: string }> = {
+    84→  active: { label: 'Actif', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-0' },
+    85→  used: { label: 'Utilisé', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-0' },
+    86→  expired: { label: 'Expiré', cls: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 border-0' },
+    87→  cancelled: { label: 'Annulé', cls: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 border-0' },
+    88→};
+    89→
+    90→// ── Helpers ────────────────────────────────────────────────────
+    91→const fmtDate = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+    92→const fmtEur = (n: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
+    93→const fmtDateTime = (d: string) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    94→const isPromoActive = (p: PromoData) => !p.validUntil || new Date(p.validUntil) >= new Date();
+    95→
+    96→function SB({ cfg }: { cfg: { label: string; cls: string } }) {
+    97→  return <Badge className={cfg.cls}>{cfg.label}</Badge>;
+    98→}
+    99→
+   100→function StatCard({ label, value, icon: Icon }: { label: string; value: number | string; icon: React.ElementType }) {
+   101→  return (
+   102→    <Card className="p-4">
+   103→      <div className="flex items-center justify-between">
+   104→        <div><p className="text-sm text-muted-foreground">{label}</p><p className="text-2xl font-bold tabular-nums mt-1">{value}</p></div>
+   105→        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted"><Icon className="h-5 w-5 text-muted-foreground" /></div>
+   106→      </div>
+   107→    </Card>
+   108→  );
+   109→}
+   110→
+   111→// ── Component ──────────────────────────────────────────────────
+   112→export function AdminMarketplace() {
+   113→  const [merchants, setMerchants] = useState<MerchantData[]>([]);
+   114→  const [promos, setPromos] = useState<PromoData[]>([]);
+   115→  const [flashSales, setFlashSales] = useState<FlashSaleData[]>([]);
+   116→  const [coupons, setCoupons] = useState<CouponData[]>([]);
+   117→  const [transactions, setTransactions] = useState<TransactionData[]>([]);
+   118→  const [loading, setLoading] = useState(true);
+   119→
+   120→  const [mSearch, setMSearch] = useState('');
+   121→  const [mCategory, setMCategory] = useState('all');
+   122→  const [pMerchant, setPMerchant] = useState('all');
+   123→  const [pStatus, setPStatus] = useState('all');
+   124→  const [cStatus, setCStatus] = useState('all');
+   125→  const [cMerchant, setCMerchant] = useState('all');
+   126→  const [tType, setTType] = useState('all');
+   127→  const [tStatus, setTStatus] = useState('all');
+   128→
+   129→  const [merchantDlg, setMerchantDlg] = useState(false);
+   130→  const [promoDlg, setPromoDlg] = useState(false);
+   131→  const [flashDlg, setFlashDlg] = useState(false);
+   132→  const [couponDlg, setCouponDlg] = useState(false);
+   133→  const [editId, setEditId] = useState<string | null>(null);
+   134→
+   135→  const [mf, setMf] = useState({ name: '', category: '', address: '', phone: '', description: '', website: '' });
+   136→  const [pf, setPf] = useState({ merchantId: '', title: '', description: '', originalPrice: '', promoPrice: '', validUntil: '', category: '' });
+   137→  const [ff, setFf] = useState({ merchantId: '', promoId: '', title: '', flashPrice: '', startsAt: '', endsAt: '', maxRedemptions: '', costEuros: '0.5' });
+   138→  const [cf, setCf] = useState({ merchantId: '', discountType: 'percentage', discountValue: '', maxUses: '1', validUntil: '' });
+   139→
+   140→  const [submitting, setSubmitting] = useState(false);
+   141→
+   142→  const [now, setNow] = useState(Date.now());
+   143→  const cdRef = useRef<ReturnType<typeof setInterval> | null>(null);
+   144→  useEffect(() => {
+   145→    cdRef.current = setInterval(() => setNow(Date.now()), 1000);
+   146→    return () => { if (cdRef.current) clearInterval(cdRef.current); };
+   147→  }, []);
+   148→
+   149→  // ── Fetch ────────────────────────────────────────────────────
+   150→  const fetchAll = useCallback(async () => {
+   151→    try {
+   152→      setLoading(true);
+   153→      const [m, p, f, c, t] = await Promise.all([
+   154→        fetch('/api/client/merchants').then(r => r.json()).then(d => Array.isArray(d) ? d : d.data ?? []),
+   155→        fetch('/api/client/promos').then(r => r.json()).then(d => Array.isArray(d) ? d : d.data ?? []),
+   156→        fetch('/api/client/flash-sales?status=all').then(r => r.json()).then(d => Array.isArray(d) ? d : d.data ?? []),
+   157→        fetch('/api/client/coupons?status=all').then(r => r.json()).then(d => Array.isArray(d) ? d : d.data ?? []),
+   158→        fetch('/api/client/transactions?limit=100').then(r => r.json()).then(d => d.transactions ?? d.data ?? []),
+   159→      ]);
+   160→      setMerchants(m); setPromos(p); setFlashSales(f); setCoupons(c); setTransactions(t);
+   161→    } catch { toast.error('Erreur lors du chargement'); } finally { setLoading(false); }
+   162→  }, []);
+   163→
+   164→  useEffect(() => { fetchAll(); }, [fetchAll]);
+   165→
+   166→  // ── API helper ───────────────────────────────────────────────
+   167→  const api = async (url: string, method: string, body?: unknown) => {
+   168→    setSubmitting(true);
+   169→    try {
+   170→      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+   171→      if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Erreur'); }
+   172→      return true;
+   173→    } finally { setSubmitting(false); }
+   174→  };
+   175→
+   176→  const rstM = () => setMf({ name: '', category: '', address: '', phone: '', description: '', website: '' });
+   177→  const rstP = () => setPf({ merchantId: '', title: '', description: '', originalPrice: '', promoPrice: '', validUntil: '', category: '' });
+   178→  const rstF = () => setFf({ merchantId: '', promoId: '', title: '', flashPrice: '', startsAt: '', endsAt: '', maxRedemptions: '', costEuros: '0.5' });
+   179→  const rstC = () => setCf({ merchantId: '', discountType: 'percentage', discountValue: '', maxUses: '1', validUntil: '' });
+   180→
+   181→  // ── Merchant CRUD ────────────────────────────────────────────
+   182→  const saveMerchant = async () => {
+   183→    if (!mf.name.trim()) return;
+   184→    const body = { name: mf.name.trim(), category: mf.category || undefined, address: mf.address || undefined, phone: mf.phone || undefined, description: mf.description || undefined, website: mf.website || undefined, openingHours: '{}' };
+   185→    if (editId) { await api(`/api/client/merchants/${editId}`, 'PATCH', body); toast.success('Commerçant mis à jour'); }
+   186→    else { await api('/api/client/merchants', 'POST', body); toast.success('Commerçant créé'); }
+   187→    setMerchantDlg(false); setEditId(null); rstM(); fetchAll();
+   188→  };
+   189→  const deleteMerchant = (id: string) => api(`/api/client/merchants/${id}`, 'DELETE').then(() => { toast.success('Supprimé'); fetchAll(); });
+   190→  const toggleMerchant = (m: MerchantData, field: 'isActive' | 'isVerified') =>
+   191→    api(`/api/client/merchants/${m.id}`, 'PATCH', { [field]: !m[field] }).then(() => { toast.success('Mis à jour'); fetchAll(); });
+   192→  const editMerchant = (m: MerchantData) => {
+   193→    setMf({ name: m.name, category: m.category || '', address: m.address || '', phone: m.phone || '', description: m.description || '', website: m.website || '' });
+   194→    setEditId(m.id); setMerchantDlg(true);
+   195→  };
+   196→
+   197→  // ── Promo CRUD ───────────────────────────────────────────────
+   198→  const savePromo = async () => {
+   199→    if (!pf.title.trim()) return;
+   200→    const body = { merchantId: pf.merchantId || undefined, title: pf.title.trim(), description: pf.description || undefined, originalPrice: pf.originalPrice ? parseFloat(pf.originalPrice) : undefined, promoPrice: pf.promoPrice ? parseFloat(pf.promoPrice) : undefined, validUntil: pf.validUntil || undefined, category: pf.category || undefined, source: 'local' };
+   201→    if (editId) { await api(`/api/client/promos/${editId}`, 'PATCH', body); toast.success('Promotion mise à jour'); }
+   202→    else { await api('/api/client/promos', 'POST', body); toast.success('Promotion créée'); }
+   203→    setPromoDlg(false); setEditId(null); rstP(); fetchAll();
+   204→  };
+   205→  const deletePromo = (id: string) => api(`/api/client/promos/${id}`, 'DELETE').then(() => { toast.success('Supprimé'); fetchAll(); });
+   206→  const editPromo = (p: PromoData) => {
+   207→    setPf({ merchantId: p.merchantId || '', title: p.title, description: p.description || '', originalPrice: p.originalPrice?.toString() || '', promoPrice: p.promoPrice?.toString() || '', validUntil: p.validUntil?.split('T')[0] || '', category: p.category || '' });
+   208→    setEditId(p.id); setPromoDlg(true);
+   209→  };
+   210→
+   211→  // ── Flash CRUD ───────────────────────────────────────────────
+   212→  const saveFlash = async () => {
+   213→    if (!ff.merchantId || !ff.flashPrice || !ff.startsAt || !ff.endsAt) return;
+   214→    const body = { merchantId: ff.merchantId, promoId: ff.promoId || undefined, title: ff.title || undefined, flashPrice: parseFloat(ff.flashPrice), startsAt: ff.startsAt, endsAt: ff.endsAt, maxRedemptions: ff.maxRedemptions ? parseInt(ff.maxRedemptions) : undefined, costEuros: parseFloat(ff.costEuros) || 0.5 };
+   215→    await api('/api/client/flash-sales', 'POST', body);
+   216→    toast.success('Vente flash créée'); setFlashDlg(false); rstF(); fetchAll();
+   217→  };
+   218→  const flashAction = (id: string, action: 'active' | 'cancelled' | 'delete') => {
+   219→    if (action === 'delete') api(`/api/client/flash-sales/${id}`, 'DELETE').then(() => { toast.success('Supprimé'); fetchAll(); });
+   220→    else api(`/api/client/flash-sales/${id}`, 'PATCH', { status: action }).then(() => { toast.success(action === 'active' ? 'Activée' : 'Annulée'); fetchAll(); });
+   221→  };
+   222→
+   223→  // ── Coupon CRUD ──────────────────────────────────────────────
+   224→  const saveCoupon = async () => {
+   225→    if (!cf.merchantId || !cf.discountValue) return;
+   226→    const body = { merchantId: cf.merchantId, discountType: cf.discountType, discountValue: parseFloat(cf.discountValue), maxUses: parseInt(cf.maxUses) || 1, validUntil: cf.validUntil || undefined };
+   227→    await api('/api/client/coupons', 'POST', body);
+   228→    toast.success('Coupon créé'); setCouponDlg(false); rstC(); fetchAll();
+   229→  };
+   230→  const scanCoupon = (id: string) => api(`/api/client/coupons/${id}/scan`, 'POST').then(() => { toast.success('Coupon scanné'); fetchAll(); });
+   231→
+   232→  // ── Filtered data ────────────────────────────────────────────
+   233→  const filteredMerchants = merchants.filter(m => {
+   234→    if (mCategory !== 'all' && m.category !== mCategory) return false;
+   235→    if (mSearch && !m.name.toLowerCase().includes(mSearch.toLowerCase()) && !(m.category || '').toLowerCase().includes(mSearch.toLowerCase())) return false;
+   236→    return true;
+   237→  });
+   238→  const filteredPromos = promos.filter(p => {
+   239→    if (pMerchant !== 'all' && p.merchantId !== pMerchant) return false;
+   240→    if (pStatus === 'active' && !isPromoActive(p)) return false;
+   241→    if (pStatus === 'expired' && isPromoActive(p)) return false;
+   242→    return true;
+   243→  });
+   244→  const filteredCoupons = coupons.filter(c => {
+   245→    if (cStatus !== 'all' && c.status !== cStatus) return false;
+   246→    if (cMerchant !== 'all' && c.merchantId !== cMerchant) return false;
+   247→    return true;
+   248→  });
+   249→  const filteredTxns = transactions.filter(t => {
+   250→    if (tType !== 'all' && t.type !== tType) return false;
+   251→    if (tStatus !== 'all' && t.status !== tStatus) return false;
+   252→    return true;
+   253→  });
+   254→  const merchantPromosForFlash = ff.merchantId ? promos.filter(p => p.merchantId === ff.merchantId) : [];
+   255→
+   256→  const getCountdown = (endsAt: string) => {
+   257→    const diff = new Date(endsAt).getTime() - now;
+   258→    if (diff <= 0) return 'Expirée';
+   259→    const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
+   260→    return `${h}h ${m}m ${s}s`;
+   261→  };
+   262→
+   263→  const PROMO_STATUS_ACTIVE = { label: 'Active', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 border-0' };
+   264→  const PROMO_STATUS_EXPIRED = { label: 'Expirée', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-0' };
+   265→
+   266→  if (loading) return (
+   267→    <div className="space-y-4">
+   268→      <Skeleton className="h-8 w-64" />
+   269→      <div className="grid grid-cols-3 gap-4">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
+   270→      <Skeleton className="h-96" />
+   271→    </div>
+   272→  );
+   273→
+   274→  return (
+   275→    <Card>
+   276→      <CardHeader>
+   277→        <CardTitle className="flex items-center gap-2"><Store className="h-5 w-5" /> Marketplace</CardTitle>
+   278→        <CardDescription>Gestion des commerçants, promotions, ventes flash, coupons et transactions</CardDescription>
+   279→      </CardHeader>
+   280→      <CardContent>
+   281→        <Tabs defaultValue="merchants">
+   282→          <TabsList className="mb-4 w-full flex-wrap h-auto gap-1">
+   283→            <TabsTrigger value="merchants" className="gap-1.5"><Store className="h-3.5 w-3.5" /><span className="hidden sm:inline">Commerçants</span></TabsTrigger>
+   284→            <TabsTrigger value="promos" className="gap-1.5"><Tag className="h-3.5 w-3.5" /><span className="hidden sm:inline">Promotions</span></TabsTrigger>
+   285→            <TabsTrigger value="flash" className="gap-1.5"><Zap className="h-3.5 w-3.5" /><span className="hidden sm:inline">Ventes Flash</span></TabsTrigger>
+   286→            <TabsTrigger value="coupons" className="gap-1.5"><Ticket className="h-3.5 w-3.5" /><span className="hidden sm:inline">Coupons</span></TabsTrigger>
+   287→            <TabsTrigger value="transactions" className="gap-1.5"><Receipt className="h-3.5 w-3.5" /><span className="hidden sm:inline">Transactions</span></TabsTrigger>
+   288→          </TabsList>
+   289→
+   290→          {/* ── Commerçants ──────────────────────────────────────── */}
+   291→          <TabsContent value="merchants" className="space-y-4">
+   292→            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   293→              <StatCard label="Total" value={merchants.length} icon={Store} />
+   294→              <StatCard label="Vérifiés" value={merchants.filter(m => m.isVerified).length} icon={ShieldCheck} />
+   295→              <StatCard label="Actifs" value={merchants.filter(m => m.isActive).length} icon={CheckCircle} />
+   296→            </div>
+   297→            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+   298→              <div className="flex gap-2 flex-wrap">
+   299→                <div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Rechercher..." value={mSearch} onChange={e => setMSearch(e.target.value)} className="pl-9 w-56" /></div>
+   300→                <Select value={mCategory} onValueChange={setMCategory}><SelectTrigger className="w-40"><SelectValue placeholder="Catégorie" /></SelectTrigger><SelectContent><SelectItem value="all">Toutes</SelectItem>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select>
+   301→              </div>
+   302→              <Dialog open={merchantDlg} onOpenChange={o => { setMerchantDlg(o); if (!o) { setEditId(null); rstM(); } }}>
+   303→                <DialogTrigger asChild><Button size="sm"><Plus className="mr-1.5 h-4 w-4" />Ajouter</Button></DialogTrigger>
+   304→                <DialogContent><DialogHeader><DialogTitle>{editId ? 'Modifier le commerçant' : 'Nouveau commerçant'}</DialogTitle><DialogDescription>{editId ? 'Modifier les informations' : 'Ajouter un commerçant'}</DialogDescription></DialogHeader>
+   305→                  <div className="grid gap-3 py-2">
+   306→                    <div className="grid gap-1.5"><Label>Nom *</Label><Input value={mf.name} onChange={e => setMf(f => ({ ...f, name: e.target.value }))} /></div>
+   307→                    <div className="grid gap-1.5"><Label>Catégorie</Label><Select value={mf.category} onValueChange={v => setMf(f => ({ ...f, category: v }))}><SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger><SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+   308→                    <div className="grid gap-1.5"><Label>Adresse</Label><Input value={mf.address} onChange={e => setMf(f => ({ ...f, address: e.target.value }))} /></div>
+   309→                    <div className="grid gap-1.5"><Label>Téléphone</Label><Input value={mf.phone} onChange={e => setMf(f => ({ ...f, phone: e.target.value }))} /></div>
+   310→                    <div className="grid gap-1.5"><Label>Site web</Label><Input value={mf.website} onChange={e => setMf(f => ({ ...f, website: e.target.value }))} /></div>
+   311→                    <div className="grid gap-1.5"><Label>Description</Label><Input value={mf.description} onChange={e => setMf(f => ({ ...f, description: e.target.value }))} /></div>
+   312→                  </div>
+   313→                  <DialogFooter><Button onClick={saveMerchant} disabled={submitting || !mf.name.trim()}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{editId ? 'Enregistrer' : 'Créer'}</Button></DialogFooter>
+   314→                </DialogContent>
+   315→              </Dialog>
+   316→            </div>
+   317→            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+   318→              <Table>
+   319→                <TableHeader><TableRow><TableHead>Nom</TableHead><TableHead>Catégorie</TableHead><TableHead>Adresse</TableHead><TableHead className="hidden md:table-cell">Tél</TableHead><TableHead className="hidden lg:table-cell">Note</TableHead><TableHead>Vérifié</TableHead><TableHead>Actif</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+   320→                <TableBody>
+   321→                  {filteredMerchants.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Aucun commerçant</TableCell></TableRow>}
+   322→                  {filteredMerchants.map(m => (
+   323→                    <TableRow key={m.id}>
+   324→                      <TableCell className="font-medium">{m.name}</TableCell>
+   325→                      <TableCell><Badge variant="outline">{m.category || '—'}</Badge></TableCell>
+   326→                      <TableCell className="text-sm text-muted-foreground max-w-28 truncate">{m.address || '—'}</TableCell>
+   327→                      <TableCell className="hidden md:table-cell text-sm">{m.phone || '—'}</TableCell>
+   328→                      <TableCell className="hidden lg:table-cell"><div className="flex items-center gap-1"><Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" /><span className="text-sm">{m.ratingAvg?.toFixed(1) || '—'}</span></div></TableCell>
+   329→                      <TableCell><Button variant="ghost" size="sm" onClick={() => toggleMerchant(m, 'isVerified')}>{m.isVerified ? <ShieldCheck className="h-4 w-4 text-emerald-600" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</Button></TableCell>
+   330→                      <TableCell><Button variant="ghost" size="sm" onClick={() => toggleMerchant(m, 'isActive')}>{m.isActive ? <CheckCircle className="h-4 w-4 text-emerald-600" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}</Button></TableCell>
+   331→                      <TableCell className="text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => editMerchant(m)}><Edit className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteMerchant(m.id)}><Trash2 className="h-3.5 w-3.5" /></Button></div></TableCell>
+   332→                    </TableRow>
+   333→                  ))}
+   334→                </TableBody>
+   335→              </Table>
+   336→            </div>
+   337→          </TabsContent>
+   338→
+   339→          {/* ── Promotions ───────────────────────────────────────── */}
+   340→          <TabsContent value="promos" className="space-y-4">
+   341→            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   342→              <StatCard label="Total" value={promos.length} icon={Tag} />
+   343→              <StatCard label="Actives" value={promos.filter(p => isPromoActive(p)).length} icon={CheckCircle} />
+   344→              <StatCard label="Expirées" value={promos.filter(p => !isPromoActive(p)).length} icon={XCircle} />
+   345→            </div>
+   346→            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+   347→              <div className="flex gap-2 flex-wrap">
+   348→                <Select value={pMerchant} onValueChange={setPMerchant}><SelectTrigger className="w-44"><SelectValue placeholder="Commerçant" /></SelectTrigger><SelectContent><SelectItem value="all">Tous</SelectItem>{merchants.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent></Select>
+   349→                <Select value={pStatus} onValueChange={setPStatus}><SelectTrigger className="w-36"><SelectValue placeholder="Statut" /></SelectTrigger><SelectContent><SelectItem value="all">Tous</SelectItem><SelectItem value="active">Actives</SelectItem><SelectItem value="expired">Expirées</SelectItem></SelectContent></Select>
+   350→              </div>
+   351→              <Dialog open={promoDlg} onOpenChange={o => { setPromoDlg(o); if (!o) { setEditId(null); rstP(); } }}>
+   352→                <DialogTrigger asChild><Button size="sm"><Plus className="mr-1.5 h-4 w-4" />Ajouter</Button></DialogTrigger>
+   353→                <DialogContent><DialogHeader><DialogTitle>{editId ? 'Modifier la promotion' : 'Nouvelle promotion'}</DialogTitle><DialogDescription>{editId ? 'Modifier les détails' : 'Créer une promotion'}</DialogDescription></DialogHeader>
+   354→                  <div className="grid gap-3 py-2">
+   355→                    <div className="grid gap-1.5"><Label>Commerçant</Label><Select value={pf.merchantId} onValueChange={v => setPf(f => ({ ...f, merchantId: v }))}><SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger><SelectContent>{merchants.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent></Select></div>
+   356→                    <div className="grid gap-1.5"><Label>Titre *</Label><Input value={pf.title} onChange={e => setPf(f => ({ ...f, title: e.target.value }))} /></div>
+   357→                    <div className="grid gap-1.5"><Label>Description</Label><Input value={pf.description} onChange={e => setPf(f => ({ ...f, description: e.target.value }))} /></div>
+   358→                    <div className="grid grid-cols-2 gap-3"><div className="grid gap-1.5"><Label>Prix original</Label><Input type="number" step="0.01" value={pf.originalPrice} onChange={e => setPf(f => ({ ...f, originalPrice: e.target.value }))} /></div><div className="grid gap-1.5"><Label>Prix promo</Label><Input type="number" step="0.01" value={pf.promoPrice} onChange={e => setPf(f => ({ ...f, promoPrice: e.target.value }))} /></div></div>
+   359→                    <div className="grid grid-cols-2 gap-3"><div className="grid gap-1.5"><Label>Valide jusqu'au</Label><Input type="date" value={pf.validUntil} onChange={e => setPf(f => ({ ...f, validUntil: e.target.value }))} /></div><div className="grid gap-1.5"><Label>Catégorie</Label><Select value={pf.category} onValueChange={v => setPf(f => ({ ...f, category: v }))}><SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger><SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div></div>
+   360→                  </div>
+   361→                  <DialogFooter><Button onClick={savePromo} disabled={submitting || !pf.title.trim()}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{editId ? 'Enregistrer' : 'Créer'}</Button></DialogFooter>
+   362→                </DialogContent>
+   363→              </Dialog>
+   364→            </div>
+   365→            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+   366→              <Table>
+   367→                <TableHeader><TableRow><TableHead>Titre</TableHead><TableHead>Commerçant</TableHead><TableHead>Prix</TableHead><TableHead className="hidden md:table-cell">Vues</TableHead><TableHead className="hidden md:table-cell">Utilisations</TableHead><TableHead>Statut</TableHead><TableHead className="hidden lg:table-cell">Expire</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+   368→                <TableBody>
+   369→                  {filteredPromos.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Aucune promotion</TableCell></TableRow>}
+   370→                  {filteredPromos.map(p => (
+   371→                    <TableRow key={p.id}>
+   372→                      <TableCell className="font-medium">{p.title}</TableCell>
+   373→                      <TableCell className="text-sm text-muted-foreground">{p.merchant?.name || '—'}</TableCell>
+   374→                      <TableCell>{p.originalPrice && p.promoPrice ? <><span className="line-through text-muted-foreground mr-1.5">{fmtEur(p.originalPrice)}</span><span className="font-semibold text-emerald-600">{fmtEur(p.promoPrice)}</span></> : (p.promoPrice ? fmtEur(p.promoPrice) : '—')}</TableCell>
+   375→                      <TableCell className="hidden md:table-cell"><div className="flex items-center gap-1"><Eye className="h-3.5 w-3.5 text-muted-foreground" />{p.viewsCount}</div></TableCell>
+   376→                      <TableCell className="hidden md:table-cell">{p.redemptionsCount}</TableCell>
+   377→                      <TableCell><SB cfg={isPromoActive(p) ? PROMO_STATUS_ACTIVE : PROMO_STATUS_EXPIRED} /></TableCell>
+   378→                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">{p.validUntil ? fmtDate(p.validUntil) : '—'}</TableCell>
+   379→                      <TableCell className="text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => editPromo(p)}><Edit className="h-3.5 w-3.5" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deletePromo(p.id)}><Trash2 className="h-3.5 w-3.5" /></Button></div></TableCell>
+   380→                    </TableRow>
+   381→                  ))}
+   382→                </TableBody>
+   383→              </Table>
+   384→            </div>
+   385→          </TabsContent>
+   386→
+   387→          {/* ── Ventes Flash ─────────────────────────────────────── */}
+   388→          <TabsContent value="flash" className="space-y-4">
+   389→            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   390→              <StatCard label="Total" value={flashSales.length} icon={Zap} />
+   391→              <StatCard label="Actives" value={flashSales.filter(f => f.status === 'active').length} icon={Zap} />
+   392→              <StatCard label="Programmées" value={flashSales.filter(f => f.status === 'scheduled').length} icon={Tag} />
+   393→              <StatCard label="Expirées" value={flashSales.filter(f => f.status === 'expired' || f.status === 'cancelled').length} icon={XCircle} />
+   394→            </div>
+   395→            <div className="flex justify-end">
+   396→              <Dialog open={flashDlg} onOpenChange={o => { setFlashDlg(o); if (!o) rstF(); }}>
+   397→                <DialogTrigger asChild><Button size="sm"><Plus className="mr-1.5 h-4 w-4" />Créer</Button></DialogTrigger>
+   398→                <DialogContent><DialogHeader><DialogTitle>Nouvelle vente flash</DialogTitle><DialogDescription>Planifier une vente flash géolocalisée</DialogDescription></DialogHeader>
+   399→                  <div className="grid gap-3 py-2">
+   400→                    <div className="grid gap-1.5"><Label>Commerçant *</Label><Select value={ff.merchantId} onValueChange={v => setFf(f => ({ ...f, merchantId: v }))}><SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger><SelectContent>{merchants.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent></Select></div>
+   401→                    <div className="grid gap-1.5"><Label>Promo liée</Label><Select value={ff.promoId} onValueChange={v => setFf(f => ({ ...f, promoId: v }))}><SelectTrigger><SelectValue placeholder="Optionnelle" /></SelectTrigger><SelectContent><SelectItem value="">Aucune</SelectItem>{merchantPromosForFlash.map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}</SelectContent></Select></div>
+   402→                    <div className="grid gap-1.5"><Label>Titre</Label><Input value={ff.title} onChange={e => setFf(f => ({ ...f, title: e.target.value }))} /></div>
+   403→                    <div className="grid grid-cols-2 gap-3"><div className="grid gap-1.5"><Label>Prix flash (€) *</Label><Input type="number" step="0.01" value={ff.flashPrice} onChange={e => setFf(f => ({ ...f, flashPrice: e.target.value }))} /></div><div className="grid gap-1.5"><Label>Max utilisations</Label><Input type="number" value={ff.maxRedemptions} onChange={e => setFf(f => ({ ...f, maxRedemptions: e.target.value }))} placeholder="Illimité" /></div></div>
+   404→                    <div className="grid grid-cols-2 gap-3"><div className="grid gap-1.5"><Label>Début *</Label><Input type="datetime-local" value={ff.startsAt} onChange={e => setFf(f => ({ ...f, startsAt: e.target.value }))} /></div><div className="grid gap-1.5"><Label>Fin *</Label><Input type="datetime-local" value={ff.endsAt} onChange={e => setFf(f => ({ ...f, endsAt: e.target.value }))} /></div></div>
+   405→                  </div>
+   406→                  <DialogFooter><Button onClick={saveFlash} disabled={submitting || !ff.merchantId || !ff.flashPrice}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Créer</Button></DialogFooter>
+   407→                </DialogContent>
+   408→              </Dialog>
+   409→            </div>
+   410→            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+   411→              <Table>
+   412→                <TableHeader><TableRow><TableHead>Titre</TableHead><TableHead>Commerçant</TableHead><TableHead>Prix</TableHead><TableHead>Statut</TableHead><TableHead>Compte à rebours</TableHead><TableHead className="hidden md:table-cell">Progression</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+   413→                <TableBody>
+   414→                  {flashSales.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Aucune vente flash</TableCell></TableRow>}
+   415→                  {flashSales.map(f => {
+   416→                    const cfg = FLASH_STATUS[f.status] || FLASH_STATUS.expired;
+   417→                    const pct = f.maxRedemptions ? Math.min(100, (f.currentRedemptions / f.maxRedemptions) * 100) : 0;
+   418→                    return (
+   419→                      <TableRow key={f.id}>
+   420→                        <TableCell className="font-medium">{f.title || 'Sans titre'}</TableCell>
+   421→                        <TableCell className="text-sm text-muted-foreground">{f.merchant?.name || '—'}</TableCell>
+   422→                        <TableCell className="font-semibold text-emerald-600">{fmtEur(f.flashPrice)}</TableCell>
+   423→                        <TableCell><SB cfg={cfg} /></TableCell>
+   424→                        <TableCell><span className={`font-mono text-sm ${f.status === 'active' ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>{f.status === 'active' ? getCountdown(f.endsAt) : fmtDate(f.endsAt)}</span></TableCell>
+   425→                        <TableCell className="hidden md:table-cell"><div className="w-24 space-y-1"><Progress value={pct} className="h-2" /><span className="text-xs text-muted-foreground">{f.currentRedemptions}{f.maxRedemptions ? `/${f.maxRedemptions}` : ''}</span></div></TableCell>
+   426→                        <TableCell className="text-right"><div className="flex justify-end gap-1">
+   427→                          {f.status === 'scheduled' && <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600" onClick={() => flashAction(f.id, 'active')} title="Activer"><Play className="h-3.5 w-3.5" /></Button>}
+   428→                          {(f.status === 'active' || f.status === 'scheduled') && <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={() => flashAction(f.id, 'cancelled')} title="Annuler"><Ban className="h-3.5 w-3.5" /></Button>}
+   429→                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => flashAction(f.id, 'delete')} title="Supprimer"><Trash2 className="h-3.5 w-3.5" /></Button>
+   430→                        </div></TableCell>
+   431→                      </TableRow>
+   432→                    );
+   433→                  })}
+   434→                </TableBody>
+   435→              </Table>
+   436→            </div>
+   437→          </TabsContent>
+   438→
+   439→          {/* ── Coupons ──────────────────────────────────────────── */}
+   440→          <TabsContent value="coupons" className="space-y-4">
+   441→            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   442→              <StatCard label="Total" value={coupons.length} icon={Ticket} />
+   443→              <StatCard label="Actifs" value={coupons.filter(c => c.status === 'active').length} icon={CheckCircle} />
+   444→              <StatCard label="Utilisés" value={coupons.filter(c => c.status === 'used').length} icon={QrCode} />
+   445→              <StatCard label="Expirés" value={coupons.filter(c => c.status === 'expired').length} icon={XCircle} />
+   446→            </div>
+   447→            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+   448→              <div className="flex gap-2 flex-wrap">
+   449→                <Select value={cStatus} onValueChange={setCStatus}><SelectTrigger className="w-36"><SelectValue placeholder="Statut" /></SelectTrigger><SelectContent><SelectItem value="all">Tous</SelectItem><SelectItem value="active">Actifs</SelectItem><SelectItem value="used">Utilisés</SelectItem><SelectItem value="expired">Expirés</SelectItem></SelectContent></Select>
+   450→                <Select value={cMerchant} onValueChange={setCMerchant}><SelectTrigger className="w-44"><SelectValue placeholder="Commerçant" /></SelectTrigger><SelectContent><SelectItem value="all">Tous</SelectItem>{merchants.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent></Select>
+   451→              </div>
+   452→              <Dialog open={couponDlg} onOpenChange={o => { setCouponDlg(o); if (!o) rstC(); }}>
+   453→                <DialogTrigger asChild><Button size="sm"><Plus className="mr-1.5 h-4 w-4" />Créer</Button></DialogTrigger>
+   454→                <DialogContent><DialogHeader><DialogTitle>Nouveau coupon</DialogTitle><DialogDescription>Générer un code de réduction</DialogDescription></DialogHeader>
+   455→                  <div className="grid gap-3 py-2">
+   456→                    <div className="grid gap-1.5"><Label>Commerçant *</Label><Select value={cf.merchantId} onValueChange={v => setCf(f => ({ ...f, merchantId: v }))}><SelectTrigger><SelectValue placeholder="Choisir" /></SelectTrigger><SelectContent>{merchants.map(m => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}</SelectContent></Select></div>
+   457→                    <div className="grid grid-cols-2 gap-3"><div className="grid gap-1.5"><Label>Type</Label><Select value={cf.discountType} onValueChange={v => setCf(f => ({ ...f, discountType: v }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="percentage">Pourcentage</SelectItem><SelectItem value="fixed">Montant fixe</SelectItem></SelectContent></Select></div><div className=
