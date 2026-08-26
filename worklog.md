@@ -1116,3 +1116,24 @@ Stage Summary:
 - Landing page upgraded with V3 feature showcase, 3-tier pricing, updated testimonials
 - Sidebar reorganized into 5 logical sections
 - Version bumped to v3.0.0
+
+---
+Task ID: 1
+Agent: Main
+Task: ÉTAPE 1 — Create/upgrade 5 magic reusable components for Setup & Hub pages
+
+Work Log:
+- Assessed existing magic components (GlassCard, FloatingParticles, SuccessCheck, ConfettiExplosion, GradientBackground)
+- Created **AnimatedGradient.tsx** — Animated gradient background with 3 presets (setup=violet/indigo, hub-guest=emerald/teal, hub-family=purple/fuchsia). Uses CSS keyframes with 20s infinite, 400% background-size, plus radial glow + bottom vignette.
+- Upgraded **GlassCard.tsx** — Added `glow` prop for colored shadow, `light` prop for reduced blur performance mode.
+- Created **NumericKeypad.tsx** — iOS-style 3x4 numeric keypad with: animated PIN dots (pulsing active dot, spring-filled dots), glassmorphism buttons with whileTap scale 0.9, iOS sub-labels (ABC, DEF...), backspace key, hidden accessible input, `onComplete`/`onChange`/`onBackspace` callbacks.
+- Created **SuccessAnimation.tsx** — Combines animated checkmark (spring scale+rotate entrance, glow ring pulse) with canvas-confetti via useConfetti hook. AnimatePresence for enter/exit.
+- Upgraded **FloatingParticles.tsx** — Enhanced with unique per-instance keyframes, horizontal drift, varied opacity (0.15-0.6), unique animation IDs to prevent conflicts, proper cleanup.
+- Updated **index.ts** barrel exports with AnimatedGradient, NumericKeypad, SuccessAnimation + GradientPreset type.
+- Fixed strict lint errors (no setState in effects, no ref access during render).
+
+Stage Summary:
+- 5 components ready: AnimatedGradient (new), GlassCard (upgraded), NumericKeypad (new), FloatingParticles (upgraded), SuccessAnimation (new)
+- All pass `bun run lint` with zero errors
+- Dev server compiles successfully
+- Components designed mobile-first, fully accessible (aria-labels, hidden inputs)

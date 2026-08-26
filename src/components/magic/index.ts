@@ -8,3 +8,7 @@ export { AnimatedCounter } from './AnimatedCounter';
 export { SuccessCheck } from './SuccessCheck';
 export { MagneticIcon } from './MagneticIcon';
 export { PageTransition, AnimatedIcon, AnimatedTitle, BrandedFooter } from './PageTransition';
+export { AnimatedGradient } from './AnimatedGradient';
+export type { GradientPreset } from './AnimatedGradient';
+export { NumericKeypad } from './NumericKeypad';
+export { SuccessAnimation } from './SuccessAnimation';
