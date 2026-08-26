@@ -3,14 +3,14 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, useInView } from 'framer-motion';
 import {
-  QrCode, Menu, X, ArrowRight, Sparkles, Shield, Zap,
+  QrCode, Menu, X, ArrowRight, Sparkles, Shield, Zap, Smartphone,
 } from 'lucide-react';
 import { InteractiveDemo } from './interactive-demo';
 import { HowItWorks } from './how-it-works';
 import { PricingSection } from './pricing-section';
 import { ModulesShowcase } from './modules-showcase';
 
-interface LandingPageProps { onGoToDashboard: () => void }
+interface LandingPageProps { onGoToDashboard: () => void; onGoToSetup?: () => void; onGoToHub?: () => void }
 
 function FadeIn({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
   return (
@@ -26,7 +26,7 @@ function FadeIn({ children, delay = 0, className = '' }: { children: React.React
   );
 }
 
-function Navbar({ onGoToDashboard }: { onGoToDashboard: () => void }) {
+function Navbar({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashboard: () => void; onGoToSetup?: () => void; onGoToHub?: () => void }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -96,7 +96,7 @@ function Navbar({ onGoToDashboard }: { onGoToDashboard: () => void }) {
   );
 }
 
-function HeroSection({ onGoToDashboard }: { onGoToDashboard: () => void }) {
+function HeroSection({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashboard: () => void; onGoToSetup?: () => void; onGoToHub?: () => void }) {
   const heroRef = useRef(null);
   const heroInView = useInView(heroRef, { once: true });
 
@@ -194,6 +194,37 @@ function HeroSection({ onGoToDashboard }: { onGoToDashboard: () => void }) {
               </a>
             </motion.div>
 
+            {/* Demo preview buttons */
+            {(onGoToSetup || onGoToHub) && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={heroInView ? { opacity: 1 } : { opacity: 0 }}
+                transition={{ duration: 0.6, delay: 0.65 }}
+                className="flex flex-wrap gap-3 mb-10"
+              >
+                {onGoToSetup && (
+                  <button
+                    onClick={onGoToSetup}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-sm font-medium hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                    Voir l&apos;onboarding
+                    <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded-full ml-1">LIVE</span>
+                  </button>
+                )}
+                {onGoToHub && (
+                  <button
+                    onClick={onGoToHub}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/25 text-fuchsia-300 text-sm font-medium hover:bg-fuchsia-500/20 hover:border-fuchsia-500/40 transition-all cursor-pointer"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    Voir le hub QR
+                    <span className="text-[10px] bg-fuchsia-500/20 px-1.5 py-0.5 rounded-full ml-1">LIVE</span>
+                  </button>
+                )}
+              </motion.div>
+            )}
+
             {/* Trust signals */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -231,7 +262,7 @@ function HeroSection({ onGoToDashboard }: { onGoToDashboard: () => void }) {
   );
 }
 
-function CtaFinal({ onGoToDashboard }: { onGoToDashboard: () => void }) {
+function CtaFinal({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashboard: () => void; onGoToSetup?: () => void; onGoToHub?: () => void }) {
   return (
     <section id="cta-final" className="relative py-24 md:py-32 px-4 md:px-8 scroll-mt-16 overflow-hidden"
       style={{ background: 'linear-gradient(135deg, #1e1042 0%, #2e1065 50%, #1e1042 100%)' }}
@@ -309,15 +340,15 @@ function Footer() {
   );
 }
 
-export function LandingPage({ onGoToDashboard }: LandingPageProps) {
+export function LandingPage({ onGoToDashboard, onGoToSetup, onGoToHub }: LandingPageProps) {
   return (
     <div className="min-h-screen flex flex-col bg-slate-950">
       <Navbar onGoToDashboard={onGoToDashboard} />
-      <HeroSection onGoToDashboard={onGoToDashboard} />
+      <HeroSection onGoToDashboard={onGoToDashboard} onGoToSetup={onGoToSetup} onGoToHub={onGoToHub} />
       <HowItWorks />
       <PricingSection />
       <ModulesShowcase />
-      <CtaFinal onGoToDashboard={onGoToDashboard} />
+      <CtaFinal onGoToDashboard={onGoToDashboard} onGoToSetup={onGoToSetup} onGoToHub={onGoToHub} />
       <Footer />
     </div>
   );

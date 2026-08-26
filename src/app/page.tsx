@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback, useEffect, Suspense, useRef } from 'react';
+import { useState, useCallback, useEffect, Suspense, useRef, useMemo } from 'react';
 import { useSession, SessionProvider } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LandingPage } from '@/components/landing/hero-section';
 import { RoleSelector } from '@/components/role-selector';
 import { AuthForm } from '@/components/auth/login-form';
@@ -10,6 +11,8 @@ import { SuperAdminLayout, type SuperAdminPage } from '@/components/admin/super-
 import { ClientLayout, type ClientPage } from '@/components/client/client-layout';
 
 import { ErrorBoundary } from '@/components/error-boundary';
+import { SetupPageContent } from '@/app/setup/[token]/setup-content';
+import { HubPageContent } from '@/app/hub/[slug]/hub-content';
 
 // Superadmin pages
 import { StatsOverview } from '@/components/admin/stats-overview';
@@ -45,6 +48,80 @@ import { AdminArtisans } from '@/components/admin/admin-artisans';
 import { AdminMarketplace } from '@/components/admin/admin-marketplace';
 import { AdminPacks } from '@/components/admin/admin-packs';
 
+// ── Demo Navigator Bar ──
+import { ArrowLeft, Smartphone, Home, QrCode, X } from 'lucide-react';
+
+const DEMO_SETUP_TOKEN = 'demo-setup';
+const DEMO_HUB_SLUG = 'demo-hub';
+
+function DemoNavBar({ currentView, onNavigate }: { currentView: string; onNavigate: (view: string) => void }) {
+  const tabs = [
+    { id: 'landing', label: 'Landing', icon: <Home className="h-3.5 w-3.5" /> },
+    { id: 'setup', label: 'Onboarding', icon: <Smartphone className="h-3.5 w-3.5" /> },
+    { id: 'hub', label: 'Hub QR', icon: <QrCode className="h-3.5 w-3.5" /> },
+  ];
+
+  return (
+    <motion.div
+      initial={{ y: 80, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ delay: 0.5, type: 'spring', stiffness: 200, damping: 25 }}
+      className="fixed bottom-0 left-0 right-0 z-[100] p-3 pointer-events-none"
+    >
+      <div className="mx-auto max-w-md">
+        <div className="pointer-events-auto bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl p-1.5 shadow-2xl shadow-black/40 flex items-center gap-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => onNavigate(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                currentView === tab.id
+                  ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
+                  : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+              }`}
+            >
+              {tab.icon}
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Phone Frame Wrapper for demo views ──
+function PhoneFrame({ children, onBack, title }: { children: React.ReactNode; onBack: () => void; title: string }) {
+  return (
+    <div className="min-h-screen bg-slate-950 flex flex-col">
+      {/* Top bar */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-slate-900/80 backdrop-blur-xl border-b border-white/5">
+        <button
+          onClick={onBack}
+          className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="h-4 w-4 text-white/80" />
+        </button>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-white/90">{title}</p>
+          <p className="text-[10px] text-white/40">Aperçu démo</p>
+        </div>
+        <div className="flex items-center gap-1.5 bg-violet-500/15 border border-violet-500/30 px-2.5 py-1 rounded-full">
+          <div className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-pulse" />
+          <span className="text-[10px] font-bold text-violet-300">DÉMO</span>
+        </div>
+      </div>
+
+      {/* Phone frame centered on desktop */}
+      <div className="flex-1 flex items-start justify-center">
+        <div className="w-full max-w-[430px] h-full relative">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ScanAnalyticsWrapper() {
   const [homeId, setHomeId] = useState('');
   useEffect(() => {
@@ -67,18 +144,7 @@ function ScanAnalyticsWrapper() {
   return <ScanAnalytics homeId={homeId} />;
 }
 
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="rounded-2xl border-2 border-dashed border-muted-foreground/25 p-12 max-w-md">
-        <p className="text-lg font-semibold">{title}</p>
-        <p className="mt-2 text-sm text-muted-foreground">Cette fonctionnalite sera disponible prochainement.</p>
-      </div>
-    </div>
-  );
-}
-
-type AppView = 'landing' | 'auth' | 'select' | 'superadmin' | 'client';
+type AppView = 'landing' | 'auth' | 'select' | 'superadmin' | 'client' | 'setup-demo' | 'hub-demo';
 
 function AppContent() {
   const { data: session, status } = useSession();
@@ -89,6 +155,10 @@ function AppContent() {
   const [clientPage, setClientPage] = useState<ClientPage>('module-preview');
   const initialRegister = isActivateFlow;
   const hasCheckedPending = useRef(false);
+
+  // Stable params for demo views
+  const setupParams = useMemo(() => Promise.resolve({ token: DEMO_SETUP_TOKEN }), []);
+  const hubParams = useMemo(() => Promise.resolve({ slug: DEMO_HUB_SLUG }), []);
 
   // Redirect to activate page after auth if coming from QR scan
   useEffect(() => {
@@ -101,7 +171,6 @@ function AppContent() {
   }, [session]);
 
   const handleAuthSuccess = useCallback((role: string) => {
-    // If coming from QR activation flow, redirect back to the activate page
     const pendingCode = sessionStorage.getItem('pendingActivationCode');
     if (pendingCode) {
       sessionStorage.removeItem('pendingActivationCode');
@@ -115,11 +184,15 @@ function AppContent() {
     setView('landing');
   }, []);
 
+  const handleDemoNavigate = useCallback((target: string) => {
+    setView(target as AppView);
+  }, []);
+
   // Determine effective view
   let effectiveView: AppView = view;
   if (session?.user) {
     effectiveView = session.user.role === 'superadmin' ? 'superadmin' : 'client';
-  } else if (status !== 'loading' && view !== 'landing' && view !== 'auth') {
+  } else if (status !== 'loading' && view !== 'landing' && view !== 'auth' && view !== 'setup-demo' && view !== 'hub-demo') {
     effectiveView = 'auth';
   }
 
@@ -134,11 +207,40 @@ function AppContent() {
 
   // === AUTH (not logged in) ===
   if (!session) {
+    // SETUP DEMO VIEW
+    if (view === 'setup-demo') {
+      return (
+        <>
+          <PhoneFrame onBack={() => setView('landing')} title="Onboarding (Setup)">
+            <SetupPageContent params={setupParams} />
+          </PhoneFrame>
+          <DemoNavBar currentView="setup" onNavigate={handleDemoNavigate} />
+        </>
+      );
+    }
+
+    // HUB DEMO VIEW
+    if (view === 'hub-demo') {
+      return (
+        <>
+          <PhoneFrame onBack={() => setView('landing')} title="Hub QR (Invité / Famille)">
+            <HubPageContent params={hubParams} />
+          </PhoneFrame>
+          <DemoNavBar currentView="hub" onNavigate={handleDemoNavigate} />
+        </>
+      );
+    }
+
     if (effectiveView === 'landing') {
       return (
-        <LandingPage
-          onGoToDashboard={() => setView('auth')}
-        />
+        <>
+          <LandingPage
+            onGoToDashboard={() => setView('auth')}
+            onGoToSetup={() => setView('setup-demo')}
+            onGoToHub={() => setView('hub-demo')}
+          />
+          <DemoNavBar currentView="landing" onNavigate={handleDemoNavigate} />
+        </>
       );
     }
     return <AuthForm onSuccess={handleAuthSuccess} initialRegister={initialRegister} />;
