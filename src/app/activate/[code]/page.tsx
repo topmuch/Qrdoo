@@ -3,15 +3,11 @@
 import { Suspense } from 'react';
 import { SessionProvider } from 'next-auth/react';
 import { ActivatePageContent } from './activate-content';
-import { Loader2 } from 'lucide-react';
 
 function ActivateFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-white">
-      <div className="flex flex-col items-center gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-        <p className="text-sm text-muted-foreground">Chargement...</p>
-      </div>
+    <div className="min-h-screen bg-[#8B5CF6] flex items-center justify-center">
+      <div className="h-10 w-10 border-4 border-white/30 border-t-white rounded-full animate-spin" />
     </div>
   );
 }
