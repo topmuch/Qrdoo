@@ -1447,3 +1447,34 @@ Stage Summary:
 - update route: PUT /api/public/hub/[slug]/update — QR content, home data, PIN changes (PIN-protected)
 - guestbook route: POST /api/public/hub/[slug]/guestbook — guest entries (no PIN required)
 - Both routes handle demo mode, proper validation, and French error messages
+---
+Task ID: 2
+Agent: Main
+Task: ÉTAPE 2 — Refonte complète de la page Setup en style QRTags
+
+Work Log:
+- Read existing QRTags base components (QRTCard, QRTButton, QRTActions, QRTProgressBar, QRTNumericKeypad)
+- Read full current setup-content.tsx (970 lines, glassmorphism/magic style)
+- Rewrote setup-content.tsx with QRTags design system:
+  - Replaced AnimatedGradient (animated purple gradient) with solid bg-[#8B5CF6]
+  - Replaced GlassCard with QRTCard (white bg, black 2px border, 12px radius, offset shadow)
+  - Replaced Lucide icons with emojis (🏠, 👤, 🔑, ⚙️, 📱, ☎️, 📝, ✅, 🎉, 🛡️, 👨‍👩‍👧‍👦)
+  - Replaced glass input style with qrtInput (bg-gray-50, border-2 border-black, focus border-[#6D28D9])
+  - Replaced glass buttons with QRTButton/QRTActions (primary #6D28D9, secondary white/border-black)
+  - Replaced magic NumericKeypad with QRTNumericKeypad
+  - Replaced magic SuccessAnimation with emoji 🎉 in bordered card
+  - Added QRTProgressBar for steps 2-4 (account, pin, config)
+  - Plan selector now uses white cards with black borders instead of glassmorphism
+  - Feature pills now use bordered white cards in 3-column grid
+  - All business logic preserved identically (token check, API calls, form submission, step navigation)
+- Updated setup page.tsx fallback to match QRTags style (bg-[#8B5CF6], bordered card)
+- Ran bun run lint — 0 errors
+- Verified main page still renders correctly
+
+Stage Summary:
+- setup-content.tsx fully rewritten in QRTags style (~450 lines vs 970 before)
+- All QRTags base components used: QRTCard, QRTButton, QRTActions, QRTProgressBar, QRTNumericKeypad
+- 5 steps maintained: welcome → account → pin → config → success
+- Emojis replace all Lucide icons for QRTags aesthetic
+- Solid #8B5CF6 background, white cards with black 2px borders throughout
+- Note: Cannot visually verify in sandbox due to missing NEXTAUTH_SECRET (env issue, not code issue)
