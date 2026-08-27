@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, Suspense, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, Suspense, useRef } from 'react';
 import { useSession, SessionProvider } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,8 +11,7 @@ import { SuperAdminLayout, type SuperAdminPage } from '@/components/admin/super-
 import { ClientLayout, type ClientPage } from '@/components/client/client-layout';
 
 import { ErrorBoundary } from '@/components/error-boundary';
-import { SetupPageContent } from '@/app/setup/[token]/setup-content';
-import { HubPageContent } from '@/app/hub/[slug]/hub-content';
+import { SetupDemoView, HubDemoView } from '@/components/demo-views';
 
 // Superadmin pages
 import { StatsOverview } from '@/components/admin/stats-overview';
@@ -49,10 +48,7 @@ import { AdminMarketplace } from '@/components/admin/admin-marketplace';
 import { AdminPacks } from '@/components/admin/admin-packs';
 
 // ── Demo Navigator Bar ──
-import { ArrowLeft, Smartphone, Home, QrCode, X } from 'lucide-react';
-
-const DEMO_SETUP_TOKEN = 'demo-setup';
-const DEMO_HUB_SLUG = 'demo-hub';
+import { ArrowLeft, Smartphone, Home, QrCode } from 'lucide-react';
 
 function DemoNavBar({ currentView, onNavigate }: { currentView: string; onNavigate: (view: string) => void }) {
   const tabs = [
@@ -156,10 +152,6 @@ function AppContent() {
   const initialRegister = isActivateFlow;
   const hasCheckedPending = useRef(false);
 
-  // Stable params for demo views
-  const setupParams = useMemo(() => Promise.resolve({ token: DEMO_SETUP_TOKEN }), []);
-  const hubParams = useMemo(() => Promise.resolve({ slug: DEMO_HUB_SLUG }), []);
-
   // Redirect to activate page after auth if coming from QR scan
   useEffect(() => {
     if (!hasCheckedPending.current && session && sessionStorage.getItem('pendingActivationCode')) {
@@ -212,9 +204,7 @@ function AppContent() {
       return (
         <>
           <PhoneFrame onBack={() => setView('landing')} title="Onboarding (Setup)">
-            <ErrorBoundary key="setup-demo">
-              <SetupPageContent params={setupParams} />
-            </ErrorBoundary>
+            <SetupDemoView />
           </PhoneFrame>
           <DemoNavBar currentView="setup-demo" onNavigate={handleDemoNavigate} />
         </>
@@ -226,9 +216,7 @@ function AppContent() {
       return (
         <>
           <PhoneFrame onBack={() => setView('landing')} title="Hub QR (Invité / Famille)">
-            <ErrorBoundary key="hub-demo">
-              <HubPageContent params={hubParams} />
-            </ErrorBoundary>
+            <HubDemoView />
           </PhoneFrame>
           <DemoNavBar currentView="hub-demo" onNavigate={handleDemoNavigate} />
         </>
