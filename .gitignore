@@ -56,5 +56,11 @@ test
 prompt
 
 server.log
-# Skills directory
-/skills/tool-results/
+
+# Generated / runtime
+/tool-results/
+/db/*.db
+.zscripts/dev.pid
+skills/pptx/batch_html2pptx.js
+skills/pptx/html2pptx*.js
+skills/pptx/scripts/
