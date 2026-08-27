@@ -2,7 +2,8 @@
 
 import { use, useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, Copy, Check } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { QRTCard, QRTButton, QRTNumericKeypad } from '@/components/qrtags';
 import { QR_MODULE_LABELS } from '@/types/database';
@@ -348,7 +349,15 @@ function WifiQuickCard({ content }: { content: Record<string, unknown> }) {
   const [showPw, setShowPw] = useState(false);
   const networkName = (content.network_name as string) || (content.ssid as string) || 'Non configuré';
   const password = (content.password as string) || '';
-  const securityType = (content.security_type as string) || (content.security as string) || '';
+  const securityType = (content.security_type as string) || (content.security as string) || 'WPA';
+
+  // Build WiFi QR string
+  const escWifi = (s: string) => s.replace(/([\\;,:":\'])/g, '\\$1');
+  const wifiQrStr = networkName && networkName !== 'Non configuré'
+    ? (password
+        ? `WIFI:T:${securityType.toUpperCase().includes('WEP') ? 'WEP' : 'WPA'};S:${escWifi(networkName)};P:${escWifi(password)};;`
+        : `WIFI:T:nopass;S:${escWifi(networkName)};;`)
+    : '';
 
   const copyPassword = async () => {
     if (!password) return;
@@ -365,14 +374,28 @@ function WifiQuickCard({ content }: { content: Record<string, unknown> }) {
   return (
     <motion.div variants={itemVariants}>
       <QRTCard header={{ emoji: '📱', title: 'Wi-Fi' }}>
-        <div className="space-y-2">
+        <div className="space-y-3">
+          {/* Scannable WiFi QR Code */}
+          {wifiQrStr && (
+            <div className="flex justify-center">
+              <div className="bg-white p-3 rounded-xl border-2 border-black/10">
+                <QRCodeSVG
+                  value={wifiQrStr}
+                  size={140}
+                  level="M"
+                  bgColor="#FFFFFF"
+                  fgColor="#000000"
+                />
+              </div>
+            </div>
+          )}
           <p className="text-base font-bold text-black truncate">{networkName}</p>
           {securityType && (
             <p className="text-[10px] text-black/40">{securityType}</p>
           )}
 
           {password && (
-            <div className="flex items-center gap-2 mt-3">
+            <div className="flex items-center gap-2">
               <div className="flex-1 h-10 bg-gray-50 border-2 border-black rounded-[8px] flex items-center px-3 gap-2">
                 <span className="text-sm font-mono text-black flex-1 truncate">
                   {showPw ? password : '•'.repeat(Math.min(password.length, 16))}
@@ -389,7 +412,8 @@ function WifiQuickCard({ content }: { content: Record<string, unknown> }) {
                 onClick={copyPassword}
                 className="h-10 px-3 bg-white border-2 border-black rounded-[8px] text-black text-xs font-bold flex items-center gap-1.5 shadow-[2px_2px_0_rgba(0,0,0,0.08)] active:translate-y-[1px] active:shadow-none transition-all hover:bg-gray-50"
               >
-                {copied ? '✅' : '📋'} {copied ? 'Copié' : 'Copier'}
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? 'Copié' : 'Copier'}
               </motion.button>
             </div>
           )}
@@ -1226,9 +1250,11 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                       <FamilyActionCard
                         emoji="⚙️"
                         label="Paramètres"
-                        subtitle="Configurer le Hub"
+                        subtitle="Accès au tableau de bord"
                         badge="Sécurisé"
-                        onTap={() => setPinModalFor('settings')}
+                        onTap={() => {
+                          toast.info('Connectez-vous sur qrdomotik.roomscan.pro pour gérer votre maison');
+                        }}
                       />
                     </motion.div>
                   </motion.div>

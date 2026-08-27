@@ -26,6 +26,16 @@ export async function GET(
     parsedContent = {};
   }
 
+  // Find hub slug for this QR code's home
+  let hubSlug: string | null = null;
+  if (qrCode.homeId) {
+    const plaque = await db.physicalQrCode.findFirst({
+      where: { homeId: qrCode.homeId, isClaimed: true, hubSlug: { not: null } },
+      select: { hubSlug: true },
+    });
+    hubSlug = plaque?.hubSlug || null;
+  }
+
   // Get scan count
   const scanCount = await db.scanLog.count({
     where: { qrCodeId: qrCode.id },
@@ -63,7 +73,9 @@ export async function GET(
       publicSlug: qrCode.publicSlug,
       isActive: qrCode.isActive,
       homeName: qrCode.home?.name || null,
+      homeId: qrCode.homeId,
     },
+    hubSlug,
     content: parsedContent,
     scanCount,
   });

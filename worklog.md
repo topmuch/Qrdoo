@@ -1559,3 +1559,58 @@ Stage Summary:
 - Bug fixed in `/src/app/activate/[code]/activate-content.tsx`
 - The wizard now correctly calls the setup API which handles: user creation, home creation, PIN hashing, plaque claiming, hubSlug generation, subscription creation
 - No new API endpoint was needed - `/api/setup/[token]` already existed with the correct logic
+---
+Task ID: 3
+Agent: main
+Task: Corriger les bugs hub/view (boutons cassés, QR WiFi absent, modules famille)
+
+Work Log:
+- Analysé hub-content.tsx (1312 lignes) pour identifier la logique des boutons et vues
+- Analysé l'API /api/public/hub/[slug]/route.ts (GET + POST PIN verify)
+- Analysé l'API /api/public/qr/[slug]/route.ts
+- Découvert que la route /view/[slug] N'EXISTAIT PAS - cause majeure des bugs invité
+- Découvert que WifiQuickCard n'affichait pas de QR code scannable
+- Découvert que le bouton Paramètres redirigeait vers /dashboard inexistant
+- Vérifié le bouton Répondeur (goToVoiceDetail) - code correct
+- Vérifié l'affichage des modules famille - code correct (dépend des données)
+
+Fixes appliqués:
+1. CRÉÉ /view/[slug]/page.tsx + view-content.tsx - Page complète d'affichage des modules QR individuels
+   - Supporte: WiFi (avec QR scannable), Règles, Contact, Urgences, Recette, Note, Liste de courses, Lien externe, Générique
+   - Enregistreur vocal intégré avec bouton "Laisser un message vocal"
+   - Lien retour vers le hub (via hubSlug)
+   - Design QRTags cohérent (fond #8B5CF6, cartes blanches bordure noire)
+
+2. CRÉÉ /api/public/qr-voice/[id]/route.ts - API voix pour la page view
+   - POST: upload message vocal (trouve homeId via QR code)
+   - GET: liste des messages vocaux
+
+3. MODIFIÉ /api/public/qr/[slug]/route.ts
+   - Ajouté hubSlug et homeId dans la réponse
+   - Requête PhysicalQrCode pour trouver le hubSlug associé
+
+4. MODIFIÉ hub-content.tsx - WifiQuickCard
+   - Ajouté import QRCodeSVG depuis qrcode.react
+   - Ajouté import Check, Copy depuis lucide-react
+   - Généré QR code WiFi scannable (format WIFI:T:WPA;S:ssid;P:password;;)
+   - Affichage du QR code centré au-dessus des infos texte
+   - Remplacement des emojis par des icônes Lucide pour le bouton copier
+
+5. MODIFIÉ hub-content.tsx - Bouton Paramètres
+   - Remplacé la redirection vers /dashboard (inexistant) par un toast informatif
+   - Message: "Connectez-vous sur qrdomotik.roomscan.pro pour gérer votre maison"
+
+Vérifications:
+- `bun run lint` : 0 erreurs
+- `npx next build` : succès (toutes les routes compilées, y compris /view/[slug])
+- API /api/public/hub/demo-hub : retourne home, 3 guestRooms, 4 familyRooms, 2 voiceMessages
+- Page /hub/demo-hub : HTTP 200
+- Page /view/test-slug : HTTP 200 (24916 bytes)
+- Page view contient: message d'erreur, référence messages vocaux, footer QR Domotik
+
+Stage Summary:
+- Bug critique résolu: route /view/[slug] manquante (créée avec support complet)
+- Bug WiFi résolu: QR code scannable ajouté dans hub et view page
+- Bug Paramètres résolu: toast info au lieu de redirection 404
+- Bug Répondeur: code déjà correct, fonctionne si PIN validé
+- Bug modules famille: code correct, dépend des données en base (rooms + QR codes)
