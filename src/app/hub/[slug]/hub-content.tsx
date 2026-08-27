@@ -2,7 +2,7 @@
 
 import { use, useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Send, Copy, Check } from 'lucide-react';
+import { Loader2, Send, Copy, Check, Phone, ExternalLink } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { QRTCard, QRTButton, QRTNumericKeypad } from '@/components/qrtags';
@@ -42,7 +42,7 @@ interface HubData {
   voiceMessages: VoiceMsg[];
 }
 
-type HubView = 'mode-select' | 'guest' | 'family' | 'room-detail' | 'voice-detail' | 'rules-detail';
+type HubView = 'mode-select' | 'guest' | 'family' | 'room-detail' | 'voice-detail';
 type PinModalFor = 'family' | 'settings' | null;
 
 // ── Emoji mappings ──
@@ -423,34 +423,6 @@ function WifiQuickCard({ content }: { content: Record<string, unknown> }) {
   );
 }
 
-// ── House Rules Card ──
-function RulesQuickCard({ content, onTap }: { content: Record<string, unknown>; onTap: () => void }) {
-  const rules = content.rules as string[] | undefined;
-  const text = content.text as string | undefined;
-  const description = content.description as string | undefined;
-  const ruleCount = rules?.length || 0;
-  const preview = rules?.[0] || text || description || '';
-
-  return (
-    <motion.div variants={itemVariants}>
-      <motion.button whileTap={{ scale: 0.97 }} onClick={onTap} className="w-full text-left">
-        <QRTCard header={{ emoji: '📜', title: 'Règles' }}>
-          <p className="text-sm font-bold text-black">Règles de la maison</p>
-          {ruleCount > 0 && (
-            <p className="text-xs text-black/50 mt-0.5">{ruleCount} règle{ruleCount > 1 ? 's' : ''}</p>
-          )}
-          {preview && (
-            <p className="text-xs text-black/40 mt-1.5 line-clamp-2 leading-relaxed">{preview}</p>
-          )}
-          <div className="flex items-center justify-end mt-3 gap-1 text-black/50">
-            <span className="text-[11px]">Voir tout →</span>
-          </div>
-        </QRTCard>
-      </motion.button>
-    </motion.div>
-  );
-}
-
 // ── Contact Card ──
 function ContactQuickCard({ content }: { content: Record<string, unknown> }) {
   const phone = (content.phone as string) || (content.telephone as string) || '';
@@ -518,6 +490,333 @@ function MessagesQuickCard({
           )}
         </QRTCard>
       </motion.button>
+    </motion.div>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
+// NEW: Inline Display Components for Guest View
+// ══════════════════════════════════════════════════════════════
+
+// ── Rules Inline Card (replaces RulesQuickCard + RulesDetailView) ──
+function RulesInlineCard({ content }: { content: Record<string, unknown> }) {
+  const rules = (content.rules as string[]) || [];
+  const text = (content.text as string) || '';
+  const description = (content.description as string) || '';
+
+  return (
+    <motion.div variants={itemVariants}>
+      <QRTCard header={{ emoji: '📜', title: 'Règles' }}>
+        {rules.length > 0 ? (
+          <ul className="space-y-2.5">
+            {rules.map((rule, i) => (
+              <li key={i} className="flex items-start gap-2.5">
+                <span className="h-5 min-w-5 rounded-full bg-[#6D28D9] text-white text-[10px] font-bold flex items-center justify-center mt-0.5">
+                  {i + 1}
+                </span>
+                <p className="text-sm text-black leading-relaxed flex-1">{rule}</p>
+              </li>
+            ))}
+          </ul>
+        ) : text || description ? (
+          <p className="text-sm text-black leading-relaxed whitespace-pre-wrap">
+            {text || description}
+          </p>
+        ) : (
+          <p className="text-sm text-black/40">Aucune règle définie</p>
+        )}
+      </QRTCard>
+    </motion.div>
+  );
+}
+
+// ── Emergency Inline Card ──
+function EmergencyInlineCard({ content }: { content: Record<string, unknown> }) {
+  const phone = (content.phone as string) || (content.emergency_phone as string) || '112';
+  const hospital = (content.nearest_hospital as string) || '';
+  const pharmacy = (content.pharmacy as string) || '';
+  const contactName = (content.contact_name as string) || (content.name as string) || '';
+  const info = (content.info as string) || (content.instructions as string) || '';
+  const contacts = content.contacts as { name: string; phone: string; relation?: string }[] | undefined;
+
+  return (
+    <motion.div variants={itemVariants} className="space-y-2">
+      <QRTCard className="!border-red-300">
+        <div className="text-center">
+          <span className="text-3xl">🚨</span>
+          <p className="text-base font-bold text-red-600 mt-1.5">Urgences</p>
+        </div>
+      </QRTCard>
+
+      <a href={`tel:${phone}`} className="block">
+        <QRTCard className="!bg-red-50 !border-red-400 cursor-pointer hover:!bg-red-100 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-red-100 border-2 border-red-400 flex items-center justify-center">
+              <Phone className="h-4 w-4 text-red-600" />
+            </div>
+            <div>
+              <p className="text-[10px] text-red-400 font-semibold uppercase">Appeler</p>
+              <p className="text-sm font-bold text-red-700">{contactName || phone}</p>
+            </div>
+          </div>
+        </QRTCard>
+      </a>
+
+      {contacts && contacts.length > 0 && (
+        contacts.map((c, i) => (
+          <a key={i} href={`tel:${c.phone}`} className="block">
+            <QRTCard className="!bg-red-50 !border-red-300 cursor-pointer hover:!bg-red-100 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-red-100 border-2 border-red-300 flex items-center justify-center">
+                  <Phone className="h-4 w-4 text-red-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-black truncate">{c.name}</p>
+                  <p className="text-xs text-red-600">{c.phone}{c.relation ? ` · ${c.relation}` : ''}</p>
+                </div>
+              </div>
+            </QRTCard>
+          </a>
+        ))
+      )}
+
+      {hospital && (
+        <QRTCard header={{ emoji: '🏥', title: 'Hôpital le plus proche' }}>
+          <p className="text-sm text-black">{hospital}</p>
+        </QRTCard>
+      )}
+      {pharmacy && (
+        <QRTCard header={{ emoji: '💊', title: 'Pharmacie' }}>
+          <p className="text-sm text-black">{pharmacy}</p>
+        </QRTCard>
+      )}
+      {info && (
+        <QRTCard>
+          <p className="text-sm text-black leading-relaxed whitespace-pre-wrap">{info}</p>
+        </QRTCard>
+      )}
+    </motion.div>
+  );
+}
+
+// ── Note Inline Card ──
+function NoteInlineCard({ content }: { content: Record<string, unknown> }) {
+  const text = (content.text as string) || (content.note as string) || (content.description as string) || '';
+  const title = (content.title as string) || '';
+
+  return (
+    <motion.div variants={itemVariants}>
+      <QRTCard header={{ emoji: '📝', title: title || 'Note' }}>
+        <p className="text-sm text-black leading-relaxed whitespace-pre-wrap">{text || 'Aucun contenu'}</p>
+      </QRTCard>
+    </motion.div>
+  );
+}
+
+// ── Guestbook Inline Card ──
+function GuestbookInlineCard({ content }: { content: Record<string, unknown> }) {
+  const text = (content.text as string) || (content.note as string) || (content.description as string) || '';
+  const title = (content.title as string) || '';
+  const welcome = (content.welcome_message as string) || (content.welcome as string) || '';
+
+  return (
+    <motion.div variants={itemVariants}>
+      <QRTCard header={{ emoji: '📖', title: title || "Livre d'or" }}>
+        {welcome && (
+          <p className="text-sm font-medium text-[#6D28D9] mb-2 leading-relaxed">{welcome}</p>
+        )}
+        <p className="text-sm text-black leading-relaxed whitespace-pre-wrap">{text || 'Aucun contenu'}</p>
+      </QRTCard>
+    </motion.div>
+  );
+}
+
+// ── Shopping List Inline Card ──
+function ShoppingListInlineCard({ content }: { content: Record<string, unknown> }) {
+  const items = (content.items as string[]) || [];
+  const [checked, setChecked] = useState<Set<number>>(new Set());
+
+  const toggle = (i: number) => {
+    setChecked(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
+  };
+
+  return (
+    <motion.div variants={itemVariants}>
+      <QRTCard header={{ emoji: '🛒', title: 'Liste de courses' }}>
+        {items.length > 0 ? (
+          <ul className="space-y-1.5">
+            {items.map((item, i) => (
+              <li key={i}>
+                <button
+                  onClick={() => toggle(i)}
+                  className={`w-full text-left flex items-center gap-2.5 py-0.5 transition-colors`}
+                >
+                  <div className={`h-4.5 w-4.5 min-w-[18px] rounded-[4px] border-2 flex items-center justify-center transition-colors ${checked.has(i) ? 'bg-green-500 border-green-500' : 'border-black'}`}>
+                    {checked.has(i) && <span className="text-white text-[10px]">✓</span>}
+                  </div>
+                  <span className={`text-sm ${checked.has(i) ? 'text-black/40 line-through' : 'text-black font-medium'}`}>{item}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="text-center py-4">
+            <span className="text-2xl">🛒</span>
+            <p className="text-xs text-black/40 mt-1">Liste vide</p>
+          </div>
+        )}
+      </QRTCard>
+    </motion.div>
+  );
+}
+
+// ── Recipe Inline Card ──
+function RecipeInlineCard({ content }: { content: Record<string, unknown> }) {
+  const title = (content.title as string) || 'Recette';
+  const ingredients = (content.ingredients as string[]) || [];
+  const steps = (content.steps as string[]) || [];
+  const description = (content.description as string) || '';
+  const prepTime = (content.prep_time as string) || '';
+  const cookTime = (content.cook_time as string) || '';
+
+  return (
+    <motion.div variants={itemVariants} className="space-y-2">
+      <QRTCard header={{ emoji: '🍳', title }}>
+        {description && <p className="text-sm text-black/60 mb-2">{description}</p>}
+        <div className="flex items-center gap-3 text-xs text-black/40">
+          {prepTime && <span>⏱️ Préparation : {prepTime}</span>}
+          {cookTime && <span>🔥 Cuisson : {cookTime}</span>}
+        </div>
+      </QRTCard>
+
+      {ingredients.length > 0 && (
+        <QRTCard>
+          <p className="text-[10px] text-black/40 font-semibold uppercase tracking-wider mb-2">Ingrédients</p>
+          <ul className="space-y-1.5">
+            {ingredients.map((ing, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-black">
+                <span className="text-[#6D28D9] mt-0.5">•</span>
+                {ing}
+              </li>
+            ))}
+          </ul>
+        </QRTCard>
+      )}
+
+      {steps.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] text-black/40 font-semibold uppercase tracking-wider px-1">Préparation</p>
+          {steps.map((step, i) => (
+            <QRTCard key={i} className="!p-3">
+              <div className="flex items-start gap-2.5">
+                <span className="h-5 min-w-5 rounded-full bg-[#6D28D9] text-white text-[10px] font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                <p className="text-sm text-black leading-relaxed flex-1">{step}</p>
+              </div>
+            </QRTCard>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ── External Link Inline Card ──
+function ExternalLinkInlineCard({ content }: { content: Record<string, unknown> }) {
+  const url = (content.url as string) || '';
+  const title = (content.title as string) || (content.name as string) || 'Lien externe';
+  const description = (content.description as string) || '';
+
+  return (
+    <motion.div variants={itemVariants}>
+      <QRTCard header={{ emoji: '🔗', title }}>
+        {description && <p className="text-sm text-black/60 mb-3">{description}</p>}
+        {url && (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 h-11 bg-[#6D28D9] text-white font-bold text-sm rounded-[8px] border-2 border-black shadow-[3px_3px_0_rgba(0,0,0,0.15)] active:translate-y-[1px] active:shadow-none transition-all hover:bg-[#5B21B6]"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Ouvrir le lien
+          </a>
+        )}
+      </QRTCard>
+    </motion.div>
+  );
+}
+
+// ── Generic Inline Card (fallback for any other module type) ──
+function GenericInlineCard({ qr }: { qr: QrCodeInfo }) {
+  const label = getModuleLabel(qr.type);
+  const emoji = getModuleEmoji(qr.type);
+  const entries = Object.entries(qr.content).filter(([k]) => !['id', 'createdAt', 'updatedAt'].includes(k));
+
+  return (
+    <motion.div variants={itemVariants}>
+      <QRTCard header={{ emoji, title: qr.name || label }}>
+        {entries.length > 0 ? (
+          <div className="space-y-2">
+            {entries.map(([key, value]) => (
+              <div key={key} className="flex items-start gap-2">
+                <span className="text-[10px] text-black/40 font-semibold uppercase tracking-wider min-w-[80px] pt-0.5">{key}</span>
+                <span className="text-sm text-black flex-1">
+                  {Array.isArray(value) ? value.join(', ') : String(value)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-black/40">Aucun contenu configuré</p>
+        )}
+      </QRTCard>
+    </motion.div>
+  );
+}
+
+// ── Inline Module Renderer ──
+function renderModuleInline(qr: QrCodeInfo) {
+  switch (qr.type) {
+    case 'wifi': return <WifiQuickCard content={qr.content} />;
+    case 'house_rules': return <RulesInlineCard content={qr.content} />;
+    case 'emergency': return <EmergencyInlineCard content={qr.content} />;
+    case 'emergency_contacts': return <EmergencyInlineCard content={qr.content} />;
+    case 'contact': return <ContactQuickCard content={qr.content} />;
+    case 'note': return <NoteInlineCard content={qr.content} />;
+    case 'guestbook': return <GuestbookInlineCard content={qr.content} />;
+    case 'shopping_list': return <ShoppingListInlineCard content={qr.content} />;
+    case 'recipe': return <RecipeInlineCard content={qr.content} />;
+    case 'external_link': return <ExternalLinkInlineCard content={qr.content} />;
+    default: return <GenericInlineCard qr={qr} />;
+  }
+}
+
+// ── Room Inline Section (shows all modules with full content inline) ──
+function RoomInlineSection({ room }: { room: RoomInfo }) {
+  const emoji = getRoomEmoji(room.icon);
+
+  // Filter out modules that are already shown in the quick-access area
+  const QUICK_ACCESS_TYPES = ['wifi', 'house_rules', 'contact', 'emergency_contacts', 'emergency'];
+  const modules = room.qrCodes.filter(qr => !QUICK_ACCESS_TYPES.includes(qr.type));
+
+  if (modules.length === 0) return null;
+
+  return (
+    <motion.div variants={itemVariants} className="space-y-3">
+      <div className="flex items-center gap-2 px-1">
+        <span className="text-sm">{emoji}</span>
+        <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wider">{room.name}</h3>
+        <span className="text-xs text-white/20">({modules.length})</span>
+      </div>
+      <div className="space-y-3">
+        {modules.map((qr) => (
+          <div key={qr.id}>{renderModuleInline(qr)}</div>
+        ))}
+      </div>
     </motion.div>
   );
 }
@@ -602,8 +901,12 @@ function RoomDetailView({ room, onBack }: { room: RoomInfo; onBack: () => void }
       </div>
 
       {room.qrCodes.length > 0 ? (
-        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-2 gap-3">
-          {room.qrCodes.map((qr) => <ModuleCard key={qr.id} qr={qr} />)}
+        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3">
+          {room.qrCodes.map((qr) => (
+            <motion.div key={qr.id} variants={itemVariants}>
+              {renderModuleInline(qr)}
+            </motion.div>
+          ))}
         </motion.div>
       ) : (
         <div className="text-center py-16">
@@ -667,102 +970,6 @@ function VoiceDetailView({
 }
 
 // ══════════════════════════════════════════════════════════════
-// Rules Detail View (Guest sub-view)
-// ══════════════════════════════════════════════════════════════
-
-function RulesDetailView({ content, onBack }: { content: Record<string, unknown>; onBack: () => void }) {
-  const rules = (content.rules as string[]) || [];
-  const text = (content.text as string) || '';
-  const description = (content.description as string) || '';
-
-  return (
-    <div className="space-y-6 pb-4">
-      <div className="flex items-center gap-4">
-        <QRTButton variant="secondary" onClick={onBack} className="!w-11 !h-11 !p-0 !rounded-[8px]">←</QRTButton>
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl">📜</span>
-          <div>
-            <h2 className="text-xl font-bold text-white">Règles de la maison</h2>
-            <p className="text-sm text-white/40 mt-0.5">
-              {rules.length > 0 ? `${rules.length} règle${rules.length > 1 ? 's' : ''}` : 'Informations'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3">
-        {rules.length > 0 ? (
-          rules.map((rule, i) => (
-            <motion.div key={i} variants={itemVariants}>
-              <QRTCard>
-                <div className="flex items-start gap-3">
-                  <span className="h-6 min-w-6 rounded-full bg-[#6D28D9] text-white text-xs font-bold flex items-center justify-center mt-0.5">
-                    {i + 1}
-                  </span>
-                  <p className="text-sm text-black leading-relaxed flex-1">{rule}</p>
-                </div>
-              </QRTCard>
-            </motion.div>
-          ))
-        ) : text || description ? (
-          <motion.div variants={itemVariants}>
-            <QRTCard>
-              <p className="text-sm text-black leading-relaxed whitespace-pre-wrap">
-                {text || description}
-              </p>
-            </QRTCard>
-          </motion.div>
-        ) : (
-          <div className="text-center py-12">
-            <span className="text-4xl">📜</span>
-            <p className="text-sm text-white/60 mt-3">Aucune règle définie</p>
-          </div>
-        )}
-      </motion.div>
-    </div>
-  );
-}
-
-// ── Module Card ──
-function ModuleCard({ qr }: { qr: QrCodeInfo }) {
-  const label = getModuleLabel(qr.type);
-  const emoji = getModuleEmoji(qr.type);
-  return (
-    <motion.button
-      variants={itemVariants}
-      whileTap={{ scale: 0.97 }}
-      onClick={() => { if (qr.publicSlug) window.location.href = `/view/${qr.publicSlug}`; }}
-      disabled={!qr.publicSlug}
-      className="text-left bg-white border-2 border-black rounded-[12px] p-4 cursor-pointer active:translate-y-[2px] transition-all shadow-[3px_3px_0_rgba(0,0,0,0.08)] hover:shadow-[2px_2px_0_rgba(0,0,0,0.08)] disabled:opacity-60 disabled:pointer-events-none"
-    >
-      <span className="text-2xl">{emoji}</span>
-      <p className="text-sm font-bold text-black truncate mt-2">{qr.name}</p>
-      <p className="text-[11px] text-black/40 mt-0.5 truncate">{label}</p>
-      {qr.isPrivate && (
-        <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-red-600 bg-red-50 border border-red-200 rounded-[6px] font-bold px-2 py-0.5">
-          🔒 Privé
-        </div>
-      )}
-    </motion.button>
-  );
-}
-
-// ── Room Section (for Guest view modules) ──
-function RoomSection({ room }: { room: RoomInfo }) {
-  const emoji = getRoomEmoji(room.icon);
-  return (
-    <motion.div variants={itemVariants} className="space-y-3">
-      <div className="flex items-center gap-2 px-1">
-        <span className="text-sm">{emoji}</span>
-        <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wider">{room.name}</h3>
-        <span className="text-xs text-white/20">({room.qrCodes.length})</span>
-      </div>
-      <div className="grid grid-cols-2 gap-3">{room.qrCodes.map((qr) => <ModuleCard key={qr.id} qr={qr} />)}</div>
-    </motion.div>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════
 // Main Component
 // ══════════════════════════════════════════════════════════════
 
@@ -776,7 +983,6 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
   const [pinVerifying, setPinVerifying] = useState(false);
   const [voiceMsgs, setVoiceMsgs] = useState<VoiceMsg[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
-  const [selectedRulesContent, setSelectedRulesContent] = useState<Record<string, unknown> | null>(null);
   const [slideDirection, setSlideDirection] = useState(0);
 
   const fetchHub = useCallback(async () => {
@@ -809,10 +1015,9 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
 
   const goBack = useCallback(() => {
     setSlideDirection(-1);
-    if (view === 'room-detail' || view === 'voice-detail' || view === 'rules-detail') {
+    if (view === 'room-detail' || view === 'voice-detail') {
       setView(parentViewRef.current);
       setSelectedRoomId(null);
-      setSelectedRulesContent(null);
     } else {
       setView('mode-select');
     }
@@ -829,12 +1034,6 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
     parentViewRef.current = view === 'family' ? 'family' : 'guest';
     setView('voice-detail');
   }, [view]);
-  const goToRulesDetail = useCallback((content: Record<string, unknown>) => {
-    setSlideDirection(1);
-    parentViewRef.current = 'guest';
-    setSelectedRulesContent(content);
-    setView('rules-detail');
-  }, []);
 
   const goToGuest = useCallback(() => {
     setSlideDirection(1);
@@ -908,6 +1107,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
   const wifiQr = allGuestQrs.find(qr => qr.type === 'wifi');
   const rulesQr = allGuestQrs.find(qr => qr.type === 'house_rules');
   const contactQr = allGuestQrs.find(qr => qr.type === 'contact' || qr.type === 'emergency_contacts');
+  const emergencyQr = allGuestQrs.find(qr => qr.type === 'emergency' || qr.type === 'emergency_contacts');
 
   // Get the selected room for detail view
   const selectedRoom = selectedRoomId
@@ -918,8 +1118,9 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
   const totalFamilyModules = data.familyRooms.reduce((s, r) => s + r.qrCodes.length, 0);
 
   // Rooms for guest view (excluding quick-access modules from the grid display)
+  const QUICK_ACCESS_TYPES = ['wifi', 'house_rules', 'contact', 'emergency_contacts', 'emergency'];
   const guestModuleRooms = data.guestRooms.filter(r =>
-    r.qrCodes.some(qr => !['wifi', 'house_rules', 'contact', 'emergency_contacts'].includes(qr.type))
+    r.qrCodes.some(qr => !QUICK_ACCESS_TYPES.includes(qr.type))
   );
 
   return (
@@ -1096,7 +1297,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                 </motion.div>
               )}
 
-              {/* ══════════ GUEST VIEW ══════════ */}
+              {/* ══════════ GUEST VIEW (ALL INLINE) ══════════ */}
               {view === 'guest' && (
                 <motion.div
                   key="guest"
@@ -1108,22 +1309,22 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                   className="space-y-6 pb-4"
                 >
-                  {/* Title */}
+                  {/* 1. Home name + address subtitle */}
                   <div>
                     <h2 className="text-xl font-bold text-white">{data.home.name}</h2>
-                    <p className="text-sm text-white/50 mt-1">
-                      Bienvenue{data.home.address && ` · ${data.home.address}`}
-                    </p>
+                    {data.home.address && (
+                      <p className="text-sm text-white/50 mt-1">{data.home.address}</p>
+                    )}
                   </div>
 
-                  {/* Quick Access: WiFi full-width card */}
+                  {/* 2. WiFi full card (if exists) */}
                   {wifiQr && (
                     <motion.div variants={itemVariants} initial="hidden" animate="visible">
                       <WifiQuickCard content={wifiQr.content} />
                     </motion.div>
                   )}
 
-                  {/* Quick Access Grid */}
+                  {/* 3. Quick access 2-col grid: Messages, Emergency, Rules, Contact */}
                   <motion.div
                     variants={containerVariants}
                     initial="hidden"
@@ -1137,22 +1338,39 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                       onTap={goToVoiceDetail}
                     />
 
-                    {rulesQr && (
-                      <RulesQuickCard
-                        content={rulesQr.content}
-                        onTap={() => goToRulesDetail(rulesQr.content)}
-                      />
+                    {emergencyQr && (
+                      <motion.div variants={itemVariants}>
+                        <motion.button whileTap={{ scale: 0.97 }} className="w-full text-left">
+                          <QRTCard header={{ emoji: '🚨', title: 'Urgences' }}>
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-4 w-4 text-red-500" />
+                              <p className="text-sm font-bold text-red-600">
+                                {(emergencyQr.content.emergency_phone as string) || (emergencyQr.content.phone as string) || '112'}
+                              </p>
+                            </div>
+                            <p className="text-xs text-black/40 mt-1">Appeler en cas d'urgence</p>
+                          </QRTCard>
+                        </motion.button>
+                      </motion.div>
                     )}
 
+                    {rulesQr && <RulesInlineCard content={rulesQr.content} />}
                     {contactQr && <ContactQuickCard content={contactQr.content} />}
                   </motion.div>
 
-                  {/* Voice Recorder */}
+                  {/* 4. Emergency full inline content (if exists, shown full-width below grid) */}
+                  {emergencyQr && (
+                    <motion.div variants={itemVariants} initial="hidden" animate="visible">
+                      <EmergencyInlineCard content={emergencyQr.content} />
+                    </motion.div>
+                  )}
+
+                  {/* 5. Voice recorder */}
                   <div className="space-y-3">
                     <VoiceRecorder slug={slug} onSent={refreshVoice} />
                   </div>
 
-                  {/* Voice Messages List */}
+                  {/* 6. Voice messages list */}
                   {voiceMsgs.length > 0 && (
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-sm font-semibold text-white/70">
@@ -1164,14 +1382,14 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     </div>
                   )}
 
-                  {/* Other modules by room */}
+                  {/* 7. All remaining modules by room section (full inline content) */}
                   {guestModuleRooms.length > 0 && (
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
                       <div className="flex items-center gap-2 text-sm font-semibold text-white/70">
                         <span>📱</span> Modules par pièce
                       </div>
                       {guestModuleRooms.map((room) => (
-                        <RoomSection key={room.id} room={room} />
+                        <RoomInlineSection key={room.id} room={room} />
                       ))}
                     </motion.div>
                   )}
@@ -1293,21 +1511,6 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     onBack={goBack}
                     onRefresh={refreshVoice}
                   />
-                </motion.div>
-              )}
-
-              {/* ══════════ RULES DETAIL VIEW ══════════ */}
-              {view === 'rules-detail' && selectedRulesContent && (
-                <motion.div
-                  key="rules-detail"
-                  custom={slideDirection}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                >
-                  <RulesDetailView content={selectedRulesContent} onBack={goBack} />
                 </motion.div>
               )}
             </AnimatePresence>

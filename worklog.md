@@ -1660,3 +1660,91 @@ Stage Summary:
 - Plus besoin de passer par le dashboard pour configurer
 - 5 pièces, 11+ modules pré-remplis avec contenu utile
 - Chaque QR physique du batch est lié à un module fonctionnel
+
+---
+Task ID: 2
+Agent: hub-rewrite-agent
+Task: Rewrite hub-content.tsx guest view to display all modules inline (no /view/ navigation)
+
+Work Log:
+- Read full current file (1338 lines) to understand all existing components and structure
+- Read view-content.tsx to understand content structures for emergency, recipe, shopping list, external link, note, guestbook modules
+- Read types/database.ts for QR_MODULE_LABELS and module type definitions
+- Identified all components to keep vs remove per requirements
+- Wrote complete new hub-content.tsx with the following changes:
+  - REMOVED: RulesDetailView, ModuleCard, RoomSection components
+  - REMOVED: 'rules-detail' from HubView type union
+  - REMOVED: selectedRulesContent state variable
+  - REMOVED: goToRulesDetail callback function
+  - REMOVED: rules-detail view from main render and goBack handler
+  - ADDED: 8 new inline display components for guest view:
+    - EmergencyInlineCard (phone, hospital, pharmacy, info, contacts list)
+    - NoteInlineCard (title + text content)
+    - GuestbookInlineCard (welcome message + text)
+    - ShoppingListInlineCard (checkable item list)
+    - RecipeInlineCard (title, ingredients, steps, prep/cook time)
+    - ExternalLinkInlineCard (title, description, clickable URL button)
+    - GenericInlineCard (fallback: renders all content key-value pairs)
+    - RulesInlineCard (full rules list with numbered items)
+  - ADDED: renderModuleInline() dispatcher function
+  - ADDED: RoomInlineSection component (shows all modules with full content, filtering out quick-access types)
+  - REWRITTEN: Guest view layout to show all modules inline:
+    1. Home name + address
+    2. WiFi full card
+    3. Quick access 2-col grid (Messages, Emergency summary, Rules inline, Contact)
+    4. Emergency full inline content (below grid)
+    5. Voice recorder
+    6. Voice messages list
+    7. All remaining modules by room section (RoomInlineSection)
+  - KEPT: mode-select screen exactly as-is
+  - KEPT: family view exactly as-is (room cards + voice + settings grid)
+  - KEPT: PinModal, VoicePlayer, VoiceRecorder, WifiQuickCard, ContactQuickCard, MessagesQuickCard
+  - KEPT: FamilyRoomCard, FamilyActionCard, RoomDetailView, VoiceDetailView
+  - KEPT: All type interfaces, emoji mappings, animation variants
+  - UPDATED: RoomDetailView now uses renderModuleInline for family room detail (was using ModuleCard)
+  - UPDATED: goBack handler to only handle room-detail and voice-detail (no rules-detail)
+  - UPDATED: Header badge logic (removed rules-detail condition)
+  - ADDED imports: Phone, ExternalLink from lucide-react
+- Ran bun run lint: 0 errors, 0 warnings
+- Verified dev server compiles successfully
+
+Stage Summary:
+- Guest view now shows ALL module content inline - no navigation to /view/ pages
+- Guest scans ONE plaque QR code and sees everything directly on the hub page
+- Two-mode system (Mode Invité / Mode Famille) preserved exactly
+- Mode-select screen unchanged
+- Family view unchanged
+- 8 new inline components provide rich content display matching QRTags design system
+- Emergency module shows clickable phone, hospital, pharmacy, contacts, and info text
+- Rules shown inline with numbered list instead of separate detail page
+- Shopping list has interactive checkboxes
+- Recipe shows ingredients + numbered steps
+- External link has clickable button opening in new tab
+- Generic fallback displays all content fields as key-value pairs
+- File reduced from 1338 lines to ~820 lines (cleaner, no dead code)
+
+---
+Task ID: 2
+Agent: hub-rewrite-agent (full-stack-developer)
+Task: Rewrite hub guest view to show ALL modules with full inline content
+
+Work Log:
+- Analyzed the full hub architecture: mode-select, guest view, family view, PIN modal
+- Identified that guest view had clickable ModuleCard tiles linking to /view/[slug] pages
+- Created 8 new inline display components: RulesInlineCard, EmergencyInlineCard, NoteInlineCard, GuestbookInlineCard, ShoppingListInlineCard, RecipeInlineCard, ExternalLinkInlineCard, GenericInlineCard
+- Created renderModuleInline() dispatcher function routing module types to inline components
+- Created RoomInlineSection component showing all modules with full content inline
+- Removed: RulesDetailView, ModuleCard, RoomSection components
+- Added emergencyQr extraction for emergency quick access in guest view
+- Rewrote guest view layout: WiFi → Quick grid (Messages, Emergency, Rules, Contact) → Emergency full → Voice → Modules by room
+- Added Phone, ExternalLink imports from lucide-react
+- Removed 'rules-detail' from HubView type union
+- Kept mode-select, family view, PIN modal, voice detail, room detail unchanged
+
+Stage Summary:
+- Guest view now shows ALL module content inline without navigation to /view/ pages
+- Mode-select screen preserved (correct UX per user process)
+- Family view with PIN access preserved
+- ESLint: 0 errors, 0 warnings
+- Dev server: GET /hub/demo-hub 200 (compiles and renders correctly)
+- File: /home/z/my-project/src/app/hub/[slug]/hub-content.tsx (1542 lines)
