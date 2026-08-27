@@ -105,6 +105,9 @@ export async function POST(
       homeName,
       plan,
       existingUserId,
+      wifiSsid,
+      wifiPassword,
+      emergencyPhone,
     } = body;
 
     // ── DEMO MODE: simulate successful setup ──
@@ -237,6 +240,62 @@ export async function POST(
         address: '',
       },
     });
+
+    // Create default room
+    const defaultRoom = await db.room.create({
+      data: { homeId: home.id, name: 'Salon', icon: 'salon' },
+    });
+
+    // Create WiFi QR code if credentials provided (visible to guests)
+    if (wifiSsid?.trim()) {
+      const wifiSlug = crypto.randomBytes(4).toString('hex');
+      const wifiQr = await db.qrCode.create({
+        data: {
+          homeId: home.id,
+          roomId: defaultRoom.id,
+          name: 'WiFi',
+          type: 'wifi',
+          publicSlug: wifiSlug,
+          isActive: true,
+          isPrivate: false,
+        },
+      });
+      await db.qrContent.create({
+        data: {
+          qrCodeId: wifiQr.id,
+          contentJson: JSON.stringify({
+            ssid: wifiSsid.trim(),
+            password: wifiPassword?.trim() || '',
+            security: 'WPA2',
+          }),
+        },
+      });
+    }
+
+    // Create emergency contact QR code if phone provided
+    if (emergencyPhone?.trim()) {
+      const contactSlug = crypto.randomBytes(4).toString('hex');
+      const contactQr = await db.qrCode.create({
+        data: {
+          homeId: home.id,
+          roomId: defaultRoom.id,
+          name: 'Contact',
+          type: 'contact',
+          publicSlug: contactSlug,
+          isActive: true,
+          isPrivate: false,
+        },
+      });
+      await db.qrContent.create({
+        data: {
+          qrCodeId: contactQr.id,
+          contentJson: JSON.stringify({
+            name: fullName.trim(),
+            phone: emergencyPhone.trim(),
+          }),
+        },
+      });
+    }
 
     // Ensure setupToken is set on the plaque (for old plaques that don't have one)
     const setupToken = plaque.setupToken || `SETUP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;

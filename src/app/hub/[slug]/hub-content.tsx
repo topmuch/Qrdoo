@@ -346,9 +346,9 @@ function PinModal({
 function WifiQuickCard({ content }: { content: Record<string, unknown> }) {
   const [copied, setCopied] = useState(false);
   const [showPw, setShowPw] = useState(false);
-  const networkName = (content.network_name as string) || 'Non configuré';
+  const networkName = (content.network_name as string) || (content.ssid as string) || 'Non configuré';
   const password = (content.password as string) || '';
-  const securityType = (content.security_type as string) || '';
+  const securityType = (content.security_type as string) || (content.security as string) || '';
 
   const copyPassword = async () => {
     if (!password) return;
@@ -802,11 +802,12 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
 
   const goToVoiceDetail = useCallback(() => {
     setSlideDirection(1);
+    parentViewRef.current = view === 'family' ? 'family' : 'guest';
     setView('voice-detail');
-  }, []);
-
+  }, [view]);
   const goToRulesDetail = useCallback((content: Record<string, unknown>) => {
     setSlideDirection(1);
+    parentViewRef.current = 'guest';
     setSelectedRulesContent(content);
     setView('rules-detail');
   }, []);
@@ -837,7 +838,8 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
             parentViewRef.current = 'family';
             setView('family');
           } else if (pinModalFor === 'settings') {
-            toast.success('Accès paramètres autorisé');
+            toast.success('Bienvenue ! Redirection vers le dashboard...');
+            setTimeout(() => { window.location.href = '/dashboard'; }, 1000);
           }
         }
       })
