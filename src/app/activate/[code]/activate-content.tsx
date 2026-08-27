@@ -76,42 +76,40 @@ export function ActivatePageContent({ params }: { params: Promise<{ code: string
     return map[step] || 1;
   }, [step]);
 
-  // ── Check code on mount ──
+  // ── Check code on mount (uses /api/setup/[code] which handles both setupToken and activationCode) ──
   useEffect(() => {
     async function check() {
       try {
-        const res = await fetch(`/api/client/check-code?code=${encodeURIComponent(code)}`);
+        const res = await fetch(`/api/setup/${encodeURIComponent(code)}`);
         const data = await res.json();
 
-        if (data.status === 'active' && data.physicalQr?.dynamicQrCode?.publicSlug) {
-          // Already activated → redirect to view
-          window.location.href = `/view/${data.physicalQrCode.dynamicQrCode.publicSlug}`;
-          return;
-        }
-
-        if (['lost', 'cancelled', 'not_found'].includes(data.status)) {
+        if (!res.ok) {
           setStep('error');
-          setErrorMsg(
-            data.status === 'not_found' ? 'Ce QR code n\'existe pas.' :
-            data.status === 'lost' ? 'Ce QR code a été signalé comme perdu.' :
-            'Ce QR code a été annulé.'
-          );
+          setErrorMsg(data.error || 'Ce QR code n\'existe pas.');
           return;
         }
 
-        // Inactive = available for setup
-        if (data.physicalQr?.id) setPhysicalQrId(data.physicalQr.id);
+        // Already claimed/activated → redirect to hub
+        if (data.status === 'claimed') {
+          if (data.hubSlug) {
+            window.location.href = `/hub/${data.hubSlug}`;
+          } else {
+            setStep('error');
+            setErrorMsg('Cette plaque est déjà configurée.');
+          }
+          return;
+        }
+
+        // Available for setup
+        if (data.plaque?.id) setPhysicalQrId(data.plaque.id);
 
         // Pre-fill if logged in
         if (session?.user) {
           const u = session.user as Record<string, unknown>;
           setEmail((u?.email as string) || '');
           setFullName((u?.name as string) || '');
-          // Skip account step if already logged in
-          setStep('profile');
-        } else {
-          setStep('profile');
         }
+        setStep('profile');
       } catch {
         setStep('error');
         setErrorMsg('Impossible de vérifier le code. Réessayez.');
@@ -139,7 +137,7 @@ export function ActivatePageContent({ params }: { params: Promise<{ code: string
     if (step === 'profile') return true;
     if (step === 'account') {
       if (session?.user) return true;
-      return email.includes('@') && password.length >= 4 && fullName.trim().length > 0;
+      return email.includes('@') && password.length >= 6 && fullName.trim().length > 0;
     }
     if (step === 'config') return homeName.trim().length > 0;
     return true;
@@ -168,10 +166,10 @@ export function ActivatePageContent({ params }: { params: Promise<{ code: string
         if (userId) body.existingUserId = userId;
       }
 
-      const res = await fetch(`/api/client/activate`, {
+      const res = await fetch(`/api/setup/${encodeURIComponent(code)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, ...body }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur lors de l\'activation');
@@ -379,7 +377,7 @@ export function ActivatePageContent({ params }: { params: Promise<{ code: string
                         <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">Mot de passe</label>
                         <input
                           type="password"
-                          placeholder="Minimum 4 caractères"
+                          placeholder="Minimum 6 caractères"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           className={qrtInput}

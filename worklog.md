@@ -1540,3 +1540,22 @@ Stage Summary:
 - Hub content area properly constrained with responsive padding
 - Demo views (setup + hub) both render QRTags style correctly
 - 0 lint errors, 0 console errors
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix "Champs requis: code, moduleType" error on QR activation
+
+Work Log:
+- Identified the root cause: `activate-content.tsx` wizard was calling `/api/client/activate` which expects `{code, moduleType}` for simple QR module activation
+- The wizard flow (create account + home + PIN + hubSlug) has its own API at `/api/setup/[token]` which already handles all this logic
+- Fixed 3 things in `activate-content.tsx`:
+  1. Changed check-code fetch from `/api/client/check-code?code=...` to `/api/setup/${code}` GET
+  2. Changed submit fetch from `/api/client/activate` POST to `/api/setup/${code}` POST  
+  3. Updated password validation from `>= 4` to `>= 6` chars (matching the API requirement)
+  4. Updated password placeholder text to match
+- Also updated the check response handling to match `/api/setup/[token]` response format (status 'claimed' vs 'active', plaque vs physicalQr)
+
+Stage Summary:
+- Bug fixed in `/src/app/activate/[code]/activate-content.tsx`
+- The wizard now correctly calls the setup API which handles: user creation, home creation, PIN hashing, plaque claiming, hubSlug generation, subscription creation
+- No new API endpoint was needed - `/api/setup/[token]` already existed with the correct logic
