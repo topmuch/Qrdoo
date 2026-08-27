@@ -67,7 +67,7 @@ export function QRTActions({
   prevLabel = '← Précédent',
 }: QRTActionsProps) {
   return (
-    <div className="grid gap-4 mt-5 mb-10" style={{ gridTemplateColumns: onPrevious ? '140px 1fr' : '1fr' }}>
+    <div className="grid gap-3 sm:gap-4 mt-5 mb-10" style={{ gridTemplateColumns: onPrevious ? 'minmax(100px,140px) 1fr' : '1fr' }}>
       {onPrevious && (
         <QRTButton variant="secondary" onClick={onPrevious}>
           {prevLabel}

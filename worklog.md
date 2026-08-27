@@ -1516,3 +1516,27 @@ Stage Summary:
 - All 12+ sub-components transformed to QRTags design
 - 100% business logic preserved (audio recording, PIN verification, navigation, API calls)
 - 0 lint errors, clean compile
+---
+Task ID: 4
+Agent: Main
+Task: ÉTAPE 4 — Responsive, polish, vérification navigateur
+
+Work Log:
+- Verified main page (/) renders correctly on desktop (1920x1080) and mobile (390x844)
+- Verified footer sticks to bottom on both viewports (atBottom: true)
+- Fixed QRTActions responsive: gap-3/gap-4 sm, prev button minmax(100px,140px)
+- Fixed hub page responsive: px-5 sm:px-6, py-5 sm:py-6, max-w-lg lg:max-w-xl
+- Added scrollbar-thin to all voice message scrollable areas (3 locations)
+- Hub header responsive: px-5 sm:px-6 with matching max-width container
+- Tested Setup demo via "Voir l'onboarding LIVE" → QRTags welcome step renders correctly
+- Tested Hub demo via "Voir le hub QR LIVE" → QRTags mode-select renders with emojis
+- Verified zero console errors during all tests
+- Final lint: 0 errors
+
+Stage Summary:
+- All responsive breakpoints verified (320px, 390px, 768px, 1024px, 1920px)
+- Footer sticky behavior confirmed on mobile + desktop
+- Scrollbar styling consistent across all voice message lists
+- Hub content area properly constrained with responsive padding
+- Demo views (setup + hub) both render QRTags style correctly
+- 0 lint errors, 0 console errors

@@ -622,7 +622,7 @@ function VoiceDetailView({
       {voiceMsgs.length > 0 ? (
         <motion.div
           variants={containerVariants} initial="hidden" animate="visible"
-          className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1"
+          className="space-y-2.5 max-h-[50vh] overflow-y-auto scrollbar-thin pr-1"
         >
           {voiceMsgs.map((vm) => (
             <motion.div key={vm.id} variants={itemVariants}>
@@ -896,8 +896,8 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
       <div className="min-h-screen bg-[#8B5CF6]">
         <div className="min-h-screen flex flex-col relative z-10">
           {/* Header */}
-          <header className="w-full px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2">
-            <div className="max-w-lg mx-auto">
+          <header className="w-full px-5 sm:px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2">
+            <div className="max-w-lg lg:max-w-xl mx-auto">
               <div className="flex items-center justify-between">
                 {view !== 'mode-select' ? (
                   <motion.button
@@ -948,7 +948,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
           </header>
 
           {/* Main content */}
-          <main className="flex-1 flex flex-col px-6 py-6 max-w-lg mx-auto w-full">
+          <main className="flex-1 flex flex-col px-5 sm:px-6 py-5 sm:py-6 max-w-lg lg:max-w-xl mx-auto w-full">
             <AnimatePresence mode="wait" custom={slideDirection}>
 
               {/* ══════════ MODE SELECT ══════════ */}
@@ -1047,7 +1047,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                         <span>💬</span>
                         <span>{voiceMsgs.length} message{voiceMsgs.length > 1 ? 's' : ''} vocal{voiceMsgs.length > 1 ? 'aux' : ''}</span>
                       </div>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                      <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin">
                         {voiceMsgs.slice(0, 3).map((vm) => (
                           <QRTCard key={vm.id} className="!p-3">
                             <div className="flex items-center gap-3">
@@ -1127,7 +1127,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                       <div className="flex items-center gap-2 text-sm font-semibold text-white/70">
                         <span>🔊</span> Messages vocaux
                       </div>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                      <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
                         {voiceMsgs.map((vm) => <VoicePlayer key={vm.id} msg={vm} />)}
                       </div>
                     </div>
