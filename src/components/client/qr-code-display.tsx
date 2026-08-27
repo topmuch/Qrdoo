@@ -25,7 +25,6 @@ function getCacheKey(options: QrGeneratorOptions): string {
 export function QrCodeDisplay({
   value,
   size = 250,
-  logoUrl,
   style = 'classic',
   fgColor = '#1e1b4b',
   bgColor = '#ffffff',
@@ -35,8 +34,8 @@ export function QrCodeDisplay({
   const [error, setError] = useState(false);
 
   const cacheKey = useMemo(
-    () => getCacheKey({ data: value, size, logoUrl, fgColor, bgColor, style: style as QrGeneratorOptions['style'] }),
-    [value, size, logoUrl, fgColor, bgColor, style]
+    () => getCacheKey({ data: value, size, fgColor, bgColor, style: style as QrGeneratorOptions['style'] }),
+    [value, size, fgColor, bgColor, style]
   );
 
   useEffect(() => {
@@ -57,15 +56,11 @@ export function QrCodeDisplay({
         const url = await generateQrCode({
           data: value,
           size,
-          logoUrl,
           fgColor,
           bgColor,
           style: style as QrGeneratorOptions['style'],
         });
-        if (cancelled) {
-          URL.revokeObjectURL(url);
-          return;
-        }
+        if (cancelled) return;
         qrCache.set(cacheKey, url);
         setQrUrl(url);
       } catch {
@@ -77,7 +72,7 @@ export function QrCodeDisplay({
 
     generate();
     return () => { cancelled = true; };
-  }, [cacheKey, value, size, logoUrl, fgColor, bgColor, style]);
+  }, [cacheKey, value, size, fgColor, bgColor, style]);
 
   const handleDownload = useCallback(() => {
     if (!qrUrl) return;
