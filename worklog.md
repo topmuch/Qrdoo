@@ -1854,3 +1854,37 @@ Stage Summary:
 - Logo integrated across all 10 page components
 - Branding updated from QR Domotik to ORDOMOTIK in metadata
 - Footer logos use reduced opacity for subtle branding
+
+---
+Task ID: mass-redesign
+Agent: Main
+Task: MASSIVE site redesign — wide 16:9 layout, clean dark sidebars, reduced nav, split login
+
+Work Log:
+- Read all 4 target files for current state analysis
+- Read worklog.md for project context
+- Rewrote super-admin-layout.tsx: replaced rose-950 gradient sidebar with clean slate-950, violet (#8B5CF6) accent for active items, modern header with search placeholder + avatar, sticky header with backdrop blur, content wrapped in max-w-[1600px], minimal footer with logo
+- Rewrote client-layout.tsx: replaced violet gradient sidebar with clean slate-950, emerald (#10B981) accent, REDUCED nav from 16+ items to 6 (Principal: Mon Dashboard, Mon Hub QR; Gestion: Mes Maisons, Mes Pièces, Journal d'activité; Outils: Paramètres), added breadcrumb navigation in header, extracted SidebarItem helper component, added getBreadcrumb helper
+- Rewrote login-form.tsx: changed from centered max-w-md card on flat #0a0f1e to full-width split layout (left: branding panel with ORDOMOTIK logo, tagline, feature pills, stats; right: form area), subtle gradient background (slate-950), grid dot pattern overlay, mobile stacks vertically (logo on top, form below)
+- Rewrote admin-layout.tsx: replaced light card sidebar with clean slate-950, blue (#3B82F6) accent, matching header/footer pattern as other layouts, content wrapped in max-w-[1600px]
+- Ran `bun run lint` — 0 errors
+- Verified dev server compiling successfully
+
+Design System Applied:
+- ALL dashboards: slate-950 dark sidebar with subtle border-slate-800/80
+- Super Admin accent: violet (#8B5CF6)
+- Client accent: emerald (#10B981)
+- Admin accent: blue (#3B82F6)
+- Active nav: {accent}-500/15 bg, {accent}-400 text, small dot indicator
+- Inactive nav: slate-400 text, slate-800/60 hover bg
+- Section labels: 10px uppercase tracking-widest slate-500
+- Header: sticky, backdrop-blur-md, 14 height, search placeholder with ⌘K shortcut
+- Content: p-6 lg:p-8, max-w-[1600px] mx-auto
+- Footer: minimal, left logo+name, right context label
+
+Stage Summary:
+- All 4 layout/form files completely redesigned
+- Consistent modern Apple/Linear-style aesthetic across all dashboards
+- Client nav reduced from 16+ to 6 clean items
+- Login page now full-width split layout with branding
+- Lint passes with 0 errors

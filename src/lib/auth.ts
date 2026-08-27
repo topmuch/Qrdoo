@@ -22,9 +22,9 @@ export const authOptions: NextAuthOptions = {
           if (!user) return null;
 
           const hash = user.passwordHash || '';
-          const isDemo = credentials.password === 'demo';
-          const isValid = isDemo || (hash ? await compare(credentials.password, hash) : false);
+          if (!hash) return null;
 
+          const isValid = await compare(credentials.password, hash);
           if (!isValid) return null;
 
           return {

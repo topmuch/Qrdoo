@@ -7,27 +7,20 @@ import {
   QrCode,
   Menu,
   X,
-  ChevronRight,
   LogOut,
+  LayoutDashboard,
   Home,
   DoorOpen,
   Activity,
   Settings2,
   ArrowLeftRight,
-  Bell,
-  Store,
-  Sparkles,
-  BarChart3,
-  Plug,
-  Globe,
-  CreditCard,
-  Package,
-  ShoppingBag,
-  ClipboardList,
+  Search,
+  ChevronRight,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export type ClientPage =
   | 'client-home'
@@ -35,17 +28,7 @@ export type ClientPage =
   | 'client-homes'
   | 'client-rooms'
   | 'client-activity'
-  | 'client-chores'
-  | 'client-settings'
-  | 'client-notifications'
-  | 'client-analytics'
-  | 'client-automations'
-  | 'client-webhooks'
-  | 'client-artisans'
-  | 'client-monetization'
-  | 'client-stock'
-  | 'client-packs'
-  | 'client-marketplace';
+  | 'client-settings';
 
 interface ClientLayoutProps {
   activePage: ClientPage;
@@ -55,33 +38,22 @@ interface ClientLayoutProps {
   children: React.ReactNode;
 }
 
-const HUB_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode }[] = [
-  { key: 'client-hub', label: 'Mon Hub QR', icon: <QrCode className="h-5 w-5" /> },
+const MAIN_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode }[] = [
+  { key: 'client-home', label: 'Mon Dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+  { key: 'client-hub', label: 'Mon Hub QR', icon: <QrCode className="h-4 w-4" /> },
 ];
 
-const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
-  { key: 'client-home', label: 'Mon Dashboard', icon: <Home className="h-5 w-5" /> },
-  { key: 'client-homes', label: 'Mes Maisons', icon: <Home className="h-5 w-5" /> },
-  { key: 'client-rooms', label: 'Mes Pièces', icon: <DoorOpen className="h-5 w-5" /> },
-  { key: 'client-activity', label: "Journal d'activité", icon: <Activity className="h-5 w-5" /> },
-  { key: 'client-chores', label: 'Corvées & Récompenses', icon: <Sparkles className="h-5 w-5" />, badge: 'V2' },
-  { key: 'client-stock', label: 'Inventaire & DLC', icon: <ClipboardList className="h-5 w-5" />, badge: 'V3' },
-  { key: 'client-notifications', label: 'Notifications', icon: <Bell className="h-5 w-5" /> },
-  { key: 'client-analytics', label: 'Statistiques Scan', icon: <BarChart3 className="h-5 w-5" />, badge: 'V3' },
+const GESTION_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode }[] = [
+  { key: 'client-homes', label: 'Mes Maisons', icon: <Home className="h-4 w-4" /> },
+  { key: 'client-rooms', label: 'Mes Pièces', icon: <DoorOpen className="h-4 w-4" /> },
+  { key: 'client-activity', label: "Journal d'activité", icon: <Activity className="h-4 w-4" /> },
 ];
 
-const INTEGRATION_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
-  { key: 'client-automations', label: 'Domotique (HA/Jeedom)', icon: <Plug className="h-5 w-5" />, badge: 'V3' },
-  { key: 'client-webhooks', label: 'Webhooks & Automations', icon: <Globe className="h-5 w-5" />, badge: 'V3' },
-  { key: 'client-settings', label: 'Paramètres', icon: <Settings2 className="h-5 w-5" /> },
+const OUTILS_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode }[] = [
+  { key: 'client-settings', label: 'Paramètres', icon: <Settings2 className="h-4 w-4" /> },
 ];
 
-const MARKETPLACE_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
-  { key: 'client-artisans', label: 'Mon Quartier', icon: <Store className="h-5 w-5" />, badge: 'V3' },
-  { key: 'client-marketplace', label: 'Marketplace', icon: <ShoppingBag className="h-5 w-5" />, badge: 'V3' },
-  { key: 'client-packs', label: 'Packs & Config', icon: <Package className="h-5 w-5" />, badge: 'B2B' },
-  { key: 'client-monetization', label: 'Monétisation', icon: <CreditCard className="h-5 w-5" />, badge: 'V3' },
-];
+const ALL_ITEMS = [...MAIN_ITEMS, ...GESTION_ITEMS, ...OUTILS_ITEMS];
 
 export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogout, children }: ClientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -106,177 +78,86 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
     }
   }, []);
 
-  const allItems = [
-    ...HUB_ITEMS,
-    ...DASHBOARD_ITEMS,
-    ...INTEGRATION_ITEMS,
-    ...MARKETPLACE_ITEMS,
-  ];
-  const current = allItems.find((n) => n.key === activePage) || allItems[0];
+  const current = ALL_ITEMS.find((n) => n.key === activePage) || ALL_ITEMS[0];
+
+  // Build breadcrumb segments
+  const breadcrumb = getBreadcrumb(activePage);
 
   return (
-    <div className="min-h-screen flex bg-muted/30">
+    <div className="min-h-screen flex bg-background">
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar - Violet/Purple gradient */}
+      {/* Sidebar — Clean slate-950 with emerald accent */}
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r-violet-900/50 bg-gradient-to-b from-violet-950 via-violet-900 to-purple-950 transition-transform duration-300 lg:static lg:translate-x-0',
+        'fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-slate-950 border-r border-slate-800/80 transition-transform duration-300 lg:static lg:translate-x-0',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full',
       )}>
         {/* Brand */}
         <div className="flex h-16 items-center gap-3 px-5">
           <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-7 w-auto object-contain brightness-0 invert" />
-          <div>
-            <p className="text-[11px] text-violet-300/70">Espace Client</p>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-white tracking-tight">ORDOMOTIK</span>
+            <span className="text-[10px] text-slate-500 font-medium">Espace Client</span>
           </div>
-          <Button variant="ghost" size="icon" className="ml-auto lg:hidden h-8 w-8 text-white hover:bg-violet-800/50" onClick={() => setSidebarOpen(false)}>
+          <Button variant="ghost" size="icon" className="ml-auto lg:hidden h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800" onClick={() => setSidebarOpen(false)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="h-px bg-violet-800/50" />
+        <div className="h-px bg-slate-800/60" />
 
         {/* Navigation */}
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="flex flex-col gap-1">
-            {/* Hub section */}
-            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
-              Mon Hub
+            {/* Main section */}
+            <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              Principal
             </p>
-            {HUB_ITEMS.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => {
-                  onPageChange(item.key);
-                  setSidebarOpen(false);
-                }}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                  activePage === item.key
-                    ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/30'
-                    : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
-                )}
-              >
-                {item.icon}
-                <span className="flex-1 text-left">{item.label}</span>
-                {activePage === item.key && <ChevronRight className="h-4 w-4" />}
-              </button>
+            {MAIN_ITEMS.map((item) => (
+              <SidebarItem key={item.key} item={item} activePage={activePage} onClick={() => { onPageChange(item.key); setSidebarOpen(false); }} />
             ))}
 
-            <div className="my-3 h-px bg-violet-800/50" />
+            <div className="my-3 h-px bg-slate-800/60" />
 
-            {/* Dashboard section */}
-            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
-              Mon Espace
+            {/* Gestion section */}
+            <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              Gestion
             </p>
-            {DASHBOARD_ITEMS.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => {
-                  onPageChange(item.key);
-                  setSidebarOpen(false);
-                }}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                  activePage === item.key
-                    ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/30'
-                    : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
-                )}
-              >
-                {item.icon}
-                <span className="flex-1 text-left">{item.label}</span>
-                {item.badge && (
-                  <Badge className="text-[10px] px-1.5 py-0 bg-violet-800/40 text-violet-300/60 hover:bg-violet-800/60">
-                    {item.badge}
-                  </Badge>
-                )}
-                {activePage === item.key && <ChevronRight className="h-4 w-4" />}
-              </button>
+            {GESTION_ITEMS.map((item) => (
+              <SidebarItem key={item.key} item={item} activePage={activePage} onClick={() => { onPageChange(item.key); setSidebarOpen(false); }} />
             ))}
 
-            <div className="my-3 h-px bg-violet-800/50" />
+            <div className="my-3 h-px bg-slate-800/60" />
 
-            {/* Integrations section */}
-            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
-              Intégrations
+            {/* Outils section */}
+            <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+              Outils
             </p>
-            {INTEGRATION_ITEMS.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => {
-                  onPageChange(item.key);
-                  setSidebarOpen(false);
-                }}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                  activePage === item.key
-                    ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/30'
-                    : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
-                )}
-              >
-                {item.icon}
-                <span className="flex-1 text-left">{item.label}</span>
-                {item.badge && (
-                  <Badge className="text-[10px] px-1.5 py-0 bg-violet-800/40 text-violet-300/60 hover:bg-violet-800/60">
-                    {item.badge}
-                  </Badge>
-                )}
-                {activePage === item.key && <ChevronRight className="h-4 w-4" />}
-              </button>
-            ))}
-
-            <div className="my-3 h-px bg-violet-800/50" />
-
-            {/* Marketplace section */}
-            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
-              Marketplace & B2B
-            </p>
-            {MARKETPLACE_ITEMS.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => {
-                  onPageChange(item.key);
-                  setSidebarOpen(false);
-                }}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                  activePage === item.key
-                    ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/30'
-                    : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
-                )}
-              >
-                {item.icon}
-                <span className="flex-1 text-left">{item.label}</span>
-                {item.badge && (
-                  <Badge className="text-[10px] px-1.5 py-0 bg-violet-800/40 text-violet-300/60 hover:bg-violet-800/60">
-                    {item.badge}
-                  </Badge>
-                )}
-                {activePage === item.key && <ChevronRight className="h-4 w-4" />}
-              </button>
+            {OUTILS_ITEMS.map((item) => (
+              <SidebarItem key={item.key} item={item} activePage={activePage} onClick={() => { onPageChange(item.key); setSidebarOpen(false); }} />
             ))}
           </nav>
         </ScrollArea>
 
-        <div className="h-px bg-violet-800/50" />
+        <div className="h-px bg-slate-800/60" />
 
-        {/* Footer */}
-        <div className="p-3 flex flex-col gap-1">
+        {/* Footer actions */}
+        <div className="p-3 flex flex-col gap-0.5">
           <button
             onClick={onSwitchToAdmin}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-violet-200/70 hover:bg-violet-800/40 hover:text-white transition-all"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-slate-800/60 hover:text-slate-300 transition-all duration-150"
           >
-            <ArrowLeftRight className="h-5 w-5" />
+            <ArrowLeftRight className="h-4 w-4" />
             Passer en admin
           </button>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-violet-300/70 hover:bg-red-500/20 hover:text-red-300 transition-all"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-slate-500 hover:bg-red-500/10 hover:text-red-400 transition-all duration-150"
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="h-4 w-4" />
             Déconnexion
           </button>
         </div>
@@ -284,33 +165,113 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
 
       {/* Main content */}
       <div className="flex flex-1 flex-col min-w-0">
-        <header className="flex h-16 items-center gap-4 border-b bg-card px-4 lg:px-8">
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+        {/* Header bar with breadcrumb */}
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-md px-6 lg:px-8">
+          <Button variant="ghost" size="icon" className="lg:hidden h-8 w-8" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
-          <div className="flex items-center gap-2">
-            {current?.icon}
-            <h2 className="text-lg font-semibold">{current?.label}</h2>
+
+          {/* Breadcrumb-style nav */}
+          <nav className="hidden sm:flex items-center gap-1.5 text-sm">
+            {breadcrumb.map((crumb, i) => (
+              <span key={i} className="flex items-center gap-1.5">
+                {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                {i === breadcrumb.length - 1 ? (
+                  <span className="font-medium text-foreground">{crumb}</span>
+                ) : (
+                  <span className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer">{crumb}</span>
+                )}
+              </span>
+            ))}
+          </nav>
+
+          {/* Page title on mobile */}
+          <span className="sm:hidden text-sm font-medium text-foreground">{current?.label}</span>
+
+          {/* Search placeholder */}
+          <div className="hidden md:flex items-center gap-2 ml-8 flex-1 max-w-md">
+            <div className="flex items-center gap-2 w-full rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-sm text-muted-foreground">
+              <Search className="h-4 w-4" />
+              <span>Rechercher...</span>
+              <kbd className="ml-auto hidden lg:inline-flex h-5 items-center gap-1 rounded border border-border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+                ⌘K
+              </kbd>
+            </div>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 rounded-full bg-violet-100 dark:bg-violet-500/10 px-3 py-1.5">
-              <div className="h-6 w-6 rounded-full bg-violet-600 flex items-center justify-center">
-                <span className="text-[10px] font-bold text-white">UD</span>
-              </div>
-              <span className="text-xs font-medium text-violet-700 dark:text-violet-300">Utilisateur Démo</span>
+
+          <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-border px-2 py-1 hover:bg-muted/50 transition-colors cursor-pointer">
+              <span className="hidden sm:inline text-xs font-medium text-foreground">Utilisateur Démo</span>
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="bg-emerald-500 text-white text-[10px] font-bold">UD</AvatarFallback>
+              </Avatar>
+              <ChevronDown className="h-3 w-3 text-muted-foreground hidden sm:block" />
             </div>
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-8 overflow-auto">{children}</main>
+        {/* Content area — wide */}
+        <main className="flex-1 p-6 lg:p-8 overflow-auto">
+          <div className="max-w-[1600px] mx-auto">
+            {children}
+          </div>
+        </main>
 
-        <footer className="border-t bg-card px-4 py-3 lg:px-8">
-          <div className="flex flex-col items-center gap-1">
-            <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-4 w-auto object-contain brightness-0 invert opacity-30" />
-            <p className="text-center text-xs text-muted-foreground">Espace Client</p>
+        {/* Footer — minimal */}
+        <footer className="border-t px-6 py-3 lg:px-8">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-3.5 w-auto object-contain brightness-0 invert opacity-40" />
+              <span>ORDOMOTIK</span>
+            </div>
+            <span>Espace Client</span>
           </div>
         </footer>
       </div>
     </div>
   );
+}
+
+/* ── Reusable sidebar nav item ──────────────────────────────── */
+
+function SidebarItem({
+  item,
+  activePage,
+  onClick,
+}: {
+  item: { key: ClientPage; label: string; icon: React.ReactNode };
+  activePage: ClientPage;
+  onClick: () => void;
+}) {
+  const isActive = activePage === item.key;
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150',
+        isActive
+          ? 'bg-emerald-500/15 text-emerald-400'
+          : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200',
+      )}
+    >
+      {item.icon}
+      <span className="flex-1 text-left">{item.label}</span>
+      {isActive && <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />}
+    </button>
+  );
+}
+
+/* ── Breadcrumb helper ──────────────────────────────────────── */
+
+function getBreadcrumb(page: ClientPage): string[] {
+  const map: Record<ClientPage, string[]> = {
+    'client-home': ['Mon Dashboard'],
+    'client-hub': ['Principal', 'Mon Hub QR'],
+    'client-homes': ['Gestion', 'Mes Maisons'],
+    'client-rooms': ['Gestion', 'Mes Pièces'],
+    'client-activity': ['Gestion', "Journal d'activité"],
+    'client-settings': ['Outils', 'Paramètres'],
+  };
+  return map[page] ?? ['Dashboard'];
 }

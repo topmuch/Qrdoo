@@ -56,7 +56,7 @@ function Navbar({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashboard: 
         ? 'bg-slate-950/80 backdrop-blur-2xl border-b border-white/[0.06] shadow-lg shadow-black/20'
         : 'bg-transparent'
     }`}>
-      <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center justify-between h-16">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-8 flex items-center justify-between h-16">
         <a href="#hero" onClick={(e) => handleNavClick(e, '#hero')} className="flex items-center gap-2.5 group">
           <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-8 w-auto object-contain brightness-0 invert" />
         </a>
@@ -120,7 +120,7 @@ function HeroSection({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashbo
         }}
       />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 w-full pt-24 pb-16 relative z-10">
+      <div className="max-w-[1600px] mx-auto px-4 md:px-8 w-full pt-24 pb-16 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
 
           {/* Left: Text content */}
@@ -266,7 +266,7 @@ function CtaFinal({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashboard
     >
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-violet-500/10 rounded-full blur-[120px] pointer-events-none" />
       <FadeIn>
-        <div className="max-w-3xl mx-auto text-center relative z-10">
+        <div className="max-w-[1000px] mx-auto text-center relative z-10">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-white">
             Prêt à transformer votre maison ?
           </h2>
@@ -291,7 +291,7 @@ function CtaFinal({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashboard
 function Footer() {
   return (
     <footer className="bg-slate-950 border-t border-white/[0.06] py-12 md:py-16 px-4 md:px-8">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1600px] mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
