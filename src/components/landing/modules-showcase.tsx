@@ -40,35 +40,35 @@ const MODULES: ModuleItem[] = [
   {
     icon: <BookOpen className="w-5 h-5" />,
     name: 'Guide du logement',
-    description: 'Instructions completes pour vos invites.',
+    description: 'Instructions complètes pour vos invités.',
     gradient: 'from-blue-500 to-cyan-600',
     category: 'essential',
   },
   {
     icon: <Home className="w-5 h-5" />,
-    name: 'Regles de la maison',
-    description: 'Règles claires, zero conflit.',
+    name: 'Règles de la maison',
+    description: 'Règles claires, zéro conflit.',
     gradient: 'from-amber-500 to-orange-600',
     category: 'essential',
   },
   {
     icon: <ShieldCheck className="w-5 h-5" />,
     name: 'Urgence & Contacts',
-    description: 'Numeros utiles et contacts en un tap.',
+    description: 'Numéros utiles et contacts en un tap.',
     gradient: 'from-rose-500 to-red-600',
     category: 'essential',
   },
   {
     icon: <Mic className="w-5 h-5" />,
     name: 'Messages vocaux',
-    description: 'Laissez des notes vocales a la famille.',
+    description: 'Laissez des notes vocales à la famille.',
     gradient: 'from-violet-500 to-purple-600',
     category: 'communication',
   },
   {
     icon: <MessageSquare className="w-5 h-5" />,
     name: 'Livre d\'or',
-    description: 'Collectez les avis de vos invites.',
+    description: 'Collectez les avis de vos invités.',
     gradient: 'from-pink-500 to-fuchsia-600',
     category: 'communication',
   },
@@ -88,8 +88,8 @@ const MODULES: ModuleItem[] = [
   },
   {
     icon: <ClipboardList className="w-5 h-5" />,
-    name: 'Taches menageres',
-    description: 'Attribuez et suivez les taches du foyer.',
+    name: 'Tâches ménagères',
+    description: 'Attribuez et suivez les tâches du foyer.',
     gradient: 'from-sky-500 to-blue-600',
     category: 'organisation',
   },
@@ -103,13 +103,13 @@ const MODULES: ModuleItem[] = [
   {
     icon: <UtensilsCrossed className="w-5 h-5" />,
     name: 'Recettes',
-    description: 'Partagez vos recettes preferees.',
+    description: 'Partagez vos recettes préférées.',
     gradient: 'from-red-500 to-rose-600',
     category: 'organisation',
   },
   {
     icon: <Pill className="w-5 h-5" />,
-    name: 'Medicaments',
+    name: 'Médicaments',
     description: 'Rappels et posologie accessibles.',
     gradient: 'from-teal-500 to-emerald-600',
     category: 'organisation',
@@ -124,14 +124,14 @@ const MODULES: ModuleItem[] = [
   {
     icon: <Tag className="w-5 h-5" />,
     name: 'Flash Sale',
-    description: 'Promotions ephemeres en un scan.',
+    description: 'Promotions éphémères en un scan.',
     gradient: 'from-fuchsia-500 to-pink-600',
     category: 'business',
   },
   {
     icon: <Ticket className="w-5 h-5" />,
     name: 'Coupon',
-    description: 'Distribuez des bons de reduction.',
+    description: 'Distribuez des bons de réduction.',
     gradient: 'from-amber-500 to-yellow-600',
     category: 'business',
   },
@@ -172,7 +172,7 @@ export function ModulesShowcase() {
           </FadeIn>
           <FadeIn delay={0.1}>
             <p className="text-white/50 text-lg md:text-xl max-w-2xl mx-auto">
-              Des interfaces immersives pour chaque usage. Chaque QR code devient une experience.
+              Des interfaces immersives pour chaque usage. Chaque QR code devient une expérience.
             </p>
           </FadeIn>
         </div>

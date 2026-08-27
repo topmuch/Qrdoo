@@ -39,7 +39,7 @@ const DEMOS: DemoSlide[] = [
   {
     id: 'airbnb',
     title: 'Mode Airbnb',
-    subtitle: 'Vos invites scannent, vous collectez les avis',
+    subtitle: 'Vos invités scannent, vous collectez les avis',
     price: '9,90\u20ac / mois',
     badge: 'Airbnb',
     badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
@@ -47,7 +47,7 @@ const DEMOS: DemoSlide[] = [
     phoneGradient: 'from-amber-500 via-orange-600 to-red-600',
     phoneTitle: 'Loft Paris 11',
     phoneModules: [
-      { icon: <Wifi className="w-4 h-4" />, label: 'Wi-Fi', value: 'Loft_Invites' },
+      { icon: <Wifi className="w-4 h-4" />, label: 'Wi-Fi', value: 'Loft_Invités' },
       { icon: <BookOpen className="w-4 h-4" />, label: 'Guide', value: '12 sections' },
       { icon: <Star className="w-4 h-4" />, label: 'Avis', value: 'Bouclier actif' },
       { icon: <ShoppingBag className="w-4 h-4" />, label: 'Upsell', value: '3 services' },
