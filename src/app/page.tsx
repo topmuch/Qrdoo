@@ -27,9 +27,7 @@ import { PhysicalQrCodes } from '@/components/client/physical-qr-codes';
 import { HomesManager } from '@/components/client/homes-manager';
 import { RoomsManager } from '@/components/client/rooms-manager';
 import { ActivityLogViewer } from '@/components/client/activity-log-viewer';
-import { ActivationPage } from '@/components/client/activation-page';
-import { ModuleConfigPage } from '@/components/client/module-config';
-import { ModulePreviewPage } from '@/components/client/module-preview';
+
 import { ChoresManager } from '@/components/client/chores-manager';
 import { NotificationCenter } from '@/components/client/notifications-center';
 import { ScanAnalytics } from '@/components/client/scan-analytics';
@@ -298,12 +296,9 @@ function AppContent() {
       case 'client-analytics': return <ScanAnalyticsWrapper />;
       case 'client-automations': return <AutomationsManager />;
       case 'client-webhooks': return <WebhooksManager />;
-      case 'activation-public': return <ActivationPage />;
-      case 'module-config': return <ModuleConfigPage />;
-      case 'module-preview': return <ModulePreviewPage />;
-      case 'modules': return <ModulePreviewPage />;
+
       case 'client-settings': return <SettingsPage />;
-      default: return <ModulePreviewPage />;
+      default: return <ClientDashboard />;
     }
   };
   return (
