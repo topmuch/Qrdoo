@@ -1748,3 +1748,62 @@ Stage Summary:
 - ESLint: 0 errors, 0 warnings
 - Dev server: GET /hub/demo-hub 200 (compiles and renders correctly)
 - File: /home/z/my-project/src/app/hub/[slug]/hub-content.tsx (1542 lines)
+
+---
+## Task 3-a: generate-batch-simplifier
+**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+### Summary of Changes
+Rewrote \`/home/z/my-project/src/components/admin/generate-batch.tsx\` to align with the new product model: single plaque QR Hub generation instead of batch QR codes.
+
+### Changes Made
+- **Removed** \`BATCH_TEMPLATES\` constant (Pack Airbnb 10, Pack Famille 15, Pack Bureau 10)
+- **Removed** \`quantity\` state and \`<Select>\` quantity selector — always generates exactly 1 plaque
+- **Removed** \`selectedTemplate\` state and \`applyTemplate()\` function
+- **Removed** the entire "Templates rapides" Card section from the render
+- **Removed** unused imports: \`Select\`, \`SelectContent\`, \`SelectItem\`, \`SelectTrigger\`, \`SelectValue\`, \`Zap\`, \`RefreshCw\`
+- **Renamed** page title from "Générer un lot de QR codes" to "Générer une plaque QR Hub"
+- **Renamed** subtitle from "Choisissez un template ou personnalisez votre design" to "Personnalisez le design de votre plaque"
+- **Renamed** \`batchName\` label from "Nom du lot (optionnel)" to "Référence (optionnel)"
+- **Changed** \`batchName\` placeholder from "Ex: Entrée principale" to "Ex: Commande #1234"
+- **Changed** generate button text from \`Générer \${quantity} QR codes\` to "Générer la plaque QR"
+- **Changed** success toast from \`\${quantity} QR codes générés avec succès !\` to "Plaque QR Hub générée avec succès !"
+- **Changed** API call body \`quantity\` hardcoded to \`1\` (was dynamic)
+- **Changed** \`generateUniqueCodes(quantity)\` to \`generateUniqueCodes(1)\`
+- **Changed** GeneratedQrGrid header from "N QR codes générés" to "Plaque QR Hub générée"
+- **Changed** PDF batch name from "Nouveau lot" to "Plaque QR Hub"
+
+### Preserved (unchanged)
+- \`DesignConfig\` type export
+- \`DEFAULT_DESIGN\` constant
+- \`DOT_TYPES\`, \`CORNER_SQUARE_TYPES\`, \`CORNER_DOT_TYPES\`, \`ERROR_LEVELS\`, \`LOGO_PRESETS\`, \`LOGO_ICON_MAP\` constants
+- \`ColorPicker\`, \`StyleSelector\`, \`LivePreview\`, \`GeneratedQrGrid\` components
+- \`svgElementToPngDataUrl\` and \`getPresetLogoDataUrl\` utility functions
+- All design customization tabs (colors, style, logo, live preview)
+- Exported function name \`GenerateBatch\`
+- Configuration card layout (now single-field: reference input)
+
+---
+Task ID: 3-a
+Agent: main
+Task: Simplify dashboard/superadmin for 1-plaque model
+
+Work Log:
+- Analyzed generate-batch.tsx: had BATCH_TEMPLATES (Airbnb 10, Famille 15, Bureau 10), quantity selector (5-100), all obsolete
+- Analyzed admin-layout.tsx: had 'Générer un lot', 'Lots générés', 'QR physiques (admin)', 'Activer QR codes' tabs
+- Analyzed super-admin-layout.tsx: had same 'Générer un lot', 'Lots générés', 'QR physiques' tabs
+- Analyzed manage-batches.tsx: had batch-centric language throughout
+- Analyzed page.tsx: rendered ManagePhysicalQr and PhysicalQrCodes for removed tabs
+- Rewrote generate-batch.tsx: removed BATCH_TEMPLATES, quantity selector, always generates 1 plaque
+- Renamed admin-layout.tsx tabs: 'Générer une plaque', 'Plaques Hub', removed 'QR physiques', 'Activer QR codes'
+- Renamed super-admin-layout.tsx tabs: same changes, removed 'physical-qr' page type
+- Renamed manage-batches.tsx text: 'Plaques QR Hub', 'Aucune plaque', 'Supprimer cette plaque'
+- Removed ManagePhysicalQr and PhysicalQrCodes imports/rendering from page.tsx
+- Cleaned unused imports (ScanLine, Plus, Zap, Settings, Select components)
+
+Stage Summary:
+- Dashboard now reflects 1-plaque model: no batch quantities, no template packs
+- Admin generates 1 plaque at a time with design customization
+- Plaques Hub page shows individual plaques instead of batches
+- Client 'Activer QR codes' tab removed (activation via setup wizard now)
+- ESLint: 0 errors, 0 warnings

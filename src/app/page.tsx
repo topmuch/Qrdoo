@@ -17,13 +17,13 @@ import { SetupDemoView, HubDemoView } from '@/components/demo-views';
 import { StatsOverview } from '@/components/admin/stats-overview';
 import { GenerateBatch } from '@/components/admin/generate-batch';
 import { ManageBatches } from '@/components/admin/manage-batches';
-import { ManagePhysicalQr } from '@/components/admin/manage-physical-qr';
+// ManagePhysicalQr removed - 1 plaque model
 import { AdminUsers } from '@/components/admin/admin-users';
 import { AdminStats } from '@/components/admin/admin-stats';
 
 // Client pages
 import { ClientDashboard } from '@/components/client/client-dashboard';
-import { PhysicalQrCodes } from '@/components/client/physical-qr-codes';
+// PhysicalQrCodes removed - activation now via setup wizard
 import { HomesManager } from '@/components/client/homes-manager';
 import { RoomsManager } from '@/components/client/rooms-manager';
 import { ActivityLogViewer } from '@/components/client/activity-log-viewer';
@@ -254,7 +254,6 @@ function AppContent() {
         case 'overview': return <StatsOverview />;
         case 'generate': return <GenerateBatch />;
         case 'batches': return <ManageBatches />;
-        case 'physical-qr': return <ManagePhysicalQr />;
         case 'users': return <AdminUsers />;
         case 'stats': return <AdminStats />;
         case 'admin-artisans': return <AdminArtisans />;
@@ -281,8 +280,6 @@ function AppContent() {
       case 'client-home': return <ClientDashboard />;
       // @ts-expect-error 'client-hub' added to ClientPage type in a separate task
       case 'client-hub': return <HubManager />;
-      case 'client-activate':
-      case 'client-qr-codes': return <PhysicalQrCodes />;
       case 'client-homes': return <HomesManager />;
       case 'client-rooms': return <RoomsManager />;
       case 'client-activity': return <ActivityLogViewer />;

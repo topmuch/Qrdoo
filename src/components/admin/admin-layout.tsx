@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   QrCode,
   Package,
-  ScanLine,
   Users,
   BarChart3,
   Menu,
@@ -14,22 +13,19 @@ import {
   ChevronRight,
   LogOut,
   Home,
-  Plus,
   DoorOpen,
   Activity,
-  Settings,
-  Zap,
-  Layers,
-  Eye,
   Settings2,
+  Eye,
+  Layers,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 export type AdminPage =
-  | 'overview' | 'generate' | 'batches' | 'physical-qr' | 'users' | 'stats'
-  | 'client-home' | 'client-activate' | 'client-qr-codes' | 'client-homes' | 'client-rooms' | 'client-activity' | 'client-settings' | 'activation-public'
+  | 'overview' | 'generate' | 'batches' | 'users' | 'stats'
+  | 'client-home' | 'client-homes' | 'client-rooms' | 'client-activity' | 'client-settings'
   | 'modules' | 'module-config' | 'module-preview';
 
 interface AdminLayoutProps {
@@ -40,20 +36,17 @@ interface AdminLayoutProps {
 
 const ADMIN_ITEMS: { key: AdminPage; label: string; icon: React.ReactNode }[] = [
   { key: 'overview', label: 'Vue d\'ensemble', icon: <LayoutDashboard className="h-5 w-5" /> },
-  { key: 'generate', label: 'Générer un lot', icon: <QrCode className="h-5 w-5" /> },
-  { key: 'batches', label: 'Lots générés', icon: <Package className="h-5 w-5" /> },
-  { key: 'physical-qr', label: 'QR physiques (admin)', icon: <ScanLine className="h-5 w-5" /> },
+  { key: 'generate', label: 'Générer une plaque', icon: <QrCode className="h-5 w-5" /> },
+  { key: 'batches', label: 'Plaques Hub', icon: <Package className="h-5 w-5" /> },
   { key: 'users', label: 'Utilisateurs', icon: <Users className="h-5 w-5" /> },
   { key: 'stats', label: 'Statistiques', icon: <BarChart3 className="h-5 w-5" /> },
 ];
 
 const CLIENT_ITEMS: { key: AdminPage; label: string; icon: React.ReactNode }[] = [
   { key: 'client-home', label: 'Mon Dashboard', icon: <Home className="h-5 w-5" /> },
-  { key: 'client-activate', label: 'Activer QR codes', icon: <Plus className="h-5 w-5" /> },
   { key: 'client-homes', label: 'Mes Maisons', icon: <Home className="h-5 w-5" /> },
   { key: 'client-rooms', label: 'Mes Pièces', icon: <DoorOpen className="h-5 w-5" /> },
   { key: 'client-activity', label: 'Activité', icon: <Activity className="h-5 w-5" /> },
-  { key: 'activation-public', label: 'Page activation (demo)', icon: <Zap className="h-5 w-5" /> },
 ];
 
 const MODULE_ITEMS: { key: AdminPage; label: string; icon: React.ReactNode }[] = [

@@ -242,18 +242,17 @@ function BatchDetailDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <QrCode className="h-5 w-5" />
-            QR Codes du lot
+            Plaque QR Hub
           </DialogTitle>
           <DialogDescription>
-            Lot <span className="font-mono">{batch.id.slice(0, 8)}</span> —{' '}
-            {batch.physicalQrCodes.length} codes —{' '}
-            Créé le {format(new Date(batch.createdAt), 'dd MMM yyyy HH:mm', { locale: fr })}
+            Plaque <span className="font-mono">{batch.id.slice(0, 8)}</span> —{' '}
+            Créée le {format(new Date(batch.createdAt), 'dd MMM yyyy HH:mm', { locale: fr })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-2">
-            <Badge variant="secondary">{batch.quantity} QR codes</Badge>
+            <Badge variant="secondary">Plaque Hub</Badge>
             <StatusBadge _count={batch._count} quantity={batch.quantity} />
           </div>
           <Button
@@ -307,7 +306,7 @@ export function ManageBatches() {
       setLoading(true);
       setError(null);
       const res = await fetch('/api/admin/batches');
-      if (!res.ok) throw new Error('Erreur lors du chargement des lots');
+      if (!res.ok) throw new Error('Erreur lors du chargement des plaques');
       const data = await res.json();
       const list: BatchListItem[] = Array.isArray(data) ? data : data.batches ?? [];
       setBatches(list);
@@ -331,7 +330,7 @@ export function ManageBatches() {
     setLoadingDetail(true);
     try {
       const res = await fetch(`/api/admin/batches/${batch.id}`);
-      if (!res.ok) throw new Error('Erreur lors du chargement des QR codes');
+      if (!res.ok) throw new Error('Erreur lors du chargement de la plaque');
       const detail: BatchDetail = await res.json();
       setExpandedBatchData(detail);
     } catch (err) {
@@ -369,7 +368,7 @@ export function ManageBatches() {
       const res = await fetch(`/api/admin/batches/${deleteTarget.id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Erreur lors de la suppression');
       const result = await res.json();
-      toast.success(`Lot supprimé (${result.deletedCount} QR codes)`);
+      toast.success('Plaque supprimée');
       setDeleteTarget(null);
       // Remove from expanded if it was this batch
       if (expandedBatchId === deleteTarget.id) {
@@ -418,10 +417,10 @@ export function ManageBatches() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <PackageOpen className="h-5 w-5" />
-            Lots générés
+            Plaques QR Hub
           </CardTitle>
           <CardDescription>
-            Tous les lots de QR codes physiques générés
+            Toutes les plaques QR Hub générées
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -445,9 +444,9 @@ export function ManageBatches() {
           {!loading && !error && batches.length === 0 && (
             <div className="text-center py-12">
               <PackageOpen className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="text-lg font-medium">Aucun lot</h3>
+              <h3 className="text-lg font-medium">Aucune plaque</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Aucun lot de QR codes n&apos;a été créé pour le moment.
+                Aucune plaque QR Hub n&apos;a été générée pour le moment.
               </p>
             </div>
           )}
@@ -474,7 +473,7 @@ export function ManageBatches() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-mono text-sm font-semibold">{batch.id.slice(0, 8)}</span>
                           <Badge variant="outline" className="text-xs">
-                            {batch.quantity} codes
+                            1 plaque
                           </Badge>
                           <StatusBadge _count={batch._count} quantity={batch.quantity} />
                         </div>
@@ -510,7 +509,7 @@ export function ManageBatches() {
                           size="sm"
                           className="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                           onClick={() => setDeleteTarget(batch)}
-                          title="Supprimer ce lot"
+                          title="Supprimer cette plaque"
                         >
                           <Trash2 className="h-4 w-4" />
                           Supprimer
@@ -559,11 +558,10 @@ export function ManageBatches() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(v) => !v && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer ce lot ?</AlertDialogTitle>
+            <AlertDialogTitle>Supprimer cette plaque ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible. Le lot{' '}
-              <span className="font-mono font-semibold">{deleteTarget?.id.slice(0, 8)}</span>{' '}
-              et ses <span className="font-semibold">{deleteTarget?.quantity}</span> QR codes seront définitivement supprimés.
+              Cette action est irréversible. La plaque{' '}
+              <span className="font-mono font-semibold">{deleteTarget?.id.slice(0, 8)}</span> sera définitivement supprimée.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

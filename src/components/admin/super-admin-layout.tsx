@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   QrCode,
   Package,
-  ScanLine,
   Users,
   BarChart3,
   Menu,
@@ -31,7 +30,6 @@ export type SuperAdminPage =
   | 'overview'
   | 'generate'
   | 'batches'
-  | 'physical-qr'
   | 'users'
   | 'stats'
   | 'admin-artisans'
@@ -48,9 +46,8 @@ interface SuperAdminLayoutProps {
 
 const SUPER_ADMIN_ITEMS: { key: SuperAdminPage; label: string; icon: React.ReactNode; badge?: string; section?: string }[] = [
   { key: 'overview', label: 'Vue d\'ensemble', icon: <LayoutDashboard className="h-5 w-5" /> },
-  { key: 'generate', label: 'Générer un lot', icon: <QrCode className="h-5 w-5" /> },
-  { key: 'batches', label: 'Lots générés', icon: <Package className="h-5 w-5" /> },
-  { key: 'physical-qr', label: 'QR physiques', icon: <ScanLine className="h-5 w-5" /> },
+  { key: 'generate', label: 'Générer une plaque', icon: <QrCode className="h-5 w-5" /> },
+  { key: 'batches', label: 'Plaques Hub', icon: <Package className="h-5 w-5" /> },
   { key: 'users', label: 'Utilisateurs', icon: <Users className="h-5 w-5" />, badge: 'Gestion' },
   { key: 'stats', label: 'Statistiques', icon: <BarChart3 className="h-5 w-5" /> },
   { key: 'admin-artisans', label: 'Artisans & Pros', icon: <Briefcase className="h-5 w-5" />, badge: 'V3', section: 'Marketplace' },

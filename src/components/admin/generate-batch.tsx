@@ -5,14 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   QrCode, Download, Sparkles, Palette, Layout, ImageIcon,
-  Loader2, Check, Package, RefreshCw, Home, Wifi,
-  List, Bell, ShieldCheck, Zap, Eye, Copy,
+  Loader2, Check, Package, Home, Wifi,
+  List, Bell, ShieldCheck, Eye, Copy,
 } from 'lucide-react';
 import { generateUniqueCodes } from '@/lib/activation-code';
 import { generatePdf, type QrCodeForPdf } from '@/lib/pdf-export';
@@ -66,40 +65,6 @@ const LOGO_PRESETS = [
   { value: 'bell', label: 'Portier', icon: 'bell' },
   { value: 'shield', label: 'Urgence', icon: 'shield' },
 ];
-
-const BATCH_TEMPLATES: Record<string, {
-  label: string;
-  description: string;
-  quantity: number;
-  design: Partial<DesignConfig>;
-  gradient: string;
-  icon: React.ReactNode;
-}> = {
-  airbnb: {
-    label: 'Pack Airbnb',
-    description: '10 QR codes parfaits pour les hôtes Airbnb',
-    quantity: 10,
-    gradient: 'from-rose-500 to-orange-400',
-    icon: <Home className="h-6 w-6" />,
-    design: { dotsColor: '#FF5A5F', backgroundColor: '#FFFFFF', dotsType: 'rounded', cornersSquareType: 'extra-rounded', cornersDotType: 'dot', logoPreset: 'home' },
-  },
-  famille: {
-    label: 'Pack Famille',
-    description: '15 QR codes pour organiser la vie de famille',
-    quantity: 15,
-    gradient: 'from-emerald-500 to-teal-400',
-    icon: <Wifi className="h-6 w-6" />,
-    design: { dotsColor: '#10B981', backgroundColor: '#FFFFFF', dotsType: 'rounded', cornersSquareType: 'extra-rounded', cornersDotType: 'dot', logoPreset: 'wifi' },
-  },
-  bureau: {
-    label: 'Pack Bureau',
-    description: '10 QR codes professionnels pour le bureau',
-    quantity: 10,
-    gradient: 'from-slate-600 to-slate-400',
-    icon: <List className="h-6 w-6" />,
-    design: { dotsColor: '#1E293B', backgroundColor: '#FFFFFF', dotsType: 'classy', cornersSquareType: 'extra-rounded', cornersDotType: 'square', logoPreset: 'wifi' },
-  },
-};
 
 const DEFAULT_DESIGN: DesignConfig = {
   dotsColor: '#10B981',
@@ -277,7 +242,7 @@ function GeneratedQrGrid({
       }
     }
     if (items.length === 0) { toast.error('Aucun QR exportable'); return; }
-    generatePdf({ qrCodes: items, batchName: 'Nouveau lot' });
+    generatePdf({ qrCodes: items, batchName: 'Plaque QR Hub' });
     toast.success('PDF téléchargé !');
   };
 
@@ -289,7 +254,7 @@ function GeneratedQrGrid({
             <Check className="h-4 w-4 text-emerald-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold">{codes.length} QR codes générés</p>
+            <p className="text-sm font-semibold">Plaque QR Hub générée</p>
             <p className="text-xs text-muted-foreground">Téléchargez en PDF ou individuellement</p>
           </div>
         </div>
@@ -381,38 +346,27 @@ function LivePreview({ design, qrLevel }: { design: DesignConfig; qrLevel: 'L' |
 /* ================================================================== */
 
 export function GenerateBatch() {
-  const [quantity, setQuantity] = useState(10);
   const [batchName, setBatchName] = useState('');
   const [design, setDesign] = useState<DesignConfig>({ ...DEFAULT_DESIGN });
   const [generating, setGenerating] = useState(false);
   const [codes, setCodes] = useState<string[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
   const qrLevel = (design.errorCorrectionLevel || 'M').toUpperCase() as 'L' | 'M' | 'Q' | 'H';
 
   const updateDesign = useCallback(<K extends keyof DesignConfig>(key: K, value: DesignConfig[K]) => {
     setDesign((prev) => ({ ...prev, [key]: value }));
-    setSelectedTemplate(null);
   }, []);
-
-  const applyTemplate = (key: string) => {
-    const tpl = BATCH_TEMPLATES[key];
-    if (!tpl) return;
-    setDesign((prev) => ({ ...prev, ...tpl.design }));
-    setQuantity(tpl.quantity);
-    setSelectedTemplate(key);
-  };
 
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const activationCodes = generateUniqueCodes(quantity);
+      const activationCodes = generateUniqueCodes(1);
       const res = await fetch('/api/admin/batches', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          quantity,
+          quantity: 1,
           designConfig: JSON.stringify(design),
           batchName: batchName || undefined,
           activationCodes,
@@ -425,7 +379,7 @@ export function GenerateBatch() {
       const data = await res.json();
       const returnedCodes = data.physicalQrCodes?.map((c: { activationCode: string }) => c.activationCode) || activationCodes;
       setCodes(returnedCodes);
-      toast.success(`${quantity} QR codes générés avec succès !`);
+      toast.success('Plaque QR Hub générée avec succès !');
       setTimeout(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors de la génération');
@@ -443,48 +397,14 @@ export function GenerateBatch() {
           <QrCode className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h2 className="text-lg font-bold">Générer un lot de QR codes</h2>
-          <p className="text-sm text-muted-foreground">Choisissez un template ou personnalisez votre design</p>
+          <h2 className="text-lg font-bold">Générer une plaque QR Hub</h2>
+          <p className="text-sm text-muted-foreground">Personnalisez le design de votre plaque</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* ===== LEFT COLUMN (8 cols) ===== */}
         <div className="lg:col-span-8 space-y-6">
-
-          {/* ---- Templates ---- */}
-          <Card className="overflow-hidden border-0 shadow-sm">
-            <CardHeader className="bg-gradient-to-r from-muted/50 to-transparent border-b">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                <Zap className="h-4 w-4 text-amber-500" />
-                Templates rapides
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {Object.entries(BATCH_TEMPLATES).map(([key, tpl]) => (
-                  <button
-                    key={key}
-                    onClick={() => applyTemplate(key)}
-                    className={`group relative overflow-hidden rounded-2xl border-2 p-4 text-left transition-all duration-200 ${
-                      selectedTemplate === key
-                        ? 'border-foreground shadow-lg scale-[1.02]'
-                        : 'border-transparent hover:border-muted-foreground/30 hover:shadow-md'
-                    }`}
-                  >
-                    {/* Gradient accent bar */}
-                    <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${tpl.gradient}`} />
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${tpl.gradient} text-white mb-3`}>
-                      {tpl.icon}
-                    </div>
-                    <p className="font-semibold text-sm">{tpl.label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{tpl.description}</p>
-                    <p className="text-[10px] font-mono mt-2 text-muted-foreground/60">{tpl.quantity} codes</p>
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
 
           {/* ---- Configuration ---- */}
           <Card className="border-0 shadow-sm">
@@ -495,29 +415,14 @@ export function GenerateBatch() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Quantité</Label>
-                  <Select value={String(quantity)} onValueChange={(v) => setQuantity(Number(v))}>
-                    <SelectTrigger className="h-11">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[5, 10, 15, 20, 25, 30, 50, 100].map((n) => (
-                        <SelectItem key={n} value={String(n)}>{n} QR codes</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Nom du lot (optionnel)</Label>
-                  <Input
-                    value={batchName}
-                    onChange={(e) => setBatchName(e.target.value)}
-                    placeholder="Ex: Entrée principale"
-                    className="h-11"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Référence (optionnel)</Label>
+                <Input
+                  value={batchName}
+                  onChange={(e) => setBatchName(e.target.value)}
+                  placeholder="Ex: Commande #1234"
+                  className="h-11"
+                />
               </div>
             </CardContent>
           </Card>
@@ -584,7 +489,7 @@ export function GenerateBatch() {
             className="w-full h-14 text-base font-bold gap-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg shadow-emerald-600/25 transition-all hover:shadow-xl"
           >
             {generating ? <Loader2 className="h-5 w-5 animate-spin" /> : <Sparkles className="h-5 w-5" />}
-            {generating ? 'Génération en cours...' : `Générer ${quantity} QR codes`}
+            {generating ? 'Génération en cours...' : 'Générer la plaque QR'}
           </Button>
 
           {/* ---- Generated Grid ---- */}
