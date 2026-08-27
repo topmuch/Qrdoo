@@ -1518,8 +1518,9 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
 
           {/* Footer */}
           <div className="mt-auto px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center">
-            <p className="text-xs text-white/30">
-              Propulsé par QR Domotik 🏠
+            <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-5 w-auto object-contain brightness-0 invert opacity-30 mx-auto mb-1" />
+            <p className="text-[10px] text-white/25">
+              qrdomotik.roomscan.pro
             </p>
           </div>
         </div>

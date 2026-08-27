@@ -15,14 +15,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QR Domotik - QR codes intelligents pour votre maison",
-  description: "Plateforme SaaS de QR codes domotiques pour maisons intelligentes. Gérez vos modules, corvées et notifications.",
-  keywords: ["QR Domotik", "QR codes", "domotique", "maison intelligente", "SaaS", "PWA"],
+  title: "ORDOMOTIK - Smart Home Solutions",
+  description: "Plateforme phygitale QR pour maisons connectées et Airbnb. Hub intelligent avec modules domotiques.",
+  keywords: ["ORDOMOTIK", "QR codes", "domotique", "maison intelligente", "Smart Home", "Airbnb", "hub"],
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "QR Domotik",
+    title: "ORDOMOTIK",
   },
   icons: {
     icon: "/icon-512.png",

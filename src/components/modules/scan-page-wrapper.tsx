@@ -25,21 +25,16 @@ export function ScanPageWrapper({ children, homeName, scanCount }: ScanPageWrapp
       >
         <div className="mx-auto max-w-md px-4 py-3 flex items-center justify-between">
           {/* Logo + Home name */}
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 shadow-sm">
-              <Scan className="h-4 w-4 text-white" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent leading-tight">
-                QR Domotik
-              </p>
-              {homeName && (
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-7 w-auto object-contain" />
+            {homeName && (
+              <div className="min-w-0">
                 <p className="text-xs text-muted-foreground truncate leading-tight">
                   <Home className="inline h-3 w-3 mr-0.5" />
                   {homeName}
                 </p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Scan counter */}
@@ -78,19 +73,9 @@ export function ScanPageWrapper({ children, homeName, scanCount }: ScanPageWrapp
         transition={{ duration: 0.5, delay: 0.5 }}
         className="w-full border-t border-border/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md"
       >
-        <div className="mx-auto max-w-md px-4 py-3 text-center">
-          <p className="text-xs text-muted-foreground">
-            {t('powered_by')}
-            {' '}
-            <a
-              href="https://qrdomotik.roomscan.pro"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
-            >
-              QR Domotik
-            </a>
-          </p>
+        <div className="mx-auto max-w-md px-4 py-3 flex flex-col items-center gap-1">
+          <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-4 w-auto object-contain opacity-40" />
+          <p className="text-[10px] text-muted-foreground">qrdomotik.roomscan.pro</p>
         </div>
       </motion.footer>
     </div>

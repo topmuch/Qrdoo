@@ -75,11 +75,8 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, o
       )}>
         {/* Brand */}
         <div className="flex h-16 items-center gap-3 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-500">
-            <Shield className="h-5 w-5 text-white" />
-          </div>
+          <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-7 w-auto object-contain brightness-0 invert" />
           <div>
-            <h1 className="text-sm font-bold leading-none">QR Domotik</h1>
             <p className="text-[11px] text-rose-300/70">Super Admin</p>
           </div>
           <Button variant="ghost" size="icon" className="ml-auto lg:hidden h-8 w-8" onClick={() => setSidebarOpen(false)}>
@@ -199,9 +196,10 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, o
         <main className="flex-1 p-4 lg:p-8 overflow-auto">{children}</main>
 
         <footer className="border-t bg-card px-4 py-3 lg:px-8">
-          <p className="text-center text-xs text-muted-foreground">
-            QR Domotik v3.0.0 &middot; Super Administration
-          </p>
+          <div className="flex flex-col items-center gap-1">
+            <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-4 w-auto object-contain brightness-0 invert opacity-30" />
+            <p className="text-center text-xs text-muted-foreground">Super Administration</p>
+          </div>
         </footer>
       </div>
     </div>

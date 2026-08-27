@@ -1825,3 +1825,32 @@ Stage Summary:
 - coolify.json: startCommand now includes prisma db push before node server.js
 - coolify.json: volume path corrected to /app/data
 - User needs to: (1) remove `php artisan migrate` from Pre/Post deployment in Coolify UI, (2) add volume mapping for /app/data for persistent SQLite
+
+---
+Task ID: logo-integration
+Agent: main
+Task: Integrate ORDOMOTIK logo across all pages
+
+Work Log:
+- Analyzed uploaded logo (ORDOMOTIK - Smart Home Solutions, 275x61px, magenta/green/white, light bg)
+- Copied logo to /public/logo-ordomotik.jpg
+- Updated 10 files total:
+  1. src/components/auth/login-form.tsx - header logo image, footer text
+  2. src/components/client/client-layout.tsx - sidebar brand logo, footer logo
+  3. src/components/admin/admin-layout.tsx - sidebar brand logo, footer logo
+  4. src/components/admin/super-admin-layout.tsx - sidebar brand logo, footer logo
+  5. src/app/setup/[token]/setup-content.tsx - header logo, footer logo
+  6. src/app/hub/[slug]/hub-content.tsx - footer logo
+  7. src/app/view/[slug]/view-content.tsx - footer logo
+  8. src/app/activate/[code]/activate-content.tsx - footer logo
+  9. src/components/landing/hero-section.tsx - navbar logo, footer logo, copyright text
+  10. src/components/modules/scan-page-wrapper.tsx - header logo, footer logo
+- Updated manifest.json: name → ORDOMOTIK
+- Updated layout.tsx metadata: title, description, keywords
+- Used brightness-0 invert for dark backgrounds, original colors for light backgrounds
+- Lint: 0 errors
+
+Stage Summary:
+- Logo integrated across all 10 page components
+- Branding updated from QR Domotik to ORDOMOTIK in metadata
+- Footer logos use reduced opacity for subtle branding

@@ -58,10 +58,7 @@ function Navbar({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashboard: 
     }`}>
       <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center justify-between h-16">
         <a href="#hero" onClick={(e) => handleNavClick(e, '#hero')} className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-shadow">
-            <QrCode className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-lg text-white tracking-tight">QR Domotik</span>
+          <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-8 w-auto object-contain brightness-0 invert" />
         </a>
         <div className="hidden md:flex items-center gap-8">
           {links.map((link) => (
@@ -298,10 +295,7 @@ function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                <QrCode className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold text-lg text-white">QR Domotik</span>
+              <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-7 w-auto object-contain brightness-0 invert" />
             </div>
             <p className="text-sm text-white/30 leading-relaxed">
               Transformez votre maison grâce à la puissance des QR codes.
@@ -333,7 +327,7 @@ function Footer() {
           </div>
         </div>
         <div className="border-t border-white/[0.06] pt-8 text-center">
-          <p className="text-sm text-white/20">2025 QR Domotik. Tous droits réservés.</p>
+          <p className="text-sm text-white/20">2025 ORDOMOTIK. Smart Home Solutions.</p>
         </div>
       </div>
     </footer>

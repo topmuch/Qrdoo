@@ -113,11 +113,8 @@ export function AuthForm({ onSuccess, initialRegister }: AuthFormProps) {
   return (
     <div className="min-h-screen flex flex-col bg-[#0a0f1e]">
       <header className="border-b border-white/10 px-6 py-4">
-        <div className="mx-auto max-w-md flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#2563EB]">
-            <QrCode className="h-4 w-4 text-white" />
-          </div>
-          <span className="font-bold text-white">QR Domotik</span>
+        <div className="mx-auto max-w-md flex items-center justify-center">
+          <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-8 w-auto object-contain" />
         </div>
       </header>
 
@@ -327,7 +324,7 @@ export function AuthForm({ onSuccess, initialRegister }: AuthFormProps) {
       </main>
 
       <footer className="border-t border-white/10 px-4 py-3 mt-auto">
-        <p className="text-center text-xs text-gray-500">QR Domotik v1.0.0</p>
+        <p className="text-center text-xs text-gray-500">ORDOMOTIK &middot; Smart Home Solutions</p>
       </footer>
     </div>
   );
