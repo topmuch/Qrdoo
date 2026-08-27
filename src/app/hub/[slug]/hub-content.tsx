@@ -1,28 +1,11 @@
 'use client';
 
-import { use, useState, useEffect, useCallback, useRef, type ElementType } from 'react';
+import { use, useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Home, User, Users, XCircle, AlertCircle, Loader2,
-  Wifi, Lock, MessageCircle, ChevronRight, QrCode,
-  Settings, ArrowLeft, Shield, Volume2, Mic, Send,
-  Pause, Play, ExternalLink,
-  Utensils, Bed, Bath, Sofa, Tv, BookOpen, Car,
-  Flower2, Gamepad2, Music, Dumbbell, Briefcase, Heart,
-  Package, ShoppingCart, CheckSquare, Clock,
-  Zap, Ticket, Store, Wine, Box, DoorOpen,
-  // ÉTAPE 4 additions
-  Copy, Check, Phone, ScrollText, Eye, EyeOff,
-} from 'lucide-react';
+import { Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  AnimatedGradient,
-  GlassCard,
-  NumericKeypad,
-  FloatingParticles,
-} from '@/components/magic';
+import { QRTCard, QRTButton, QRTNumericKeypad } from '@/components/qrtags';
 import { QR_MODULE_LABELS } from '@/types/database';
-import { MODULE_GRADIENTS } from '@/components/magic/GradientBackground';
 
 // ── Types ──
 interface QrCodeInfo {
@@ -61,37 +44,28 @@ interface HubData {
 type HubView = 'mode-select' | 'guest' | 'family' | 'room-detail' | 'voice-detail';
 type PinModalFor = 'family' | 'settings' | null;
 
-// ── Icon mappings ──
-const ROOM_ICONS: Record<string, ElementType> = {
-  salon: Sofa, cuisine: Utensils, chambre: Bed, 'chambre-principale': Bed,
-  'salle-de-bain': Bath, sdb: Bath, bureau: Briefcase, 'chambre-amis': Bed,
-  entree: DoorOpen, 'piece-a-vivre': Sofa, jardin: Flower2, garage: Car,
-  'salle-de-jeux': Gamepad2, musique: Music, sport: Dumbbell, bibliotheque: BookOpen,
-  tv: Tv, sejour: Sofa, 'salle-a-manger': Utensils, couloir: DoorOpen,
-  wc: Bath, cave: Wine, grenier: Box, balcon: Flower2, terrasse: Flower2,
+// ── Emoji mappings ──
+const ROOM_EMOJIS: Record<string, string> = {
+  salon: '\uD83D\uDECB\uFE0F', cuisine: '\uD83C\uDF73', chambre: '\uD83D\uDECF\uFE0F', 'chambre-principale': '\uD83D\uDECF\uFE0F',
+  'salle-de-bain': '\uD83D\uDEBF', sdb: '\uD83D\uDEBF', bureau: '\uD83D\uDCBC', 'chambre-amis': '\uD83D\uDECF\uFE0F',
+  entree: '\uD83D\uDEAA', 'piece-a-vivre': '\uD83D\uDECB\uFE0F', jardin: '\uD83C\uDF3F', garage: '\uD83D\uDE97',
+  'salle-de-jeux': '\uD83C\uDFAE', musique: '\uD83C\uDFB5', sport: '\uD83D\uDCAA', bibliotheque: '\uD83D\uDCDA',
+  tv: '\uD83D\uDCFA', sejour: '\uD83D\uDECB\uFE0F', 'salle-a-manger': '\uD83C\uDF7D\uFE0F', couloir: '\uD83D\uDEAA',
+  wc: '\uD83D\uDEBD', cave: '\uD83C\uDF77', grenier: '\uD83D\uDCE6', balcon: '\uD83C\uDF3F', terrasse: '\uD83C\uDF3F',
 };
 
-const MODULE_ICONS: Record<string, ElementType> = {
-  wifi: Wifi, guestbook: BookOpen, doorbell: Volume2, emergency: AlertCircle,
-  note: BookOpen, contact: Users, shopping_list: ShoppingCart, inventory: Package,
-  chore: CheckSquare, checklist: CheckSquare, timer: Clock, recipe: Utensils,
-  medication: Heart, meal_planner: Utensils, external_link: ExternalLink,
-  home_manual: BookOpen, house_rules: Shield, voice_assistant: Mic,
-  merchant: Store, flash_sale: Zap, coupon: Ticket,
+const MODULE_EMOJIS: Record<string, string> = {
+  wifi: '\uD83D\uDCF1', guestbook: '\uD83D\uDCD6', doorbell: '\uD83D\uDD14', emergency: '\uD83D\uDEA8',
+  note: '\uD83D\uDCDD', contact: '\uD83D\uDC65', shopping_list: '\uD83D\uDED2', inventory: '\uD83D\uDCE6',
+  chore: '\u2705', checklist: '\u2705', timer: '\u23F1\uFE0F', recipe: '\uD83C\uDF73',
+  medication: '\uD83D\uDC8A', meal_planner: '\uD83C\uDF7D\uFE0F', external_link: '\uD83D\uDD17',
+  home_manual: '\uD83D\uDCCB', house_rules: '\uD83D\uDEE1\uFE0F', voice_assistant: '\uD83C\uDFA4',
+  merchant: '\uD83C\uDFEA', flash_sale: '\u26A1', coupon: '\uD83C\uDFAB',
 };
 
-const DEFAULT_GRADIENT = { from: '#059669', via: '#10b981', to: '#34d399' };
-
-// Room-specific gradient colors for family dashboard cards
-const ROOM_CARD_GRADIENTS = [
-  { from: '#10b981', to: '#14b8a6' }, // emerald → teal
-  { from: '#f59e0b', to: '#f97316' }, // amber → orange
-  { from: '#8b5cf6', to: '#a855f7' }, // violet → purple
-  { from: '#ec4899', to: '#f43f5e' }, // pink → rose
-];
-
-function getModuleGradient(type: string) { return MODULE_GRADIENTS[type] || DEFAULT_GRADIENT; }
 function getModuleLabel(type: string) { return (QR_MODULE_LABELS as Record<string, string>)[type] || type; }
+function getRoomEmoji(iconStr: string | null) { return iconStr ? (ROOM_EMOJIS[iconStr.toLowerCase()] || '\uD83C\uDFE0') : '\uD83C\uDFE0'; }
+function getModuleEmoji(type: string) { return MODULE_EMOJIS[type] || '\uD83D\uDCCE'; }
 
 const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.06 } } };
 const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
@@ -100,18 +74,6 @@ const slideVariants = {
   center: { x: 0, opacity: 1 },
   exit: (direction: number) => ({ x: direction > 0 ? -300 : 300, opacity: 0 }),
 };
-
-function DynamicIcon({ type, iconMap, fallback: Fallback = QrCode, className }: {
-  type: string; iconMap: Record<string, ElementType>; fallback?: ElementType; className?: string;
-}) {
-  const Comp = iconMap[type] || Fallback;
-  return <Comp className={className} />;
-}
-
-function DynamicRoomIcon({ iconStr, className }: { iconStr: string | null; className?: string }) {
-  const Comp = iconStr ? (ROOM_ICONS[iconStr.toLowerCase()] || Home) : Home;
-  return <Comp className={className} />;
-}
 
 // ── Voice Player Component ──
 function VoicePlayer({ msg }: { msg: VoiceMsg }) {
@@ -149,25 +111,25 @@ function VoicePlayer({ msg }: { msg: VoiceMsg }) {
   }, []);
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 px-4 py-3">
+    <div className="flex items-center gap-3 bg-white border-2 border-black rounded-[12px] p-4">
       <audio ref={audioRef} src={msg.audioUrl} preload="metadata" />
-      <button onClick={togglePlay} className="h-10 w-10 rounded-full bg-white/15 flex items-center justify-center shrink-0">
-        {playing ? <Pause className="h-4 w-4 text-white" /> : <Play className="h-4 w-4 text-white ml-0.5" />}
+      <button onClick={togglePlay} className="h-10 w-10 rounded-[8px] bg-white border-2 border-black flex items-center justify-center shrink-0 active:translate-y-[1px] transition-all shadow-[2px_2px_0_rgba(0,0,0,0.08)]">
+        <span className="text-base">{playing ? '⏸️' : '▶️'}</span>
       </button>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-1.5">
-          <p className="text-sm font-medium text-white truncate">{msg.senderName}</p>
-          <span className="text-[10px] text-white/40 shrink-0 ml-2">{msg.durationSec}s</span>
+          <p className="text-sm font-medium text-black truncate">{msg.senderName}</p>
+          <span className="text-[10px] text-black/40 shrink-0 ml-2">{msg.durationSec}s</span>
         </div>
-        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+        <div className="h-1.5 rounded-full bg-black/10 overflow-hidden">
           <motion.div
-            className="h-full rounded-full bg-white/60"
+            className="h-full rounded-full bg-[#6D28D9]"
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.2 }}
           />
         </div>
       </div>
-      <span className="text-[10px] text-white/30 shrink-0">
+      <span className="text-[10px] text-black/40 shrink-0">
         {new Date(msg.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
       </span>
     </div>
@@ -261,22 +223,22 @@ function VoiceRecorder({ slug, onSent }: { slug: string; onSent: () => void }) {
     <div className="space-y-3">
       {recording && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl bg-red-500/15 border border-red-500/30 p-4 space-y-3">
+          className="bg-red-50 border-2 border-red-300 rounded-[12px] p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-sm font-semibold text-red-300">Enregistrement en cours</span>
+              <span className="text-sm font-semibold text-red-600">Enregistrement en cours</span>
             </div>
-            <span className="text-sm font-mono text-red-300">
+            <span className="text-sm font-mono text-red-500">
               {String(Math.floor(duration / 60)).padStart(2, '0')}:{String(duration % 60).padStart(2, '0')}
             </span>
           </div>
-          <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+          <div className="h-1 rounded-full bg-red-100 overflow-hidden">
             <motion.div className="h-full rounded-full bg-red-500" animate={{ width: `${Math.min((duration / 30) * 100, 100)}%` }} />
           </div>
           <div className="flex gap-2">
-            <button onClick={cancelRecording} className="flex-1 h-10 rounded-xl bg-white/10 text-sm text-white/70">Annuler</button>
-            <button onClick={stopRecording} className="flex-1 h-10 rounded-xl bg-red-600 text-sm text-white font-semibold">Arrêter</button>
+            <QRTButton variant="secondary" onClick={cancelRecording} className="flex-1 !py-2.5 !text-sm">Annuler</QRTButton>
+            <QRTButton variant="primary" onClick={stopRecording} className="flex-1 !py-2.5 !text-sm !bg-red-600 !hover:bg-red-700">Arrêter</QRTButton>
           </div>
         </motion.div>
       )}
@@ -284,22 +246,20 @@ function VoiceRecorder({ slug, onSent }: { slug: string; onSent: () => void }) {
       <AnimatePresence>
         {showNameInput && !recording && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 p-4 space-y-3">
-            <p className="text-sm font-semibold text-white">Votre message ({duration}s)</p>
+            className="bg-white border-2 border-black rounded-[12px] p-4 space-y-3 shadow-[4px_4px_0_rgba(0,0,0,0.08)]">
+            <p className="text-sm font-semibold text-black">Votre message ({duration}s)</p>
             <input
               type="text" placeholder="Votre nom (optionnel)" maxLength={50}
               value={senderName} onChange={(e) => setSenderName(e.target.value)}
-              className="w-full h-10 rounded-xl bg-white/10 border border-white/20 px-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-white/40 transition-all"
+              className="w-full h-11 bg-gray-50 border-2 border-black rounded-[8px] p-3.5 text-sm text-black focus:border-[#6D28D9] focus:bg-white outline-none transition-all"
               autoFocus
             />
             <div className="flex gap-2">
-              <button onClick={() => { setShowNameInput(false); chunksRef.current = []; }}
-                className="flex-1 h-10 rounded-xl bg-white/10 text-sm text-white/70">Annuler</button>
-              <button onClick={handleSend} disabled={uploading}
-                className="flex-1 h-10 rounded-xl bg-white text-emerald-700 text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-50">
+              <QRTButton variant="secondary" onClick={() => { setShowNameInput(false); chunksRef.current = []; }} className="flex-1 !py-2.5 !text-sm">Annuler</QRTButton>
+              <QRTButton variant="primary" onClick={handleSend} disabled={uploading} className="flex-1 !py-2.5 !text-sm">
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 {uploading ? 'Envoi...' : 'Envoyer'}
-              </button>
+              </QRTButton>
             </div>
           </motion.div>
         )}
@@ -307,13 +267,11 @@ function VoiceRecorder({ slug, onSent }: { slug: string; onSent: () => void }) {
 
       {!recording && !showNameInput && (
         <motion.button whileTap={{ scale: 0.97 }} onClick={startRecording}
-          className="w-full rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 p-4 flex items-center justify-center gap-3 hover:bg-white/15 transition-all">
-          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg">
-            <Mic className="h-5 w-5 text-white" />
-          </div>
+          className="w-full bg-white border-2 border-black rounded-[12px] p-4 flex items-center justify-center gap-3 shadow-[4px_4px_0_rgba(0,0,0,0.08)] active:translate-y-[2px] active:shadow-[2px_2px_0_rgba(0,0,0,0.08)] transition-all hover:bg-gray-50">
+          <span className="text-3xl">🎙️</span>
           <div className="text-left">
-            <p className="text-sm font-semibold text-white">Laisser un message vocal</p>
-            <p className="text-xs text-white/40">Appuyez pour enregistrer (max 30s)</p>
+            <p className="text-sm font-semibold text-black">Laisser un message vocal</p>
+            <p className="text-xs text-black/40">Appuyez pour enregistrer (max 30s)</p>
           </div>
         </motion.button>
       )}
@@ -349,43 +307,41 @@ function PinModal({
         exit={{ scale: 0.9, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       >
-        <GlassCard className="w-full max-w-sm p-8" hover={false}>
+        <QRTCard className="w-full max-w-sm">
           <div className="text-center mb-6">
-            <div className="mx-auto mb-3 w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-              <Shield className="w-6 h-6 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-white">{title}</h3>
+            <span className="text-3xl">🔐</span>
+            <h3 className="text-lg font-bold text-black mt-2">{title}</h3>
           </div>
 
           {verifying ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 text-white/60 animate-spin" />
+              <Loader2 className="h-8 w-8 text-[#6D28D9] animate-spin" />
             </div>
           ) : (
-            <NumericKeypad
+            <QRTNumericKeypad
               key={key}
-              length={4}
+              longueur={4}
               onComplete={onVerify}
             />
           )}
 
           <button
             onClick={() => { setKey((k) => k + 1); onCancel(); }}
-            className="mt-6 text-white/50 hover:text-white/80 text-sm w-full text-center transition-colors"
+            className="mt-6 text-black/40 hover:text-black/70 text-sm w-full text-center transition-colors"
           >
             Annuler
           </button>
-        </GlassCard>
+        </QRTCard>
       </motion.div>
     </motion.div>
   );
 }
 
 // ══════════════════════════════════════════════════════════════
-// ÉTAPE 4: Enhanced Guest Quick Access Cards
+// Enhanced Guest Quick Access Cards
 // ══════════════════════════════════════════════════════════════
 
-// ── WiFi Card (Enhanced with copy) ──
+// ── WiFi Card ──
 function WifiQuickCard({ content }: { content: Record<string, unknown> }) {
   const [copied, setCopied] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -406,51 +362,38 @@ function WifiQuickCard({ content }: { content: Record<string, unknown> }) {
   };
 
   return (
-    <motion.div
-      variants={itemVariants}
-      className="relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-xl border border-emerald-400/30 p-5"
-    >
-      {/* Decorative glow */}
-      <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-emerald-400/20 blur-2xl" />
+    <motion.div variants={itemVariants}>
+      <QRTCard header={{ emoji: '📱', title: 'Wi-Fi' }}>
+        <div className="space-y-2">
+          <p className="text-base font-bold text-black truncate">{networkName}</p>
+          {securityType && (
+            <p className="text-[10px] text-black/40">{securityType}</p>
+          )}
 
-      <div className="relative z-10">
-        <div className="flex items-start gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shrink-0 shadow-lg">
-            <Wifi className="h-5 w-5 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold text-emerald-300 uppercase tracking-wider">Wi-Fi</p>
-            <p className="text-base font-bold text-white truncate mt-0.5">{networkName}</p>
-            {securityType && (
-              <p className="text-[10px] text-white/40 mt-0.5">{securityType}</p>
-            )}
-          </div>
-        </div>
-
-        {password && (
-          <div className="mt-3 flex items-center gap-2">
-            <div className="flex-1 h-9 rounded-lg bg-white/10 border border-white/15 flex items-center px-3 gap-2">
-              <span className="text-sm font-mono text-white/80 flex-1 truncate">
-                {showPw ? password : '•'.repeat(Math.min(password.length, 16))}
-              </span>
-              <button
-                onClick={() => setShowPw(s => !s)}
-                className="p-1 text-white/40 hover:text-white/70 transition-colors"
+          {password && (
+            <div className="flex items-center gap-2 mt-3">
+              <div className="flex-1 h-10 bg-gray-50 border-2 border-black rounded-[8px] flex items-center px-3 gap-2">
+                <span className="text-sm font-mono text-black flex-1 truncate">
+                  {showPw ? password : '•'.repeat(Math.min(password.length, 16))}
+                </span>
+                <button
+                  onClick={() => setShowPw(s => !s)}
+                  className="text-black/40 hover:text-black/70 transition-colors text-sm"
+                >
+                  {showPw ? '🙈' : '👁️'}
+                </button>
+              </div>
+              <motion.button
+                whileTap={{ scale: 0.92 }}
+                onClick={copyPassword}
+                className="h-10 px-3 bg-white border-2 border-black rounded-[8px] text-black text-xs font-bold flex items-center gap-1.5 shadow-[2px_2px_0_rgba(0,0,0,0.08)] active:translate-y-[1px] active:shadow-none transition-all hover:bg-gray-50"
               >
-                {showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-              </button>
+                {copied ? '✅' : '📋'} {copied ? 'Copié' : 'Copier'}
+              </motion.button>
             </div>
-            <motion.button
-              whileTap={{ scale: 0.92 }}
-              onClick={copyPassword}
-              className="h-9 px-3 rounded-lg bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 hover:bg-emerald-500/30 transition-colors"
-            >
-              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? 'Copié' : 'Copier'}
-            </motion.button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </QRTCard>
     </motion.div>
   );
 }
@@ -464,35 +407,22 @@ function RulesQuickCard({ content, onTap }: { content: Record<string, unknown>; 
   const preview = rules?.[0] || text || description || '';
 
   return (
-    <motion.button
-      variants={itemVariants}
-      whileTap={{ scale: 0.97 }}
-      onClick={onTap}
-      className="relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-xl border border-amber-400/30 p-5 text-left"
-    >
-      <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-amber-400/15 blur-2xl" />
-      <div className="relative z-10">
-        <div className="flex items-start gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-lg">
-            <ScrollText className="h-5 w-5 text-white" />
+    <motion.div variants={itemVariants}>
+      <motion.button whileTap={{ scale: 0.97 }} onClick={onTap} className="w-full text-left">
+        <QRTCard header={{ emoji: '📜', title: 'Règles' }}>
+          <p className="text-sm font-bold text-black">Règles de la maison</p>
+          {ruleCount > 0 && (
+            <p className="text-xs text-black/50 mt-0.5">{ruleCount} règle{ruleCount > 1 ? 's' : ''}</p>
+          )}
+          {preview && (
+            <p className="text-xs text-black/40 mt-1.5 line-clamp-2 leading-relaxed">{preview}</p>
+          )}
+          <div className="flex items-center justify-end mt-3 gap-1 text-black/50">
+            <span className="text-[11px]">Voir tout →</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold text-amber-300 uppercase tracking-wider">Règles</p>
-            <p className="text-sm font-bold text-white mt-0.5">Règles de la maison</p>
-            {ruleCount > 0 && (
-              <p className="text-xs text-white/50 mt-0.5">{ruleCount} règle{ruleCount > 1 ? 's' : ''}</p>
-            )}
-            {preview && (
-              <p className="text-xs text-white/40 mt-1.5 line-clamp-2 leading-relaxed">{preview}</p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center justify-end mt-3 gap-1 text-amber-300/60">
-          <span className="text-[11px]">Voir tout</span>
-          <ChevronRight className="h-3.5 w-3.5" />
-        </div>
-      </div>
-    </motion.button>
+        </QRTCard>
+      </motion.button>
+    </motion.div>
   );
 }
 
@@ -508,39 +438,26 @@ function ContactQuickCard({ content }: { content: Record<string, unknown> }) {
   const displayName = name || firstContact?.name || '';
 
   return (
-    <motion.div
-      variants={itemVariants}
-      className="relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-xl border border-rose-400/30 p-5"
-    >
-      <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-rose-400/15 blur-2xl" />
-      <div className="relative z-10">
-        <div className="flex items-start gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 flex items-center justify-center shrink-0 shadow-lg">
-            <Phone className="h-5 w-5 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold text-rose-300 uppercase tracking-wider">Contact</p>
-            {displayName && <p className="text-sm font-bold text-white mt-0.5 truncate">{displayName}</p>}
-            {displayPhone && (
-              <a
-                href={`tel:${displayPhone}`}
-                className="inline-flex items-center gap-1.5 mt-1.5 text-sm text-rose-200 font-medium hover:text-rose-100 transition-colors"
-              >
-                <Phone className="h-3.5 w-3.5" />
-                {displayPhone}
-              </a>
-            )}
-            {email && (
-              <a
-                href={`mailto:${email}`}
-                className="block mt-1 text-xs text-white/40 truncate hover:text-white/60 transition-colors"
-              >
-                {email}
-              </a>
-            )}
-          </div>
-        </div>
-      </div>
+    <motion.div variants={itemVariants}>
+      <QRTCard header={{ emoji: '📞', title: 'Contact' }}>
+        {displayName && <p className="text-sm font-bold text-black truncate">{displayName}</p>}
+        {displayPhone && (
+          <a
+            href={`tel:${displayPhone}`}
+            className="inline-flex items-center gap-1.5 mt-1.5 text-sm text-black font-medium hover:text-[#6D28D9] transition-colors"
+          >
+            📞 {displayPhone}
+          </a>
+        )}
+        {email && (
+          <a
+            href={`mailto:${email}`}
+            className="block mt-1 text-xs text-black/50 truncate hover:text-black/70 transition-colors"
+          >
+            {email}
+          </a>
+        )}
+      </QRTCard>
     </motion.div>
   );
 }
@@ -558,196 +475,115 @@ function MessagesQuickCard({
   onTap: () => void;
 }) {
   return (
-    <motion.button
-      variants={itemVariants}
-      whileTap={{ scale: 0.97 }}
-      onClick={onTap}
-      className="relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-xl border border-cyan-400/30 p-5 text-left"
-    >
-      <div className="absolute -top-8 -right-8 h-24 w-24 rounded-full bg-cyan-400/15 blur-2xl" />
-      <div className="relative z-10">
-        <div className="flex items-start gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-cyan-400 to-teal-500 flex items-center justify-center shrink-0 shadow-lg relative">
-            <MessageCircle className="h-5 w-5 text-white" />
-            {count > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 h-5 min-w-5 rounded-full bg-rose-500 text-[10px] font-bold text-white flex items-center justify-center px-1">
-                {count}
-              </span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-semibold text-cyan-300 uppercase tracking-wider">Messages</p>
-            <p className="text-sm font-bold text-white mt-0.5">
-              {count > 0 ? `${count} message${count > 1 ? 's' : ''}` : 'Aucun message'}
+    <motion.div variants={itemVariants}>
+      <motion.button whileTap={{ scale: 0.97 }} onClick={onTap} className="w-full text-left">
+        <QRTCard header={{ emoji: '💬', title: 'Messages', badge: count > 0 ? String(count) : undefined }}>
+          <p className="text-sm font-bold text-black">
+            {count > 0 ? `${count} message${count > 1 ? 's' : ''}` : 'Aucun message'}
+          </p>
+          {latestSender && (
+            <p className="text-xs text-black/40 mt-0.5 truncate">
+              {latestSender}{latestDuration ? ` · ${latestDuration}s` : ''}
             </p>
-            {latestSender && (
-              <p className="text-xs text-white/40 mt-0.5 truncate">
-                {latestSender}{latestDuration ? ` · ${latestDuration}s` : ''}
-              </p>
-            )}
-          </div>
-        </div>
-        {count > 0 && (
-          <div className="flex items-center justify-end mt-3 gap-1 text-cyan-300/60">
-            <span className="text-[11px]">Écouter</span>
-            <ChevronRight className="h-3.5 w-3.5" />
-          </div>
-        )}
-      </div>
-    </motion.button>
+          )}
+          {count > 0 && (
+            <div className="flex items-center justify-end mt-3 gap-1 text-black/50">
+              <span className="text-[11px]">Écouter →</span>
+            </div>
+          )}
+        </QRTCard>
+      </motion.button>
+    </motion.div>
   );
 }
 
 // ══════════════════════════════════════════════════════════════
-// ÉTAPE 4: Family Dashboard Cards
+// Family Dashboard Cards
 // ══════════════════════════════════════════════════════════════
 
-function FamilyRoomCard({
-  room,
-  gradientIndex,
-  onTap,
-}: {
-  room: RoomInfo;
-  gradientIndex: number;
-  onTap: () => void;
-}) {
-  const g = ROOM_CARD_GRADIENTS[gradientIndex % ROOM_CARD_GRADIENTS.length];
-  const IconComp = DynamicRoomIcon;
+function FamilyRoomCard({ room, onTap }: { room: RoomInfo; gradientIndex: number; onTap: () => void }) {
+  const emoji = getRoomEmoji(room.icon);
 
   return (
     <motion.button
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className="relative overflow-hidden rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 p-5 text-left group"
+      className="w-full bg-white border-2 border-black rounded-[12px] p-4 text-left shadow-[4px_4px_0_rgba(0,0,0,0.08)] active:translate-y-[2px] active:shadow-[2px_2px_0_rgba(0,0,0,0.08)] transition-all hover:shadow-[2px_2px_0_rgba(0,0,0,0.08)] group"
     >
-      {/* Decorative gradient blob */}
-      <div
-        className="absolute -bottom-4 -left-4 h-20 w-20 rounded-full opacity-20 blur-2xl transition-opacity group-hover:opacity-30"
-        style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
-      />
+      <span className="text-2xl">{emoji}</span>
+      <h3 className="text-base font-bold text-black truncate mt-2">{room.name}</h3>
+      <p className="text-xs text-black/50 mt-0.5">
+        {room.qrCodes.length} module{room.qrCodes.length !== 1 ? 's' : ''}
+      </p>
 
-      <div className="relative z-10">
-        <div
-          className="h-11 w-11 rounded-xl flex items-center justify-center mb-3 shadow-lg"
-          style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
-        >
-          <IconComp iconStr={room.icon} className="h-5.5 w-5.5 text-white" />
+      {room.qrCodes.some(qr => qr.isPrivate) && (
+        <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-red-600 bg-red-50 border border-red-200 rounded-[6px] font-bold px-2 py-0.5">
+          🔒 Privé
         </div>
-
-        <h3 className="text-base font-bold text-white truncate">{room.name}</h3>
-        <p className="text-xs text-white/50 mt-0.5">
-          {room.qrCodes.length} module{room.qrCodes.length !== 1 ? 's' : ''}
-        </p>
-
-        {room.qrCodes.some(qr => qr.isPrivate) && (
-          <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-fuchsia-300 bg-fuchsia-500/15 px-2 py-0.5 rounded-full">
-            <Lock className="h-3 w-3" /> Privé
-          </div>
-        )}
-
-        <div className="absolute top-5 right-5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <ChevronRight className="h-5 w-5 text-white/30" />
-        </div>
-      </div>
+      )}
     </motion.button>
   );
 }
 
 function FamilyActionCard({
-  icon: Icon,
+  emoji,
   label,
   subtitle,
-  gradientFrom,
-  gradientTo,
   badge,
-  badgeColor,
   onTap,
 }: {
-  icon: ElementType;
+  emoji: string;
   label: string;
   subtitle: string;
-  gradientFrom: string;
-  gradientTo: string;
   badge?: string;
-  badgeColor?: string;
   onTap: () => void;
 }) {
   return (
     <motion.button
       whileTap={{ scale: 0.95 }}
       onClick={onTap}
-      className="relative overflow-hidden rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 p-5 text-left group"
+      className="w-full bg-white border-2 border-black rounded-[12px] p-4 text-left shadow-[4px_4px_0_rgba(0,0,0,0.08)] active:translate-y-[2px] active:shadow-[2px_2px_0_rgba(0,0,0,0.08)] transition-all hover:shadow-[2px_2px_0_rgba(0,0,0,0.08)]"
     >
-      <div
-        className="absolute -bottom-4 -left-4 h-20 w-20 rounded-full opacity-20 blur-2xl transition-opacity group-hover:opacity-30"
-        style={{ background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})` }}
-      />
-
-      <div className="relative z-10">
-        <div
-          className="h-11 w-11 rounded-xl flex items-center justify-center mb-3 shadow-lg"
-          style={{ background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})` }}
-        >
-          <Icon className="h-5.5 w-5.5 text-white" />
+      <span className="text-2xl">{emoji}</span>
+      <h3 className="text-base font-bold text-black truncate mt-2">{label}</h3>
+      <p className="text-xs text-black/50 mt-0.5">{subtitle}</p>
+      {badge && (
+        <div className="mt-2 inline-flex items-center text-[10px] font-bold text-black/60 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-[6px]">
+          {badge}
         </div>
-
-        <h3 className="text-base font-bold text-white truncate">{label}</h3>
-        <p className="text-xs text-white/50 mt-0.5">{subtitle}</p>
-
-        {badge && (
-          <div className={`mt-2 inline-flex items-center text-[10px] font-semibold ${badgeColor || 'text-white/60 bg-white/10'} px-2 py-0.5 rounded-full`}>
-            {badge}
-          </div>
-        )}
-      </div>
+      )}
     </motion.button>
   );
 }
 
 // ══════════════════════════════════════════════════════════════
-// ÉTAPE 4: Room Detail View (Family sub-view)
+// Room Detail View (Family sub-view)
 // ══════════════════════════════════════════════════════════════
 
-function RoomDetailView({
-  room,
-  onBack,
-}: {
-  room: RoomInfo;
-  onBack: () => void;
-}) {
+function RoomDetailView({ room, onBack }: { room: RoomInfo; onBack: () => void }) {
   return (
     <div className="space-y-6 pb-4">
-      {/* Room header */}
       <div className="flex items-center gap-4">
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={onBack}
-          className="h-11 w-11 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center"
-        >
-          <ArrowLeft className="h-5 w-5 text-white" />
-        </motion.button>
+        <QRTButton variant="secondary" onClick={onBack} className="!w-11 !h-11 !p-0 !rounded-[8px]">←</QRTButton>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2.5">
-            <DynamicRoomIcon iconStr={room.icon} className="h-5 w-5 text-white/70" />
+            <span className="text-xl">{getRoomEmoji(room.icon)}</span>
             <h2 className="text-xl font-bold text-white truncate">{room.name}</h2>
           </div>
-          <p className="text-sm text-white/40 mt-0.5 ml-[30px]">
+          <p className="text-sm text-white/40 mt-0.5 ml-8">
             {room.qrCodes.length} module{room.qrCodes.length !== 1 ? 's' : ''}
           </p>
         </div>
       </div>
 
-      {/* Module grid */}
       {room.qrCodes.length > 0 ? (
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="grid grid-cols-2 gap-3">
           {room.qrCodes.map((qr) => <ModuleCard key={qr.id} qr={qr} />)}
         </motion.div>
       ) : (
         <div className="text-center py-16">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 border border-white/20">
-            <QrCode className="h-7 w-7 text-white/30" />
-          </div>
-          <p className="text-sm text-white/40">Aucun module dans cette pièce</p>
+          <span className="text-4xl">📋</span>
+          <p className="text-sm text-white/60 mt-3">Aucun module dans cette pièce</p>
         </div>
       )}
     </div>
@@ -755,7 +591,7 @@ function RoomDetailView({
 }
 
 // ══════════════════════════════════════════════════════════════
-// ÉTAPE 4: Voice Detail View (Family sub-view)
+// Voice Detail View (Family sub-view)
 // ══════════════════════════════════════════════════════════════
 
 function VoiceDetailView({
@@ -771,15 +607,8 @@ function VoiceDetailView({
 }) {
   return (
     <div className="space-y-6 pb-4">
-      {/* Header */}
       <div className="flex items-center gap-4">
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={onBack}
-          className="h-11 w-11 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center"
-        >
-          <ArrowLeft className="h-5 w-5 text-white" />
-        </motion.button>
+        <QRTButton variant="secondary" onClick={onBack} className="!w-11 !h-11 !p-0 !rounded-[8px]">←</QRTButton>
         <div>
           <h2 className="text-xl font-bold text-white">Répondeur</h2>
           <p className="text-sm text-white/40 mt-0.5">
@@ -788,16 +617,12 @@ function VoiceDetailView({
         </div>
       </div>
 
-      {/* Recorder */}
       <VoiceRecorder slug={slug} onSent={onRefresh} />
 
-      {/* Messages list */}
       {voiceMsgs.length > 0 ? (
         <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1 scrollbar-thin"
+          variants={containerVariants} initial="hidden" animate="visible"
+          className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1"
         >
           {voiceMsgs.map((vm) => (
             <motion.div key={vm.id} variants={itemVariants}>
@@ -807,11 +632,9 @@ function VoiceDetailView({
         </motion.div>
       ) : (
         <div className="text-center py-12">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 border border-white/20">
-            <Mic className="h-7 w-7 text-white/30" />
-          </div>
-          <p className="text-sm text-white/40">Aucun message vocal</p>
-          <p className="text-xs text-white/25 mt-1">Enregistrez le premier message !</p>
+          <span className="text-4xl">🎙️</span>
+          <p className="text-sm text-white/60 mt-3">Aucun message vocal</p>
+          <p className="text-xs text-white/40 mt-1">Enregistrez le premier message !</p>
         </div>
       )}
     </div>
@@ -819,35 +642,20 @@ function VoiceDetailView({
 }
 
 // ══════════════════════════════════════════════════════════════
-// ÉTAPE 4: Rules Detail View (Guest sub-view)
+// Rules Detail View (Guest sub-view)
 // ══════════════════════════════════════════════════════════════
 
-function RulesDetailView({
-  content,
-  onBack,
-}: {
-  content: Record<string, unknown>;
-  onBack: () => void;
-}) {
+function RulesDetailView({ content, onBack }: { content: Record<string, unknown>; onBack: () => void }) {
   const rules = (content.rules as string[]) || [];
   const text = (content.text as string) || '';
   const description = (content.description as string) || '';
 
   return (
     <div className="space-y-6 pb-4">
-      {/* Header */}
       <div className="flex items-center gap-4">
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={onBack}
-          className="h-11 w-11 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center"
-        >
-          <ArrowLeft className="h-5 w-5 text-white" />
-        </motion.button>
+        <QRTButton variant="secondary" onClick={onBack} className="!w-11 !h-11 !p-0 !rounded-[8px]">←</QRTButton>
         <div className="flex items-center gap-2.5">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-            <ScrollText className="h-5 w-5 text-white" />
-          </div>
+          <span className="text-2xl">📜</span>
           <div>
             <h2 className="text-xl font-bold text-white">Règles de la maison</h2>
             <p className="text-sm text-white/40 mt-0.5">
@@ -857,39 +665,32 @@ function RulesDetailView({
         </div>
       </div>
 
-      {/* Rules content */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="space-y-3"
-      >
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3">
         {rules.length > 0 ? (
           rules.map((rule, i) => (
-            <motion.div
-              key={i}
-              variants={itemVariants}
-              className="flex items-start gap-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 p-4"
-            >
-              <span className="h-6 min-w-6 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold flex items-center justify-center mt-0.5">
-                {i + 1}
-              </span>
-              <p className="text-sm text-white/80 leading-relaxed flex-1">{rule}</p>
+            <motion.div key={i} variants={itemVariants}>
+              <QRTCard>
+                <div className="flex items-start gap-3">
+                  <span className="h-6 min-w-6 rounded-full bg-[#6D28D9] text-white text-xs font-bold flex items-center justify-center mt-0.5">
+                    {i + 1}
+                  </span>
+                  <p className="text-sm text-black leading-relaxed flex-1">{rule}</p>
+                </div>
+              </QRTCard>
             </motion.div>
           ))
         ) : text || description ? (
-          <motion.div
-            variants={itemVariants}
-            className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 p-5"
-          >
-            <p className="text-sm text-white/80 leading-relaxed whitespace-pre-wrap">
-              {text || description}
-            </p>
+          <motion.div variants={itemVariants}>
+            <QRTCard>
+              <p className="text-sm text-black leading-relaxed whitespace-pre-wrap">
+                {text || description}
+              </p>
+            </QRTCard>
           </motion.div>
         ) : (
           <div className="text-center py-12">
-            <ScrollText className="h-8 w-8 text-white/20 mx-auto" />
-            <p className="text-sm text-white/40 mt-3">Aucune règle définie</p>
+            <span className="text-4xl">📜</span>
+            <p className="text-sm text-white/60 mt-3">Aucune règle définie</p>
           </div>
         )}
       </motion.div>
@@ -899,32 +700,22 @@ function RulesDetailView({
 
 // ── Module Card ──
 function ModuleCard({ qr }: { qr: QrCodeInfo }) {
-  const gradient = getModuleGradient(qr.type);
   const label = getModuleLabel(qr.type);
+  const emoji = getModuleEmoji(qr.type);
   return (
     <motion.button
       variants={itemVariants}
       whileTap={{ scale: 0.97 }}
       onClick={() => { if (qr.publicSlug) window.location.href = `/view/${qr.publicSlug}`; }}
       disabled={!qr.publicSlug}
-      className="text-left relative rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 p-4 hover:bg-white/15 transition-all disabled:opacity-60 group"
+      className="text-left bg-white border-2 border-black rounded-[12px] p-4 cursor-pointer active:translate-y-[2px] transition-all shadow-[3px_3px_0_rgba(0,0,0,0.08)] hover:shadow-[2px_2px_0_rgba(0,0,0,0.08)] disabled:opacity-60 disabled:pointer-events-none"
     >
-      <div
-        className="h-10 w-10 rounded-xl flex items-center justify-center mb-3 shadow-sm"
-        style={{ background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})` }}
-      >
-        <DynamicIcon type={qr.type} iconMap={MODULE_ICONS} className="h-5 w-5 text-white" />
-      </div>
-      <p className="text-sm font-semibold text-white truncate">{qr.name}</p>
-      <p className="text-[11px] text-white/30 mt-0.5 truncate">{label}</p>
+      <span className="text-2xl">{emoji}</span>
+      <p className="text-sm font-bold text-black truncate mt-2">{qr.name}</p>
+      <p className="text-[11px] text-black/40 mt-0.5 truncate">{label}</p>
       {qr.isPrivate && (
-        <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-fuchsia-300">
-          <Lock className="h-3 w-3" /> Privé
-        </div>
-      )}
-      {qr.publicSlug && (
-        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-          <ChevronRight className="h-4 w-4 text-white/40" />
+        <div className="mt-2 inline-flex items-center gap-1 text-[10px] text-red-600 bg-red-50 border border-red-200 rounded-[6px] font-bold px-2 py-0.5">
+          🔒 Privé
         </div>
       )}
     </motion.button>
@@ -933,10 +724,11 @@ function ModuleCard({ qr }: { qr: QrCodeInfo }) {
 
 // ── Room Section (for Guest view modules) ──
 function RoomSection({ room }: { room: RoomInfo }) {
+  const emoji = getRoomEmoji(room.icon);
   return (
     <motion.div variants={itemVariants} className="space-y-3">
       <div className="flex items-center gap-2 px-1">
-        <DynamicRoomIcon iconStr={room.icon} className="h-4 w-4 text-white/50" />
+        <span className="text-sm">{emoji}</span>
         <h3 className="text-sm font-semibold text-white/70 uppercase tracking-wider">{room.name}</h3>
         <span className="text-xs text-white/20">({room.qrCodes.length})</span>
       </div>
@@ -1048,42 +840,35 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
       .finally(() => setPinVerifying(false));
   }, [slug, pinModalFor]);
 
-  // Determine gradient preset based on view
-  const gradientPreset = view === 'family' || view === 'room-detail' || view === 'voice-detail' ? 'hub-family' : 'hub-guest';
-
   // ── Loading state ──
   if (loading) {
     return (
-      <AnimatedGradient preset="hub-guest">
-        <div className="min-h-screen flex items-center justify-center">
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center">
-              <Home className="h-7 w-7 text-white" />
-            </div>
-            <p className="text-sm text-white/60">Chargement du Hub...</p>
-          </motion.div>
-        </div>
-      </AnimatedGradient>
+      <div className="min-h-screen bg-[#8B5CF6] flex items-center justify-center">
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-4">
+          <QRTCard className="!p-6">
+            <span className="text-4xl">🏠</span>
+          </QRTCard>
+          <p className="text-sm text-white/60">Chargement du Hub...</p>
+        </motion.div>
+      </div>
     );
   }
 
   // ── Error state ──
   if (error || !data) {
     return (
-      <AnimatedGradient preset="hub-guest">
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <GlassCard className="w-full max-w-sm p-8 text-center" hover={false}>
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/20">
-              <XCircle className="h-8 w-8 text-red-400" />
+      <div className="min-h-screen bg-[#8B5CF6] flex items-center justify-center p-4">
+        <QRTCard className="w-full max-w-sm">
+          <div className="text-center">
+            <span className="text-5xl">❌</span>
+            <h1 className="text-xl font-bold text-black mt-3 mb-2">Hub introuvable</h1>
+            <p className="text-sm text-black/50 mb-6">{error || "Ce Hub n'existe pas ou a été désactivé."}</p>
+            <div className="h-10 bg-gray-50 border-2 border-black rounded-[8px] flex items-center justify-center gap-2 text-sm text-black/60">
+              <span>📱</span><span className="font-mono text-xs">{slug}</span>
             </div>
-            <h1 className="text-xl font-bold text-white mb-2">Hub introuvable</h1>
-            <p className="text-sm text-white/50 mb-6">{error || "Ce Hub n'existe pas ou a été désactivé."}</p>
-            <div className="h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center gap-2 text-sm text-white/60">
-              <QrCode className="h-4 w-4" /><span className="font-mono text-xs">{slug}</span>
-            </div>
-          </GlassCard>
-        </div>
-      </AnimatedGradient>
+          </div>
+        </QRTCard>
+      </div>
     );
   }
 
@@ -1108,9 +893,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
 
   return (
     <>
-      <AnimatedGradient preset={gradientPreset}>
-        <FloatingParticles count={18} color="rgba(255,255,255,0.12)" size={3} duration={24} />
-
+      <div className="min-h-screen bg-[#8B5CF6]">
         <div className="min-h-screen flex flex-col relative z-10">
           {/* Header */}
           <header className="w-full px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-2">
@@ -1122,7 +905,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     onClick={goBack}
                     className="flex items-center gap-1.5 text-sm text-white/60 hover:text-white transition-colors"
                   >
-                    <ArrowLeft className="h-4 w-4" /> Retour
+                    ← Retour
                   </motion.button>
                 ) : (
                   <h1 className="text-2xl font-bold text-white">
@@ -1135,7 +918,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     <motion.span
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="text-[10px] font-bold bg-emerald-500/20 text-emerald-200 px-2.5 py-1 rounded-full backdrop-blur-sm border border-emerald-400/30"
+                      className="text-[10px] font-bold bg-white text-[#6D28D9] px-2.5 py-1 rounded-[6px] border-2 border-black shadow-[2px_2px_0_rgba(0,0,0,0.08)]"
                     >
                       INVITÉ
                     </motion.span>
@@ -1144,7 +927,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     <motion.span
                       initial={{ scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="text-[10px] font-bold bg-purple-500/20 text-purple-200 px-2.5 py-1 rounded-full backdrop-blur-sm border border-purple-400/30"
+                      className="text-[10px] font-bold bg-[#6D28D9] text-white px-2.5 py-1 rounded-[6px] border-2 border-black shadow-[2px_2px_0_rgba(0,0,0,0.08)]"
                     >
                       FAMILLE
                     </motion.span>
@@ -1152,11 +935,11 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
 
                   {view === 'mode-select' && data.home.hasPin && (
                     <motion.button
-                      whileTap={{ rotate: 90 }}
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => setPinModalFor('settings')}
-                      className="p-3 bg-white/10 backdrop-blur-xl rounded-full border border-white/20"
+                      className="h-10 w-10 bg-white border-2 border-black rounded-[8px] flex items-center justify-center shadow-[2px_2px_0_rgba(0,0,0,0.08)] active:translate-y-[1px] active:shadow-none transition-all"
                     >
-                      <Settings className="w-5 h-5 text-white/80" />
+                      ⚙️
                     </motion.button>
                   )}
                 </div>
@@ -1194,69 +977,60 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                       </p>
                     )}
                     <div className="flex items-center justify-center gap-4 text-xs text-white/30">
-                      <span className="flex items-center gap-1"><Home className="h-3.5 w-3.5" />{data.guestRooms.length} pièces</span>
-                      <span className="flex items-center gap-1"><QrCode className="h-3.5 w-3.5" />{totalGuestModules} modules</span>
+                      <span className="flex items-center gap-1">🏠 {data.guestRooms.length} pièces</span>
+                      <span className="flex items-center gap-1">📱 {totalGuestModules} modules</span>
                     </div>
                   </motion.div>
 
                   {/* Two big mode buttons */}
-                  <div className="flex-1 flex flex-col gap-6">
+                  <div className="flex-1 flex flex-col gap-4">
                     {/* INVITÉ button */}
                     <motion.button
                       onClick={goToGuest}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98, translateY: 2 }}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2, type: 'spring' }}
-                      className="relative overflow-hidden bg-gradient-to-r from-emerald-400 to-teal-500 rounded-3xl p-8 shadow-2xl"
+                      className="w-full bg-white border-2 border-black rounded-[12px] p-6 shadow-[4px_4px_0_rgba(0,0,0,0.08)] hover:shadow-[2px_2px_0_rgba(0,0,0,0.08)] transition-all text-left"
                     >
-                      <div className="relative z-10 flex items-center gap-4">
-                        <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
-                          <User className="w-8 h-8 text-white" />
-                        </div>
-                        <div className="text-left">
-                          <h2 className="text-2xl font-bold text-white">Mode Invité</h2>
-                          <p className="text-white/80 text-sm">Wi-Fi, messages, infos pratiques</p>
+                      <div className="flex items-center gap-4">
+                        <span className="text-4xl">👤</span>
+                        <div>
+                          <h2 className="text-2xl font-bold text-black">Mode Invité</h2>
+                          <p className="text-black/50 text-sm">Wi-Fi, messages, infos pratiques</p>
                         </div>
                       </div>
-                      <div className="mt-3 relative z-10 flex items-center gap-2 pl-20">
-                        <span className="text-[11px] bg-white/15 rounded-full px-2.5 py-0.5 backdrop-blur-sm">{totalGuestModules} modules</span>
-                        <span className="text-[11px] bg-white/15 rounded-full px-2.5 py-0.5 backdrop-blur-sm">Sans code</span>
+                      <div className="mt-3 flex items-center gap-2 pl-14">
+                        <span className="text-[11px] bg-gray-100 border border-gray-300 rounded-[6px] font-bold px-2.5 py-0.5">{totalGuestModules} modules</span>
+                        <span className="text-[11px] bg-gray-100 border border-gray-300 rounded-[6px] font-bold px-2.5 py-0.5">Sans code</span>
                       </div>
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700" />
                     </motion.button>
 
                     {/* FAMILLE button */}
                     {data.home.hasPin && (
                       <motion.button
                         onClick={() => setPinModalFor('family')}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98, translateY: 2 }}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.3, type: 'spring' }}
-                        className="relative overflow-hidden bg-gradient-to-r from-purple-500 to-fuchsia-600 rounded-3xl p-8 shadow-2xl"
+                        className="w-full bg-[#6D28D9] border-2 border-black rounded-[12px] p-6 shadow-[4px_4px_0_rgba(0,0,0,0.15)] hover:shadow-[2px_2px_0_rgba(0,0,0,0.15)] transition-all text-left"
                       >
-                        <div className="relative z-10 flex items-center gap-4">
-                          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center shrink-0">
-                            <Users className="w-8 h-8 text-white" />
-                          </div>
-                          <div className="text-left">
+                        <div className="flex items-center gap-4">
+                          <span className="text-4xl">👨‍👩‍👧‍👦</span>
+                          <div>
                             <h2 className="text-2xl font-bold text-white">Mode Famille</h2>
                             <p className="text-white/80 text-sm">Accès complet à votre maison</p>
                           </div>
                         </div>
-                        <div className="mt-3 relative z-10 flex items-center gap-2 pl-20">
-                          <span className="text-[11px] bg-white/15 rounded-full px-2.5 py-0.5 backdrop-blur-sm">{totalFamilyModules} modules</span>
-                          <span className="text-[11px] bg-white/15 rounded-full px-2.5 py-0.5 backdrop-blur-sm flex items-center gap-1">
-                            <Lock className="h-3 w-3" />PIN requis
+                        <div className="mt-3 flex items-center gap-2 pl-14">
+                          <span className="text-[11px] bg-white/15 rounded-[6px] font-bold px-2.5 py-0.5 text-white">{totalFamilyModules} modules</span>
+                          <span className="text-[11px] bg-white/15 rounded-[6px] font-bold px-2.5 py-0.5 text-white flex items-center gap-1">
+                            🔒 PIN requis
                           </span>
                         </div>
-                        <div className="absolute top-4 right-4 relative z-10">
-                          <Lock className="w-5 h-5 text-white/60" />
-                        </div>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-700" />
                       </motion.button>
                     )}
                   </div>
@@ -1270,20 +1044,20 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                       className="space-y-2"
                     >
                       <div className="flex items-center gap-2 text-sm text-white/50">
-                        <MessageCircle className="h-4 w-4" />
+                        <span>💬</span>
                         <span>{voiceMsgs.length} message{voiceMsgs.length > 1 ? 's' : ''} vocal{voiceMsgs.length > 1 ? 'aux' : ''}</span>
                       </div>
-                      <div className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin">
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
                         {voiceMsgs.slice(0, 3).map((vm) => (
-                          <div key={vm.id} className="flex items-center gap-3 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 px-4 py-3">
-                            <div className="h-8 w-8 rounded-full bg-white/15 flex items-center justify-center shrink-0">
-                              <Volume2 className="h-4 w-4 text-white/70" />
+                          <QRTCard key={vm.id} className="!p-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-xl">🔊</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-black truncate">{vm.senderName}</p>
+                                <p className="text-xs text-black/40">{vm.durationSec}s</p>
+                              </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-white truncate">{vm.senderName}</p>
-                              <p className="text-xs text-white/30">{vm.durationSec}s</p>
-                            </div>
-                          </div>
+                          </QRTCard>
                         ))}
                       </div>
                     </motion.div>
@@ -1291,7 +1065,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                 </motion.div>
               )}
 
-              {/* ══════════ GUEST VIEW (ÉTAPE 4 Enhanced) ══════════ */}
+              {/* ══════════ GUEST VIEW ══════════ */}
               {view === 'guest' && (
                 <motion.div
                   key="guest"
@@ -1311,25 +1085,20 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     </p>
                   </div>
 
-                  {/* Quick Access: WiFi full-width hero card */}
+                  {/* Quick Access: WiFi full-width card */}
                   {wifiQr && (
-                    <motion.div
-                      variants={itemVariants}
-                      initial="hidden"
-                      animate="visible"
-                    >
+                    <motion.div variants={itemVariants} initial="hidden" animate="visible">
                       <WifiQuickCard content={wifiQr.content} />
                     </motion.div>
                   )}
 
-                  {/* Quick Access Grid — remaining cards */}
+                  {/* Quick Access Grid */}
                   <motion.div
                     variants={containerVariants}
                     initial="hidden"
                     animate="visible"
                     className="grid grid-cols-2 gap-3"
                   >
-                    {/* Messages Card */}
                     <MessagesQuickCard
                       count={voiceMsgs.length}
                       latestSender={voiceMsgs[0]?.senderName ?? null}
@@ -1337,7 +1106,6 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                       onTap={goToVoiceDetail}
                     />
 
-                    {/* House Rules Card */}
                     {rulesQr && (
                       <RulesQuickCard
                         content={rulesQr.content}
@@ -1345,11 +1113,10 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                       />
                     )}
 
-                    {/* Contact Card */}
                     {contactQr && <ContactQuickCard content={contactQr.content} />}
                   </motion.div>
 
-                  {/* Voice Recorder (standalone) */}
+                  {/* Voice Recorder */}
                   <div className="space-y-3">
                     <VoiceRecorder slug={slug} onSent={refreshVoice} />
                   </div>
@@ -1358,9 +1125,9 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                   {voiceMsgs.length > 0 && (
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-sm font-semibold text-white/70">
-                        <Volume2 className="h-4 w-4" /> Messages vocaux
+                        <span>🔊</span> Messages vocaux
                       </div>
-                      <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin">
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
                         {voiceMsgs.map((vm) => <VoicePlayer key={vm.id} msg={vm} />)}
                       </div>
                     </div>
@@ -1370,7 +1137,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                   {guestModuleRooms.length > 0 && (
                     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
                       <div className="flex items-center gap-2 text-sm font-semibold text-white/70">
-                        <QrCode className="h-4 w-4" /> Modules par pièce
+                        <span>📱</span> Modules par pièce
                       </div>
                       {guestModuleRooms.map((room) => (
                         <RoomSection key={room.id} room={room} />
@@ -1380,7 +1147,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                 </motion.div>
               )}
 
-              {/* ══════════ FAMILY VIEW (ÉTAPE 4 — 6-card Dashboard) ══════════ */}
+              {/* ══════════ FAMILY VIEW ══════════ */}
               {view === 'family' && (
                 <motion.div
                   key="family"
@@ -1422,13 +1189,10 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     {data.familyRooms.length > 4 && (
                       <motion.div variants={itemVariants}>
                         <FamilyActionCard
-                          icon={Home}
+                          emoji="🏠"
                           label="Plus de pièces"
                           subtitle={`${data.familyRooms.length - 4} autre${data.familyRooms.length - 4 > 1 ? 's' : ''}`}
-                          gradientFrom="#6366f1"
-                          gradientTo="#8b5cf6"
                           badge={`${data.familyRooms.length} pièces au total`}
-                          badgeColor="text-indigo-200 bg-indigo-500/15"
                           onTap={() => {
                             toast.info('Utilisez l\'application complète pour voir toutes les pièces');
                           }}
@@ -1439,16 +1203,13 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     {/* Répondeur Card */}
                     <motion.div variants={itemVariants}>
                       <FamilyActionCard
-                        icon={Phone}
+                        emoji="📞"
                         label="Répondeur"
                         subtitle={voiceMsgs.length > 0
                           ? `${voiceMsgs.length} message${voiceMsgs.length > 1 ? 's' : ''}`
                           : 'Aucun message'
                         }
-                        gradientFrom="#f43f5e"
-                        gradientTo="#e11d48"
                         badge={voiceMsgs.length > 0 ? `${voiceMsgs.length} nouveau${voiceMsgs.length > 1 ? 'x' : ''}` : undefined}
-                        badgeColor="text-rose-200 bg-rose-500/15"
                         onTap={goToVoiceDetail}
                       />
                     </motion.div>
@@ -1456,13 +1217,10 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                     {/* Paramètres Card */}
                     <motion.div variants={itemVariants}>
                       <FamilyActionCard
-                        icon={Settings}
+                        emoji="⚙️"
                         label="Paramètres"
                         subtitle="Configurer le Hub"
-                        gradientFrom="#64748b"
-                        gradientTo="#475569"
                         badge="Sécurisé"
-                        badgeColor="text-slate-200 bg-slate-500/15"
                         onTap={() => setPinModalFor('settings')}
                       />
                     </motion.div>
@@ -1470,7 +1228,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                 </motion.div>
               )}
 
-              {/* ══════════ ROOM DETAIL VIEW (Family sub-view) ══════════ */}
+              {/* ══════════ ROOM DETAIL VIEW ══════════ */}
               {view === 'room-detail' && selectedRoom && (
                 <motion.div
                   key={`room-${selectedRoom.id}`}
@@ -1481,14 +1239,11 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                   exit="exit"
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 >
-                  <RoomDetailView
-                    room={selectedRoom}
-                    onBack={goBack}
-                  />
+                  <RoomDetailView room={selectedRoom} onBack={goBack} />
                 </motion.div>
               )}
 
-              {/* ══════════ VOICE DETAIL VIEW (Family sub-view) ══════════ */}
+              {/* ══════════ VOICE DETAIL VIEW ══════════ */}
               {view === 'voice-detail' && (
                 <motion.div
                   key="voice-detail"
@@ -1508,7 +1263,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                 </motion.div>
               )}
 
-              {/* ══════════ RULES DETAIL VIEW (Guest sub-view) ══════════ */}
+              {/* ══════════ RULES DETAIL VIEW ══════════ */}
               {view === 'rules-detail' && selectedRulesContent && (
                 <motion.div
                   key="rules-detail"
@@ -1519,23 +1274,20 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
                   exit="exit"
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 >
-                  <RulesDetailView
-                    content={selectedRulesContent}
-                    onBack={goBack}
-                  />
+                  <RulesDetailView content={selectedRulesContent} onBack={goBack} />
                 </motion.div>
               )}
             </AnimatePresence>
           </main>
 
-          {/* Footer — sticks to bottom on short content, safe area for iOS */}
+          {/* Footer */}
           <div className="mt-auto px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center">
             <p className="text-xs text-white/30">
               Propulsé par QR Domotik 🏠
             </p>
           </div>
         </div>
-      </AnimatedGradient>
+      </div>
 
       {/* ══════════ PIN MODAL ══════════ */}
       <AnimatePresence>
