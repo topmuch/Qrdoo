@@ -2,6 +2,219 @@ import { NextResponse } from 'next/server';
 import { compare } from 'bcryptjs';
 import { db } from '@/lib/db';
 
+// ── Demo mock data ──
+const DEMO_SLUG = 'demo-hub';
+const isDemo = (slug: string) => slug === DEMO_SLUG;
+
+const DEMO_HUB_DATA = {
+  home: {
+    id: 'demo-home-001',
+    name: 'Le Petit Nid',
+    address: '12 Rue de la Paix, 75002 Paris',
+    hasPin: true,
+  },
+  ownerName: 'Marie Dupont',
+  guestRooms: [
+    {
+      id: 'room-salon',
+      name: 'Salon',
+      icon: 'salon',
+      qrCodes: [
+        {
+          id: 'qr-wifi-1',
+          name: 'WiFi Maison',
+          type: 'wifi',
+          publicSlug: null,
+          isPrivate: false,
+          content: {
+            network_name: 'LePetitNid_5G',
+            password: 'Demo2025!',
+            security_type: 'WPA2',
+          },
+        },
+        {
+          id: 'qr-rules-1',
+          name: 'Règles de la maison',
+          type: 'house_rules',
+          publicSlug: null,
+          isPrivate: false,
+          content: {
+            rules: [
+              'Pas de fumer à l\'intérieur',
+              'Pas d\'animaux sans autorisation',
+              'Départ avant 11h le jour du checkout',
+              'Merci de ne pas faire de bruit après 22h',
+              'Climatisation éteinte en votre absence',
+            ],
+            description: 'Merci de respecter ces quelques règles pour le confort de tous.',
+          },
+        },
+        {
+          id: 'qr-emergency-1',
+          name: 'Urgences',
+          type: 'emergency',
+          publicSlug: null,
+          isPrivate: false,
+          content: {
+            phone: '+33 1 42 60 31 70',
+            contact_name: 'Marie Dupont',
+            nearest_hospital: 'Hôtel-Dieu (1.2 km)',
+            pharmacy: 'Pharmacie de la Paix (200m)',
+          },
+        },
+      ],
+    },
+    {
+      id: 'room-cuisine',
+      name: 'Cuisine',
+      icon: 'cuisine',
+      qrCodes: [
+        {
+          id: 'qr-recipe-1',
+          name: 'Recette locale',
+          type: 'recipe',
+          publicSlug: null,
+          isPrivate: false,
+          content: {
+            title: 'Quiche Lorraine Maison',
+            ingredients: ['200g de lardons', '3 œufs', '20cl de crème', '1 pâte brisée', '100g de gruyère râpé'],
+            steps: ['Préchauffez le four à 180°C', 'Étalez la pâte dans un moule', 'Faites revenir les lardons', 'Mélangez œufs et crème', 'Versez sur la pâte, ajoutez lardons et gruyère', 'Cuisez 35 min'],
+          },
+        },
+      ],
+    },
+    {
+      id: 'room-chambre',
+      name: 'Chambre Principale',
+      icon: 'chambre',
+      qrCodes: [
+        {
+          id: 'qr-note-1',
+          name: 'Livre d\'or',
+          type: 'guestbook',
+          publicSlug: null,
+          isPrivate: false,
+          content: {
+            text: 'Bienvenue ! N\'hésitez pas à laisser un petit mot pour les prochains voyageurs.',
+          },
+        },
+      ],
+    },
+  ],
+  familyRooms: [
+    {
+      id: 'froom-salon',
+      name: 'Salon',
+      icon: 'salon',
+      qrCodes: [
+        {
+          id: 'fqr-wifi-1',
+          name: 'WiFi Maison',
+          type: 'wifi',
+          publicSlug: null,
+          isPrivate: false,
+          content: { network_name: 'LePetitNid_5G', password: 'Demo2025!', security_type: 'WPA2' },
+        },
+        {
+          id: 'fqr-contact-1',
+          name: 'Contacts Famille',
+          type: 'contact',
+          publicSlug: null,
+          isPrivate: true,
+          content: { contacts: [{ name: 'Maman', phone: '+33 6 12 34 56 78' }, { name: 'Papa', phone: '+33 6 98 76 54 32' }] },
+        },
+        {
+          id: 'fqr-list-1',
+          name: 'Liste de courses',
+          type: 'shopping_list',
+          publicSlug: null,
+          isPrivate: true,
+          content: { items: ['Lait', 'Pain', 'Œufs', 'Fromage', 'Fruits'] },
+        },
+      ],
+    },
+    {
+      id: 'froom-cuisine',
+      name: 'Cuisine',
+      icon: 'cuisine',
+      qrCodes: [
+        {
+          id: 'fqr-recipe-1',
+          name: 'Recette locale',
+          type: 'recipe',
+          publicSlug: null,
+          isPrivate: false,
+          content: { title: 'Quiche Lorraine Maison' },
+        },
+        {
+          id: 'fqr-chore-1',
+          name: 'Tâches ménagères',
+          type: 'chore',
+          publicSlug: null,
+          isPrivate: true,
+          content: { chores: ['Vider le lave-vaisselle', 'Sortir les poubelles', 'Essuyer les plans de travail'] },
+        },
+      ],
+    },
+    {
+      id: 'froom-chambre',
+      name: 'Chambre Principale',
+      icon: 'chambre',
+      qrCodes: [
+        {
+          id: 'fqr-guestbook-1',
+          name: 'Livre d\'or',
+          type: 'guestbook',
+          publicSlug: null,
+          isPrivate: false,
+          content: { text: 'Bienvenue dans la famille !' },
+        },
+        {
+          id: 'fqr-medication-1',
+          name: 'Médicaments',
+          type: 'medication',
+          publicSlug: null,
+          isPrivate: true,
+          content: { medications: ['Doliprane - étagère haute', 'Ibuprofène - pharmacie salle de bain'] },
+        },
+      ],
+    },
+    {
+      id: 'froom-bureau',
+      name: 'Bureau',
+      icon: 'bureau',
+      qrCodes: [
+        {
+          id: 'fqr-inventory-1',
+          name: 'Inventaire',
+          type: 'inventory',
+          publicSlug: null,
+          isPrivate: true,
+          content: { items: ['Cartouches d\'encre (x2)', 'Papier A4 (5 ramettes)', 'Câble HDMI'] },
+        },
+      ],
+    },
+  ],
+  voiceMessages: [
+    {
+      id: 'vm-1',
+      senderName: 'Marie',
+      senderType: 'owner',
+      audioUrl: '',
+      durationSec: 12,
+      createdAt: new Date(Date.now() - 3600000).toISOString(),
+    },
+    {
+      id: 'vm-2',
+      senderName: 'Pierre',
+      senderType: 'guest',
+      audioUrl: '',
+      durationSec: 8,
+      createdAt: new Date(Date.now() - 7200000).toISOString(),
+    },
+  ],
+};
+
 // GET: Public hub info — home, rooms, active non-private QR codes
 export async function GET(
   req: Request,
@@ -12,6 +225,11 @@ export async function GET(
 
     if (!slug || slug.length < 2) {
       return NextResponse.json({ error: 'Slug invalide' }, { status: 400 });
+    }
+
+    // ── DEMO MODE: return rich mock data ──
+    if (isDemo(slug)) {
+      return NextResponse.json(DEMO_HUB_DATA);
     }
 
     // Find the plaque by hubSlug
@@ -134,6 +352,11 @@ export async function POST(
 
     if (!pin || !/^\d{4}$/.test(pin)) {
       return NextResponse.json({ error: 'PIN invalide' }, { status: 400 });
+    }
+
+    // ── DEMO MODE: any 4-digit PIN works ──
+    if (isDemo(slug)) {
+      return NextResponse.json({ success: true, homeId: 'demo-home-001' });
     }
 
     // Find the plaque and home

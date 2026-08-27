@@ -2,9 +2,11 @@
 
 import { Component, type ReactNode } from 'react';
 
+type FallbackRender = (args: { error: Error | null; resetErrorBoundary: () => void }) => ReactNode;
+
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
+  fallback?: ReactNode | FallbackRender;
 }
 
 interface State {
@@ -32,7 +34,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback || (
+      const { fallback } = this.props;
+      if (typeof fallback === 'function') {
+        return fallback({ error: this.state.error, resetErrorBoundary: this.handleReset });
+      }
+      return fallback || (
         <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center">
           <div className="rounded-2xl border-2 border-dashed border-muted-foreground/25 p-12 max-w-md">
             <div className="h-12 w-12 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">

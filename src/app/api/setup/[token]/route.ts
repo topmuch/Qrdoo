@@ -3,6 +3,11 @@ import { hash } from 'bcryptjs';
 import { db } from '@/lib/db';
 import crypto from 'crypto';
 
+// ── Demo mock data ──
+const DEMO_TOKEN = 'demo-setup';
+
+const isDemo = (token: string) => token === DEMO_TOKEN;
+
 // GET: Validate setup token — return plaque info without claiming
 export async function GET(
   req: Request,
@@ -13,6 +18,20 @@ export async function GET(
 
     if (!token || token.length < 4) {
       return NextResponse.json({ error: 'Token invalide' }, { status: 400 });
+    }
+
+    // ── DEMO MODE: return mock plaque data ──
+    if (isDemo(token)) {
+      return NextResponse.json({
+        status: 'available',
+        plaque: {
+          id: 'demo-plaque-001',
+          activationCode: DEMO_TOKEN,
+          batchId: 'demo-batch-001',
+          quantity: 10,
+          designConfig: null,
+        },
+      });
     }
 
     const plaque = await db.physicalQrCode.findUnique({
@@ -75,6 +94,19 @@ export async function POST(
       plan,
       existingUserId,
     } = body;
+
+    // ── DEMO MODE: simulate successful setup ──
+    if (isDemo(token)) {
+      return NextResponse.json({
+        success: true,
+        isNewUser: true,
+        userId: 'demo-user-001',
+        homeId: 'demo-home-001',
+        homeName: homeName || 'Mon Appartement Demo',
+        hubSlug: 'demo-hub',
+        plan: plan || 'famille',
+      });
+    }
 
     // Validate inputs
     if (!fullName?.trim()) {

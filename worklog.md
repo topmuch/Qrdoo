@@ -1283,3 +1283,28 @@ Stage Summary:
 - Literal \n JSX bug fixed in setup password toggle
 - Zero lint errors, zero console errors, all routes compile 200
 
+---
+Task ID: 1
+Agent: main
+Task: Intégrer l'onboarding et le hub dans la page principale avec données de démo
+
+Work Log:
+- Analysé page.tsx : l'intégration setup-demo/hub-demo existait déjà mais les IDs de la barre de démo étaient incorrects (setup/hub au lieu de setup-demo/hub-demo)
+- Analysé les API routes setup et hub : les deux retournaient 404 pour les tokens démo
+- Ajouté le mode démo dans /api/setup/[token]/route.ts (GET retourne mock plaque, POST retourne succès mock)
+- Ajouté le mode démo dans /api/public/hub/[slug]/route.ts avec données riches : 3 pièces invité, 4 pièces famille, messages vocaux, modules wifi/rules/emergency/etc.
+- Corrigé le bug critique dans FloatingParticles.tsx : variable driftX déclarée dans la boucle for mais utilisée en dehors → renommée en globalDriftX et déplacée avant la boucle
+- Corrigé les IDs de la DemoNavBar : setup→setup-demo, hub→hub-demo, et les currentView correspondants
+- Corrigé le commentaire JSX manquant (missing }) dans hero-section.tsx ligne 197
+- Mis à jour ErrorBoundary pour supporter un fallback render function
+- Ajouté ErrorBoundary autour des composants SetupPageContent et HubPageContent dans les vues démo
+- Testé les 3 API endpoints via curl : tous retournent les données mock correctement
+- Lint passe sans erreur
+
+Stage Summary:
+- Bug FloatingParticles corrigé (driftX is not defined)
+- Barre de démo fonctionne avec les bons IDs
+- API démo fonctionnelles (setup GET/POST, hub GET/POST PIN)
+- Données mock riches : logement "Le Petit Nid" avec 3 pièces invité (Salon, Cuisine, Chambre) et 4 pièces famille (+ Bureau)
+- 5 règles de maison, WiFi, urgence, recette, livre d'or, contacts, liste de courses, tâches, médicaments, inventaire
+- Limitation : OOM kill fréquent dans l'environnement sandbox (2.2GB RSS pour le dev server Next.js)

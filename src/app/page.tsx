@@ -57,8 +57,8 @@ const DEMO_HUB_SLUG = 'demo-hub';
 function DemoNavBar({ currentView, onNavigate }: { currentView: string; onNavigate: (view: string) => void }) {
   const tabs = [
     { id: 'landing', label: 'Landing', icon: <Home className="h-3.5 w-3.5" /> },
-    { id: 'setup', label: 'Onboarding', icon: <Smartphone className="h-3.5 w-3.5" /> },
-    { id: 'hub', label: 'Hub QR', icon: <QrCode className="h-3.5 w-3.5" /> },
+    { id: 'setup-demo', label: 'Onboarding', icon: <Smartphone className="h-3.5 w-3.5" /> },
+    { id: 'hub-demo', label: 'Hub QR', icon: <QrCode className="h-3.5 w-3.5" /> },
   ];
 
   return (
@@ -212,9 +212,11 @@ function AppContent() {
       return (
         <>
           <PhoneFrame onBack={() => setView('landing')} title="Onboarding (Setup)">
-            <SetupPageContent params={setupParams} />
+            <ErrorBoundary key="setup-demo">
+              <SetupPageContent params={setupParams} />
+            </ErrorBoundary>
           </PhoneFrame>
-          <DemoNavBar currentView="setup" onNavigate={handleDemoNavigate} />
+          <DemoNavBar currentView="setup-demo" onNavigate={handleDemoNavigate} />
         </>
       );
     }
@@ -224,9 +226,11 @@ function AppContent() {
       return (
         <>
           <PhoneFrame onBack={() => setView('landing')} title="Hub QR (Invité / Famille)">
-            <HubPageContent params={hubParams} />
+            <ErrorBoundary key="hub-demo">
+              <HubPageContent params={hubParams} />
+            </ErrorBoundary>
           </PhoneFrame>
-          <DemoNavBar currentView="hub" onNavigate={handleDemoNavigate} />
+          <DemoNavBar currentView="hub-demo" onNavigate={handleDemoNavigate} />
         </>
       );
     }

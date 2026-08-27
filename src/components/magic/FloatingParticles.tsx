@@ -35,6 +35,7 @@ export function FloatingParticles({
 
     const id = ++animId.current;
     const particles: HTMLDivElement[] = [];
+    const globalDriftX = drift ? (Math.random() > 0.5 ? '' : '-') + (15 + Math.random() * 30) + 'px' : '0px';
 
     for (let i = 0; i < count; i++) {
       const p = document.createElement('div');
@@ -42,7 +43,6 @@ export function FloatingParticles({
       const left = Math.random() * 100;
       const delay = Math.random() * duration;
       const dur = duration * (0.6 + Math.random() * 0.8);
-      const driftX = drift ? (Math.random() > 0.5 ? '' : '-') + (15 + Math.random() * 30) + 'px' : '0px';
       const startOpacity = 0.15 + Math.random() * 0.35;
 
       p.style.cssText = `
@@ -66,9 +66,9 @@ export function FloatingParticles({
       @keyframes pfloat-${id} {
         0% { transform: translateY(0) translateX(0); opacity: 0; }
         8% { opacity: ${0.3 + Math.random() * 0.3}; }
-        50% { transform: translateY(-50vh) translateX(${driftX}); }
+        50% { transform: translateY(-50vh) translateX(${globalDriftX}); }
         85% { opacity: 0.15; }
-        100% { transform: translateY(-105vh) translateX(${driftX}); opacity: 0; }
+        100% { transform: translateY(-105vh) translateX(${globalDriftX}); opacity: 0; }
       }
     `;
     document.head.appendChild(styleEl);

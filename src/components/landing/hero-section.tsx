@@ -194,7 +194,7 @@ function HeroSection({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashbo
               </a>
             </motion.div>
 
-            {/* Demo preview buttons */
+            {/* Demo preview buttons */}
             {(onGoToSetup || onGoToHub) && (
               <motion.div
                 initial={{ opacity: 0 }}
