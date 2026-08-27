@@ -255,28 +255,32 @@ export async function POST(
       },
     });
 
-    // Create subscription record (free trial for now, will be upgraded via Stripe)
-    const planConfig: Record<string, { amount: number; cycle: string; maxHomes: number }> = {
-      famille:     { amount: 49,   cycle: 'annual',  maxHomes: 1 },
-      airbnb_solo: { amount: 9.9,  cycle: 'monthly', maxHomes: 1 },
-      airbnb_pro:  { amount: 199,  cycle: 'annual',  maxHomes: 3 },
-      free:        { amount: 0,    cycle: 'annual',  maxHomes: 1 },
-    };
+    // Create subscription record (non-blocking — table might not exist yet in prod)
+    try {
+      const planConfig: Record<string, { amount: number; cycle: string; maxHomes: number }> = {
+        famille:     { amount: 49,   cycle: 'annual',  maxHomes: 1 },
+        airbnb_solo: { amount: 9.9,  cycle: 'monthly', maxHomes: 1 },
+        airbnb_pro:  { amount: 199,  cycle: 'annual',  maxHomes: 3 },
+        free:        { amount: 0,    cycle: 'annual',  maxHomes: 1 },
+      };
 
-    const pc = planConfig[plan] || planConfig.free;
-    await db.subscription.create({
-      data: {
-        subscriberId: userId!,
-        subscriberType: 'user',
-        plan,
-        amount: pc.amount,
-        billingCycle: pc.cycle,
-        maxHomes: pc.maxHomes,
-        status: 'trialing',
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14-day trial
-      },
-    });
+      const pc = planConfig[plan] || planConfig.free;
+      await db.subscription.create({
+        data: {
+          subscriberId: userId!,
+          subscriberType: 'user',
+          plan,
+          amount: pc.amount,
+          billingCycle: pc.cycle,
+          maxHomes: pc.maxHomes,
+          status: 'trialing',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14-day trial
+        },
+      });
+    } catch (subErr) {
+      console.warn('[setup] Subscription creation skipped:', subErr instanceof Error ? subErr.message : subErr);
+    }
 
     // Create the owner as a home member with 'owner' role
     await db.homeMember.create({
@@ -298,7 +302,8 @@ export async function POST(
       plan,
     });
   } catch (error) {
-    console.error('Setup error:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[setup] POST error:', message, error);
+    return NextResponse.json({ error: `Erreur serveur: ${message}` }, { status: 500 });
   }
 }
