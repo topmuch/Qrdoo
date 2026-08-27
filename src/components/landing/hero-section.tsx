@@ -38,7 +38,7 @@ function Navbar({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashboard: 
 
   const links = [
     { label: 'Accueil', href: '#hero' },
-    { label: 'Fonctionnalites', href: '#avantages' },
+    { label: 'Fonctionnalités', href: '#avantages' },
     { label: 'Tarifs', href: '#pricing' },
     { label: 'Contact', href: '#cta-final' },
   ];
@@ -153,7 +153,7 @@ function HeroSection({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashbo
             >
               Transformez n&apos;importe quelle maison en{' '}
               <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
-                maison connectee
+                maison connectée
               </span>
               {' '}
               <span className="text-white/40 text-3xl sm:text-4xl md:text-5xl font-medium">Sans application.</span>
@@ -166,8 +166,8 @@ function HeroSection({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashbo
               transition={{ duration: 0.6, delay: 0.4 }}
               className="text-lg md:text-xl text-white/50 mb-8 leading-relaxed"
             >
-              Une seule plaque elegante. Un scan pour les invites, un code PIN pour la famille.
-              <span className="text-white/80 font-medium"> A partir de 49€/an.</span>
+              Une seule plaque élégante. Un scan pour les invités, un code PIN pour la famille.
+              <span className="text-white/80 font-medium"> À partir de 49 €/an.</span>
             </motion.p>
 
             {/* CTA Buttons */}
@@ -238,7 +238,7 @@ function HeroSection({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashbo
               </div>
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-amber-500/60" />
-                <span>Zero app requise</span>
+                <span>Zéro app requise</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-emerald-500/60 font-bold">2 500+</span>
@@ -271,10 +271,10 @@ function CtaFinal({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashboard
       <FadeIn>
         <div className="max-w-3xl mx-auto text-center relative z-10">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-white">
-            Pret a transformer votre maison ?
+            Prêt à transformer votre maison ?
           </h2>
           <p className="text-white/50 text-lg mb-10">
-            Rejoignez les 2 500+ foyers qui ont deja fait le choix de la simplicite.
+            Rejoignez les 2 500+ foyers qui ont déjà fait le choix de la simplicité.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
@@ -304,13 +304,13 @@ function Footer() {
               <span className="font-bold text-lg text-white">QR Domotik</span>
             </div>
             <p className="text-sm text-white/30 leading-relaxed">
-              Transformez votre maison grace a la puissance des QR codes.
+              Transformez votre maison grâce à la puissance des QR codes.
             </p>
           </div>
           <div>
             <h4 className="font-semibold mb-4 text-white/80">Produit</h4>
             <ul className="space-y-2.5">
-              {['Fonctionnalites', 'Hub Central', 'Modules', 'Tarifs'].map((l) => (
+              {['Fonctionnalités', 'Hub Central', 'Modules', 'Tarifs'].map((l) => (
                 <li key={l}><a href="#" className="text-sm text-white/30 hover:text-white transition-colors">{l}</a></li>
               ))}
             </ul>
@@ -324,16 +324,16 @@ function Footer() {
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold mb-4 text-white/80">Legal</h4>
+            <h4 className="font-semibold mb-4 text-white/80">Légal</h4>
             <ul className="space-y-2.5">
-              {['CGU', 'Confidentialite', 'Mentions legales'].map((l) => (
+              {['CGU', 'Confidentialité', 'Mentions légales'].map((l) => (
                 <li key={l}><a href="#" className="text-sm text-white/30 hover:text-white transition-colors">{l}</a></li>
               ))}
             </ul>
           </div>
         </div>
         <div className="border-t border-white/[0.06] pt-8 text-center">
-          <p className="text-sm text-white/20">2025 QR Domotik. Tous droits reserves.</p>
+          <p className="text-sm text-white/20">2025 QR Domotik. Tous droits réservés.</p>
         </div>
       </div>
     </footer>

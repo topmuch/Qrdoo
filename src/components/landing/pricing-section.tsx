@@ -45,13 +45,13 @@ const PLANS: PricingPlan[] = [
     icon: <Sparkles className="w-5 h-5" />,
     gradient: 'from-violet-500 to-purple-600',
     features: [
-      { text: '1 maison avec pieces illimitees', included: true },
-      { text: 'Wi-Fi, listes de courses, taches', included: true },
+      { text: '1 maison avec pièces illimitées', included: true },
+      { text: 'Wi-Fi, listes de courses, tâches', included: true },
       { text: 'Messages vocaux familiaux', included: true },
-      { text: 'Mode invite (QR public)', included: true },
-      { text: 'Plaque QR en aluminium gravee', included: true },
-      { text: 'Multi-proprietaires', included: false },
-      { text: 'Statistiques avancees', included: false },
+      { text: 'Mode invité (QR public)', included: true },
+      { text: 'Plaque QR en aluminium gravée', included: true },
+      { text: 'Multi-propriétaires', included: false },
+      { text: 'Statistiques avancées', included: false },
     ],
     cta: 'Choisir Famille',
   },
@@ -61,18 +61,18 @@ const PLANS: PricingPlan[] = [
     badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
     price: '9,90\u20ac',
     period: '/ mois',
-    description: 'Sublimez l\'experience de vos invites.',
+    description: "Sublimez l'expérience de vos invités.",
     icon: <Star className="w-5 h-5" />,
     gradient: 'from-amber-500 to-orange-600',
     highlight: true,
     features: [
-      { text: '1 maison avec pieces illimitees', included: true },
-      { text: 'Wi-Fi, guide du logement, regles', included: true },
+      { text: '1 maison avec pièces illimitées', included: true },
+      { text: 'Wi-Fi, guide du logement, règles', included: true },
       { text: 'Bouclier d\'avis automatique', included: true },
       { text: 'Upsell & services locaux', included: true },
-      { text: 'Plaque QR en aluminium gravee', included: true },
+      { text: 'Plaque QR en aluminium gravée', included: true },
       { text: 'Statistiques de scans', included: true },
-      { text: 'Mode multi-proprietaires', included: false },
+      { text: 'Mode multi-propriétaires', included: false },
     ],
     cta: 'Choisir Airbnb',
   },
@@ -86,12 +86,12 @@ const PLANS: PricingPlan[] = [
     icon: <Zap className="w-5 h-5" />,
     gradient: 'from-emerald-500 to-teal-600',
     features: [
-      { text: 'Jusqu\'a 3 logements', included: true },
-      { text: 'Pieces et modules illimites', included: true },
+      { text: 'Jusqu\'à 3 logements', included: true },
+      { text: 'Pièces et modules illimités', included: true },
       { text: 'Tous les modules Airbnb inclus', included: true },
-      { text: 'Statistiques avancees multi-biens', included: true },
-      { text: 'Plaques QR gravees (x3)', included: true },
-      { text: 'Support prioritaire dedie', included: true },
+      { text: 'Statistiques avancées multi-biens', included: true },
+      { text: 'Plaques QR gravées (x3)', included: true },
+      { text: 'Support prioritaire dédié', included: true },
       { text: 'Dashboard multi-biens', included: true },
     ],
     cta: 'Choisir Pro',
@@ -118,7 +118,7 @@ export function PricingSection() {
           </FadeIn>
           <FadeIn delay={0.1}>
             <p className="text-white/50 text-lg md:text-xl max-w-2xl mx-auto">
-              Choisissez l'offre qui vous correspond. Pas de frais caches.
+              Choisissez l'offre qui vous correspond. Pas de frais cachés.
             </p>
           </FadeIn>
         </div>
@@ -217,7 +217,7 @@ export function PricingSection() {
         {/* Bottom note */}
         <FadeIn delay={0.6}>
           <p className="text-center text-white/20 text-sm mt-12">
-            Toutes les offres incluent la plaque QR en aluminium, l'hebergement cloud et les mises a jour. Annulation a tout moment.
+            Toutes les offres incluent la plaque QR en aluminium, l'hébergement cloud et les mises à jour. Annulation à tout moment.
           </p>
         </FadeIn>
       </div>

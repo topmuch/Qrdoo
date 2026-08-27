@@ -25,7 +25,7 @@ const STEPS = [
     icon: <Package className="w-6 h-6" />,
     title: 'Recevez votre plaque',
     description:
-      'Une plaque QR elegante en aluminium grave est livree chez vous. Fixez-la a l\'entree de votre maison, de chaque piece, ou de votre location Airbnb.',
+      'Une plaque QR élégante en aluminium gravé est livrée chez vous. Fixez-la à l\'entrée de votre maison, de chaque pièce, ou de votre location Airbnb.',
     color: 'from-violet-500 to-purple-600',
     glowColor: 'violet',
   },
@@ -34,7 +34,7 @@ const STEPS = [
     icon: <Settings className="w-6 h-6" />,
     title: 'Configurez en ligne',
     description:
-      'En 5 minutes, associez chaque QR code a un module : Wi-Fi, guide du logement, liste de courses, messages vocaux, et bien plus encore.',
+      'En 5 minutes, associez chaque QR code à un module : Wi-Fi, guide du logement, liste de courses, messages vocaux, et bien plus encore.',
     color: 'from-emerald-500 to-teal-600',
     glowColor: 'emerald',
   },
@@ -43,7 +43,7 @@ const STEPS = [
     icon: <Smartphone className="w-6 h-6" />,
     title: 'Scannez et profitez',
     description:
-      'Vos invites scannent simplement le QR avec leur telephone. Aucune application a installer. Tout s\'ouvre directement dans le navigateur.',
+      'Vos invités scannent simplement le QR avec leur téléphone. Aucune application à installer. Tout s\'ouvre directement dans le navigateur.',
     color: 'from-amber-500 to-orange-600',
     glowColor: 'amber',
   },
@@ -64,12 +64,12 @@ export function HowItWorks() {
         <div className="text-center mb-16 md:mb-20">
           <FadeIn>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
-              Comment ca marche ?
+              Comment ça marche ?
             </h2>
           </FadeIn>
           <FadeIn delay={0.1}>
             <p className="text-white/50 text-lg md:text-xl max-w-2xl mx-auto">
-              3 etapes simples pour une maison intelligente et connectee
+              3 étapes simples pour une maison intelligente et connectée
             </p>
           </FadeIn>
         </div>
@@ -104,7 +104,7 @@ export function HowItWorks() {
 
                     {/* Step number */}
                     <span className="inline-block text-xs font-bold tracking-widest text-white/20 uppercase mb-3">
-                      Etape {step.number}
+                      Étape {step.number}
                     </span>
 
                     {/* Title */}
@@ -134,7 +134,7 @@ export function HowItWorks() {
             <div className="inline-flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-6 py-3">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-emerald-300 text-sm font-medium">
-                Zero application a installer — tout fonctionne dans le navigateur
+                Zéro application à installer — tout fonctionne dans le navigateur
               </span>
             </div>
           </div>
