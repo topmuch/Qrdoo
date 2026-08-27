@@ -41,6 +41,7 @@ import { StockManager } from '@/components/client/stock-manager';
 import { PackManager } from '@/components/client/pack-manager';
 import { MarketplaceManager } from '@/components/client/marketplace-manager';
 import { SettingsPage } from '@/components/client/settings-page';
+import { HubManager } from '@/components/client/hub-manager';
 
 // Admin pages (marketplace & B2B)
 import { AdminArtisans } from '@/components/admin/admin-artisans';
@@ -148,7 +149,7 @@ function AppContent() {
   const isActivateFlow = searchParams.get('action') === 'activate';
   const [view, setView] = useState<AppView>(isActivateFlow ? 'auth' : 'landing');
   const [adminPage, setAdminPage] = useState<SuperAdminPage>('overview');
-  const [clientPage, setClientPage] = useState<ClientPage>('module-preview');
+  const [clientPage, setClientPage] = useState<ClientPage>('client-home');
   const initialRegister = isActivateFlow;
   const hasCheckedPending = useRef(false);
 
@@ -280,6 +281,8 @@ function AppContent() {
   const renderClientPage = () => {
     switch (clientPage) {
       case 'client-home': return <ClientDashboard />;
+      // @ts-expect-error 'client-hub' added to ClientPage type in a separate task
+      case 'client-hub': return <HubManager />;
       case 'client-activate':
       case 'client-qr-codes': return <PhysicalQrCodes />;
       case 'client-homes': return <HomesManager />;

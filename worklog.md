@@ -1308,3 +1308,142 @@ Stage Summary:
 - Données mock riches : logement "Le Petit Nid" avec 3 pièces invité (Salon, Cuisine, Chambre) et 4 pièces famille (+ Bureau)
 - 5 règles de maison, WiFi, urgence, recette, livre d'or, contacts, liste de courses, tâches, médicaments, inventaire
 - Limitation : OOM kill fréquent dans l'environnement sandbox (2.2GB RSS pour le dev server Next.js)
+
+---
+Task ID: 6
+Agent: Frontend
+Task: Create Hub Manager component, rewrite Client Dashboard, integrate into page routing
+
+Work Log:
+- Read worklog.md for project context and architecture patterns
+- Analyzed Prisma schema for Home, PhysicalQrCode, Room, QrCode models
+- Analyzed API routes: /api/client/homes, /api/client/rooms, /api/client/scan-stats, /api/client/qr-codes, /api/public/hub/[slug]
+- Analyzed client-layout.tsx for ClientPage type and navigate event handling
+- Analyzed page.tsx for renderClientPage switch and default client page state
+- Created /src/components/client/hub-manager.tsx with HubManager named export
+- Rewrote /src/components/client/client-dashboard.tsx removing old V1 QR activation approach
+- Updated /src/app/page.tsx: added HubManager import, changed default page to client-home, added client-hub case
+- Ran ESLint: all checks pass
+
+Stage Summary:
+- NEW FILE: hub-manager.tsx — Full Hub management dashboard with:
+  - Home info display (name, address, plan badge)
+  - Hub URL display with copy button and external link
+  - 4 KPI cards: Total Scans, Hub Visits, Rooms, Modules
+  - Rooms list with module counts and custom room icons
+  - 3 quick-action cards: Voir mon Hub, Gérer mes pièces, Modifier le PIN
+  - Loading skeleton and empty state (no home/plaque)
+  - Probes /api/public/hub/demo-hub to detect plaque linkage
+- REWRITTEN: client-dashboard.tsx — Simplified V2 dashboard:
+  - Removed old Activer un QR button entirely
+  - 3 KPI cards: Scans Hub, Pièces, Modules (replaced Scans totaux/QR Codes/Ce mois)
+  - Main CTA: gradient card Gérer mon Hub → dispatches navigate to client-hub
+  - Secondary link: Voir les statistiques → client-analytics
+  - Kept 14-day area chart with Voir tout link
+  - Empty state changed to Scannez votre plaque QR pour commencer
+- MODIFIED: page.tsx — 3 targeted edits:
+  - Added HubManager import
+  - Changed default clientPage from module-preview to client-home
+  - Added client-hub case in renderClientPage switch (with @ts-expect-error since ClientPage type pending update)
+- All text in French, uses shadcn Card/Button/Badge/Skeleton/ScrollArea, lucide-react icons
+---
+Task ID: 6b
+Agent: Cleanup
+Task: Clean up client sidebar layout
+
+Work Log:
+- Read /home/z/my-project/src/components/client/client-layout.tsx
+- Added 'client-hub' to ClientPage union type
+- Removed old ClientPage values: 'client-activate', 'client-qr-codes', 'activation-public', 'modules', 'module-config', 'module-preview'
+- Added HUB_ITEMS array with 'client-hub' / 'Mon Hub QR' / QrCode icon
+- Removed 'client-activate' item from DASHBOARD_ITEMS
+- Removed MODULE_ITEMS_V1 array and its sidebar section
+- Removed MODULE_ITEMS_V3 array and its sidebar section
+- Removed 'Démo' section (activation-public button) entirely
+- Reorganized sidebar order: Mon Hub → Mon Espace → Intégrations → Marketplace & B2B
+- Updated allItems to only include HUB_ITEMS + DASHBOARD_ITEMS + INTEGRATION_ITEMS + MARKETPLACE_ITEMS
+- Removed unused imports: Plus, Eye, Layers, Briefcase, Users
+- Added badge rendering to DASHBOARD_ITEMS section (was missing before)
+- Kept all styling (gradient sidebar, animations, mobile responsiveness)
+- Kept footer with version and logout
+- Kept custom event listener for programmatic navigation
+- Kept onSwitchToAdmin button
+- Kept service worker registration
+- Ran bun run lint — passed cleanly
+
+Stage Summary:
+- ClientPage type now has 15 clean values (was 21 with deprecated V1 entries)
+- Sidebar reduced from 5 sections to 4: Mon Hub, Mon Espace, Intégrations, Marketplace & B2B
+- All V1 module pages and demo activation page fully removed from navigation
+- File exports ClientLayout and ClientPage as before
+
+---
+Task ID: 3
+Agent: API
+Task: Plaque scan redirect API + setup token lookup migration
+
+Work Log:
+- Read worklog.md for project context (hub/plaque architecture, setup flow, demo mode)
+- Verified PhysicalQrCode model in Prisma schema: has setupToken (unique), isClaimed, hubSlug, activationCode fields
+- Verified /view/[slug]/view-content.tsx exists — no changes needed (individual QR module views still valid)
+- Read existing /api/setup/[token]/route.ts to understand current lookup logic (activationCode only)
+- Read existing /api/public/qr/[slug]/route.ts for API pattern reference
+- Created /api/public/plaque/[code]/route.ts with GET handler:
+  - Looks up plaque by activationCode (the code printed on the physical plaque)
+  - If claimed + hubSlug exists → returns `{ redirect: '/hub/[hubSlug]' }`
+  - If not claimed + setupToken exists → returns `{ redirect: '/setup/[setupToken]' }`
+  - If not claimed + no setupToken (old plaque) → returns `{ redirect: '/setup/[activationCode]' }` (fallback)
+  - If not found → 404
+  - Demo mode: `demo-setup` → `/setup/demo-setup`, `demo-hub` → `/hub/demo-hub`
+  - Uses NextRequest/NextResponse from next/server, db from @/lib/db
+  - Next.js 16 async params style
+- Modified /api/setup/[token]/route.ts:
+  - GET handler: changed lookup to try setupToken first, fallback to activationCode (backward compat)
+  - POST handler: same dual lookup strategy
+  - POST handler: after claiming, generates and sets setupToken on plaque if not already present (`SETUP-XXXXXXXX`)
+  - All error messages in French
+  - Demo mode preserved (early return before DB lookup)
+- Ran lint: passes clean (zero errors)
+- Verified dev server: compiles without errors
+
+Stage Summary:
+- NEW FILE: src/app/api/public/plaque/[code]/route.ts — plaque scan redirect endpoint
+- MODIFIED: src/app/api/setup/[token]/route.ts — setupToken-first lookup with activationCode fallback
+- Physical QR scan flow now supports: new plaques (setupToken) and old plaques (activationCode)
+- Backward compatible: old plaques get a setupToken auto-generated on first claim via POST
+- Demo mode fully supported in both endpoints
+- All French error messages
+
+---
+Task ID: 5
+Agent: API Builder
+Task: Create PUT /hub/[slug]/update and POST /hub/[slug]/guestbook API routes
+
+Work Log:
+- Read existing hub GET/POST route at src/app/api/public/hub/[slug]/route.ts for reference patterns
+- Read Prisma schema: confirmed Home model (pinHash), QrCode model (homeId, content→QrContent), QrContent model (qrCodeId, contentJson mapped to qr_contents table)
+- Confirmed GuestbookEntry model exists but task requires contentJson-based storage
+- Created PUT /api/public/hub/[slug]/update/route.ts:
+  - Accepts { pin?, updates?, homeData?, newPin? }
+  - Demo mode: any 4-digit PIN accepted, returns success without saving
+  - PIN verification via bcryptjs compare (same as existing POST route)
+  - For each update: verifies QR code belongs to home, upserts QrContent
+  - Home data update: name/address fields
+  - PIN change: validates 4 digits, hashes with bcryptjs hash()
+  - French error messages throughout
+  - Next.js 16 params: Promise<{ slug: string }>
+- Created POST /api/public/hub/[slug]/guestbook/route.ts:
+  - Accepts { qrCodeId, entry: { author, message, rating? } }
+  - No PIN required (public guest access)
+  - Demo mode: returns success without saving
+  - Validates: author/message non-empty, message max 2000 chars, rating 1-5 integer
+  - Verifies QR code belongs to home linked to hub slug
+  - Appends entry to contentJson.entries array via upsert
+  - French error messages throughout
+- ESLint: 0 errors
+
+Stage Summary:
+- Two new API routes created for Hub write operations
+- update route: PUT /api/public/hub/[slug]/update — QR content, home data, PIN changes (PIN-protected)
+- guestbook route: POST /api/public/hub/[slug]/guestbook — guest entries (no PIN required)
+- Both routes handle demo mode, proper validation, and French error messages

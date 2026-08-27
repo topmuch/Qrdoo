@@ -220,6 +220,7 @@ model PhysicalQrCode {
   dynamicQrCodeId    String?   @map("dynamic_qr_code_id")
   designConfig       String    @default("{}") @map("design_config")
   // ── Scan-to-Onboard & QR Hub ──
+  setupToken         String?   @unique @map("setup_token")              // token unique pour /setup/[token] (ex: "SETUP-7K9M2X")
   isClaimed          Boolean   @default(false) @map("is_claimed")       // true = plaque liée à un compte
   hubSlug            String?   @unique @map("hub_slug")              // slug public pour /hub/[slug] (ex: "maison-dupont-7kx")
   claimedByUserId    String?   @map("claimed_by_user_id")        // utilisateur qui a claimé
@@ -241,6 +242,7 @@ model PhysicalQrCode {
   @@index([isClaimed])
   @@index([claimedByUserId])
   @@index([homeId])
+  @@index([setupToken])
   @@map("physical_qr_codes")
 }
 

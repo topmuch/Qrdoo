@@ -34,14 +34,26 @@ export async function GET(
       });
     }
 
-    const plaque = await db.physicalQrCode.findUnique({
-      where: { activationCode: token },
+    // Try setupToken first, then fallback to activationCode for backward compatibility
+    let plaque = await db.physicalQrCode.findUnique({
+      where: { setupToken: token },
       include: {
         batch: true,
         claimedBy: { select: { id: true, fullName: true, email: true } },
         home: { select: { id: true, name: true, address: true } },
       },
     });
+
+    if (!plaque) {
+      plaque = await db.physicalQrCode.findUnique({
+        where: { activationCode: token },
+        include: {
+          batch: true,
+          claimedBy: { select: { id: true, fullName: true, email: true } },
+          home: { select: { id: true, name: true, address: true } },
+        },
+      });
+    }
 
     if (!plaque) {
       return NextResponse.json({ error: 'Plaque non trouvée' }, { status: 404 });
@@ -128,11 +140,18 @@ export async function POST(
       return NextResponse.json({ error: 'Plan invalide' }, { status: 400 });
     }
 
-    // Find the plaque
-    const plaque = await db.physicalQrCode.findUnique({
-      where: { activationCode: token },
+    // Try setupToken first, then fallback to activationCode for backward compatibility
+    let plaque = await db.physicalQrCode.findUnique({
+      where: { setupToken: token },
       include: { batch: true },
     });
+
+    if (!plaque) {
+      plaque = await db.physicalQrCode.findUnique({
+        where: { activationCode: token },
+        include: { batch: true },
+      });
+    }
 
     if (!plaque) {
       return NextResponse.json({ error: 'Plaque non trouvée' }, { status: 404 });
@@ -219,6 +238,9 @@ export async function POST(
       },
     });
 
+    // Ensure setupToken is set on the plaque (for old plaques that don't have one)
+    const setupToken = plaque.setupToken || `SETUP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+
     // Claim the plaque (link to home)
     await db.physicalQrCode.update({
       where: { id: plaque.id },
@@ -229,6 +251,7 @@ export async function POST(
         homeId: home.id,
         hubSlug,
         status: 'active',
+        setupToken,
       },
     });
 

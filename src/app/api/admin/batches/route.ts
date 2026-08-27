@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import crypto from 'crypto';
 
 // GET /api/admin/batches — List all batches with aggregated QR code counts
 export async function GET() {
@@ -126,14 +127,18 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      const codes = Array.from({ length: quantity }, (_, i) => ({
-        batchId: createdBatch.id,
-        activationCode:
-          activationCodes?.[i] ??
-          `QR-${createdBatch.id.slice(0, 8).toUpperCase()}-${String(i + 1).padStart(4, '0')}`,
-        status: 'inactive' as const,
-        designConfig,
-      }));
+      const codes = Array.from({ length: quantity }, (_, i) => {
+        const setupToken = `SETUP-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+        return {
+          batchId: createdBatch.id,
+          activationCode:
+            activationCodes?.[i] ??
+            `QR-${createdBatch.id.slice(0, 8).toUpperCase()}-${String(i + 1).padStart(4, '0')}`,
+          setupToken,
+          status: 'inactive' as const,
+          designConfig,
+        };
+      });
 
       const createdCodes = await tx.physicalQrCode.createMany({
         data: codes,

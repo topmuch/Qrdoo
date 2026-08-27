@@ -10,21 +10,16 @@ import {
   ChevronRight,
   LogOut,
   Home,
-  Plus,
   DoorOpen,
   Activity,
-  Eye,
   Settings2,
-  Layers,
   ArrowLeftRight,
   Bell,
   Store,
-  Briefcase,
   Sparkles,
   BarChart3,
   Plug,
   Globe,
-  Users,
   CreditCard,
   Package,
   ShoppingBag,
@@ -36,17 +31,12 @@ import { Badge } from '@/components/ui/badge';
 
 export type ClientPage =
   | 'client-home'
-  | 'client-activate'
-  | 'client-qr-codes'
+  | 'client-hub'
   | 'client-homes'
   | 'client-rooms'
   | 'client-activity'
   | 'client-chores'
   | 'client-settings'
-  | 'activation-public'
-  | 'modules'
-  | 'module-config'
-  | 'module-preview'
   | 'client-notifications'
   | 'client-analytics'
   | 'client-automations'
@@ -65,9 +55,12 @@ interface ClientLayoutProps {
   children: React.ReactNode;
 }
 
+const HUB_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode }[] = [
+  { key: 'client-hub', label: 'Mon Hub QR', icon: <QrCode className="h-5 w-5" /> },
+];
+
 const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
   { key: 'client-home', label: 'Mon Dashboard', icon: <Home className="h-5 w-5" /> },
-  { key: 'client-activate', label: 'Activer QR codes', icon: <Plus className="h-5 w-5" /> },
   { key: 'client-homes', label: 'Mes Maisons', icon: <Home className="h-5 w-5" /> },
   { key: 'client-rooms', label: 'Mes Pièces', icon: <DoorOpen className="h-5 w-5" /> },
   { key: 'client-activity', label: "Journal d'activité", icon: <Activity className="h-5 w-5" /> },
@@ -77,27 +70,17 @@ const DASHBOARD_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; 
   { key: 'client-analytics', label: 'Statistiques Scan', icon: <BarChart3 className="h-5 w-5" />, badge: 'V3' },
 ];
 
-const MARKETPLACE_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
-  { key: 'client-artisans', label: 'Mon Quartier', icon: <Store className="h-5 w-5" />, badge: 'V3' },
-  { key: 'client-marketplace', label: 'Marketplace', icon: <ShoppingBag className="h-5 w-5" />, badge: 'V3' },
-  { key: 'client-packs', label: 'Packs & Config', icon: <Package className="h-5 w-5" />, badge: 'B2B' },
-  { key: 'client-monetization', label: 'Monétisation', icon: <CreditCard className="h-5 w-5" />, badge: 'V3' },
-];
-
 const INTEGRATION_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
   { key: 'client-automations', label: 'Domotique (HA/Jeedom)', icon: <Plug className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-webhooks', label: 'Webhooks & Automations', icon: <Globe className="h-5 w-5" />, badge: 'V3' },
   { key: 'client-settings', label: 'Paramètres', icon: <Settings2 className="h-5 w-5" /> },
 ];
 
-const MODULE_ITEMS_V1: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
-  { key: 'module-config', label: 'Configurer un module', icon: <Settings2 className="h-5 w-5" /> },
-  { key: 'module-preview', label: 'Aperçu des modules', icon: <Eye className="h-5 w-5" /> },
-  { key: 'modules', label: 'Catalogue Modules', icon: <Layers className="h-5 w-5" /> },
-];
-
-const MODULE_ITEMS_V3: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
-  { key: 'client-artisans', label: 'Services Pro', icon: <Briefcase className="h-5 w-5" />, badge: 'V3' },
+const MARKETPLACE_ITEMS: { key: ClientPage; label: string; icon: React.ReactNode; badge?: string }[] = [
+  { key: 'client-artisans', label: 'Mon Quartier', icon: <Store className="h-5 w-5" />, badge: 'V3' },
+  { key: 'client-marketplace', label: 'Marketplace', icon: <ShoppingBag className="h-5 w-5" />, badge: 'V3' },
+  { key: 'client-packs', label: 'Packs & Config', icon: <Package className="h-5 w-5" />, badge: 'B2B' },
+  { key: 'client-monetization', label: 'Monétisation', icon: <CreditCard className="h-5 w-5" />, badge: 'V3' },
 ];
 
 export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogout, children }: ClientLayoutProps) {
@@ -124,11 +107,10 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
   }, []);
 
   const allItems = [
+    ...HUB_ITEMS,
     ...DASHBOARD_ITEMS,
-    ...MARKETPLACE_ITEMS,
     ...INTEGRATION_ITEMS,
-    ...MODULE_ITEMS_V1,
-    ...MODULE_ITEMS_V3,
+    ...MARKETPLACE_ITEMS,
   ];
   const current = allItems.find((n) => n.key === activePage) || allItems[0];
 
@@ -163,11 +145,11 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
         {/* Navigation */}
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="flex flex-col gap-1">
-            {/* Dashboard section */}
+            {/* Hub section */}
             <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
-              Mon Espace
+              Mon Hub
             </p>
-            {DASHBOARD_ITEMS.map((item) => (
+            {HUB_ITEMS.map((item) => (
               <button
                 key={item.key}
                 onClick={() => {
@@ -189,11 +171,11 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
 
             <div className="my-3 h-px bg-violet-800/50" />
 
-            {/* Integrations V3 section */}
+            {/* Dashboard section */}
             <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
-              Intégrations
+              Mon Espace
             </p>
-            {INTEGRATION_ITEMS.map((item) => (
+            {DASHBOARD_ITEMS.map((item) => (
               <button
                 key={item.key}
                 onClick={() => {
@@ -220,11 +202,11 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
 
             <div className="my-3 h-px bg-violet-800/50" />
 
-            {/* Modules V1 section */}
+            {/* Integrations section */}
             <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
-              Modules V1
+              Intégrations
             </p>
-            {MODULE_ITEMS_V1.map((item) => (
+            {INTEGRATION_ITEMS.map((item) => (
               <button
                 key={item.key}
                 onClick={() => {
@@ -240,6 +222,11 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
               >
                 {item.icon}
                 <span className="flex-1 text-left">{item.label}</span>
+                {item.badge && (
+                  <Badge className="text-[10px] px-1.5 py-0 bg-violet-800/40 text-violet-300/60 hover:bg-violet-800/60">
+                    {item.badge}
+                  </Badge>
+                )}
                 {activePage === item.key && <ChevronRight className="h-4 w-4" />}
               </button>
             ))}
@@ -274,29 +261,6 @@ export function ClientLayout({ activePage, onPageChange, onSwitchToAdmin, onLogo
                 {activePage === item.key && <ChevronRight className="h-4 w-4" />}
               </button>
             ))}
-
-            <div className="my-3 h-px bg-violet-800/50" />
-
-            {/* Demo section */}
-            <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-violet-300/60">
-              Démo
-            </p>
-            <button
-              onClick={() => {
-                onPageChange('activation-public');
-                setSidebarOpen(false);
-              }}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
-                activePage === 'activation-public'
-                  ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/30'
-                  : 'text-violet-200/70 hover:bg-violet-800/40 hover:text-white',
-              )}
-            >
-              <Plus className="h-5 w-5" />
-              <span className="flex-1 text-left">Page activation</span>
-              {activePage === 'activation-public' && <ChevronRight className="h-4 w-4" />}
-            </button>
           </nav>
         </ScrollArea>
 

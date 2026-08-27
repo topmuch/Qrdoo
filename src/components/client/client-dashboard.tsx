@@ -5,12 +5,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  QrCode,
-  Plus,
   ArrowUpRight,
   TrendingUp,
   Eye,
-  Home,
+  DoorOpen,
+  QrCode,
+  LayoutDashboard,
   Zap,
 } from 'lucide-react';
 import {
@@ -70,6 +70,7 @@ export function ClientDashboard() {
 
   const homeName = homes[0]?.name || 'votre espace';
   const totalQr = homes.reduce((acc, h) => acc + (h._count?.qrCodes || 0), 0) || qrCount;
+  const totalRooms = homes.reduce((acc, h) => acc + (h._count?.rooms || 0), 0);
 
   // Mini chart data - last 14 days
   const chartData = (stats?.dailyScans || []).slice(-14).map(d => ({
@@ -96,30 +97,21 @@ export function ClientDashboard() {
 
   return (
     <div className="space-y-8 max-w-5xl">
-      {/* Hero - Welcome + main stat */}
+      {/* Hero - Welcome */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground mb-1">Bonjour 👋</p>
           <h1 className="text-2xl font-bold tracking-tight">{homeName}</h1>
         </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'client-activate' }))}
-            className="gap-2 rounded-xl"
-          >
-            <Plus className="h-4 w-4" />
-            Activer un QR
-          </Button>
-        </div>
       </div>
 
-      {/* 3 Clean KPI Cards */}
+      {/* 3 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Total Scans - Hero card */}
+        {/* Scans Hub - Hero card */}
         <Card className="rounded-2xl border-0 bg-gradient-to-br from-violet-600 to-purple-700 text-white shadow-lg shadow-violet-500/20">
           <CardContent className="p-5 flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-white/70 uppercase tracking-wider">Scans totaux</p>
+              <p className="text-xs font-medium text-white/70 uppercase tracking-wider">Scans Hub</p>
               <p className="text-3xl font-bold mt-1 tabular-nums">{stats?.totalScans ?? 0}</p>
               {stats && stats.scansToday > 0 && (
                 <p className="text-xs text-white/60 mt-1 flex items-center gap-1">
@@ -134,34 +126,58 @@ export function ClientDashboard() {
           </CardContent>
         </Card>
 
-        {/* QR Codes */}
+        {/* Pièces */}
         <Card className="rounded-2xl">
           <CardContent className="p-5 flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">QR Codes</p>
-              <p className="text-3xl font-bold mt-1 tabular-nums">{totalQr}</p>
-              <p className="text-xs text-muted-foreground mt-1">{homes.length} maison{homes.length !== 1 ? 's' : ''}</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pièces</p>
+              <p className="text-3xl font-bold mt-1 tabular-nums">{totalRooms}</p>
+              <p className="text-xs text-muted-foreground mt-1">{homes.length} espace{homes.length !== 1 ? 's' : ''}</p>
             </div>
             <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center">
-              <QrCode className="h-5 w-5 text-amber-600" />
+              <DoorOpen className="h-5 w-5 text-amber-600" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Ce mois */}
+        {/* Modules */}
         <Card className="rounded-2xl">
           <CardContent className="p-5 flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ce mois</p>
-              <p className="text-3xl font-bold mt-1 tabular-nums">{stats?.scansThisMonth ?? 0}</p>
-              <p className="text-xs text-muted-foreground mt-1">{stats?.scansThisWeek ?? 0} cette semaine</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Modules</p>
+              <p className="text-3xl font-bold mt-1 tabular-nums">{totalQr}</p>
+              <p className="text-xs text-muted-foreground mt-1">{stats?.scansThisMonth ?? 0} scans ce mois</p>
             </div>
-            <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-emerald-600" />
+            <div className="h-10 w-10 rounded-xl bg-sky-50 flex items-center justify-center">
+              <QrCode className="h-5 w-5 text-sky-600" />
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Main CTA: Gérer mon Hub */}
+      <Card className="rounded-2xl overflow-hidden">
+        <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 p-0.5">
+          <CardContent className="p-6 bg-background rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-violet-500/20">
+                <LayoutDashboard className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base">Gérer mon Hub</h3>
+                <p className="text-sm text-muted-foreground">Accédez à votre portail Hub, gérez la plaque QR et les pièces</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'client-hub' }))}
+              className="gap-2 rounded-xl flex-shrink-0"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Ouvrir
+            </Button>
+          </CardContent>
+        </div>
+      </Card>
 
       {/* Mini trend chart */}
       {chartData.length > 0 && (
@@ -171,9 +187,9 @@ export function ClientDashboard() {
               <h3 className="text-sm font-semibold">Activité des 14 derniers jours</h3>
               <button
                 onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'client-analytics' }))}
-                className="text-xs text-violet-600 hover:text-violet-700 font-medium flex items-center gap-0.5 transition-colors"
+                className="text-xs text-violet-600 hover:text-violet-700 font-medium flex items-center gap-0.5 transition-colors cursor-pointer"
               >
-                Voir tout <ArrowUpRight className="h-3 w-3" />
+                Voir les statistiques <ArrowUpRight className="h-3 w-3" />
               </button>
             </div>
             <div className="h-40">
@@ -223,27 +239,10 @@ export function ClientDashboard() {
             <div className="h-16 w-16 rounded-2xl bg-violet-50 flex items-center justify-center mb-4">
               <Zap className="h-8 w-8 text-violet-500" />
             </div>
-            <h3 className="font-semibold text-lg">Commencez par activer un QR code</h3>
+            <h3 className="font-semibold text-lg">Scannez votre plaque QR pour commencer</h3>
             <p className="text-sm text-muted-foreground mt-2 max-w-sm">
-              Scannez le code d&apos;activation imprimé sur votre support QR ou créez-en un nouveau.
+              Scannez le QR code de votre plaque pour activer votre Hub et configurer vos pièces.
             </p>
-            <div className="flex gap-3 mt-6">
-              <Button
-                onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'client-activate' }))}
-                className="gap-2 rounded-xl"
-              >
-                <QrCode className="h-4 w-4" />
-                Activer un QR code
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => window.dispatchEvent(new CustomEvent('navigate', { detail: 'client-homes' }))}
-                className="gap-2 rounded-xl"
-              >
-                <Home className="h-4 w-4" />
-                Créer une maison
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}
