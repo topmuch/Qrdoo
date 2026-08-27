@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  serverExternalPackages: ['canvas'],
+  serverExternalPackages: ['canvas', 'qrcode', 'qr-code-styling', 'bcryptjs'],
 };
 
 export default nextConfig;

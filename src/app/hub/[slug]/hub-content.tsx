@@ -41,7 +41,7 @@ interface HubData {
   voiceMessages: VoiceMsg[];
 }
 
-type HubView = 'mode-select' | 'guest' | 'family' | 'room-detail' | 'voice-detail';
+type HubView = 'mode-select' | 'guest' | 'family' | 'room-detail' | 'voice-detail' | 'rules-detail';
 type PinModalFor = 'family' | 'settings' | null;
 
 // ── Emoji mappings ──
@@ -88,13 +88,14 @@ function VoicePlayer({ msg }: { msg: VoiceMsg }) {
       audioRef.current.pause();
       if (intervalRef.current != null) clearInterval(intervalRef.current);
     } else {
-      audioRef.current.play().catch(() => {});
-      intervalRef.current = setInterval(() => {
-        if (audioRef.current) {
-          const pct = audioRef.current.duration ? (audioRef.current.currentTime / audioRef.current.duration) * 100 : 0;
-          setProgress(pct);
-        }
-      }, 200);
+      audioRef.current.play().then(() => {
+        intervalRef.current = setInterval(() => {
+          if (audioRef.current) {
+            const pct = audioRef.current.duration ? (audioRef.current.currentTime / audioRef.current.duration) * 100 : 0;
+            setProgress(pct);
+          }
+        }, 200);
+      }).catch(() => {});
     }
     setPlaying(!playing);
   };
@@ -238,7 +239,7 @@ function VoiceRecorder({ slug, onSent }: { slug: string; onSent: () => void }) {
           </div>
           <div className="flex gap-2">
             <QRTButton variant="secondary" onClick={cancelRecording} className="flex-1 !py-2.5 !text-sm">Annuler</QRTButton>
-            <QRTButton variant="primary" onClick={stopRecording} className="flex-1 !py-2.5 !text-sm !bg-red-600 !hover:bg-red-700">Arrêter</QRTButton>
+            <QRTButton variant="primary" onClick={stopRecording} className="flex-1 !py-2.5 !text-sm !bg-red-600 hover:!bg-red-700">Arrêter</QRTButton>
           </div>
         </motion.div>
       )}
@@ -780,16 +781,18 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
   useEffect(() => { if (view === 'guest' || view === 'family') refreshVoice(); }, [view, refreshVoice]);
 
   // Navigation helpers
+  const parentViewRef = useRef<'guest' | 'family'>('guest');
+
   const goBack = useCallback(() => {
     setSlideDirection(-1);
     if (view === 'room-detail' || view === 'voice-detail' || view === 'rules-detail') {
-      setView(selectedRoomId ? 'family' : 'guest');
+      setView(parentViewRef.current);
       setSelectedRoomId(null);
       setSelectedRulesContent(null);
     } else {
       setView('mode-select');
     }
-  }, [view, selectedRoomId]);
+  }, [view]);
 
   const goToFamilyRoom = useCallback((roomId: string) => {
     setSlideDirection(1);
@@ -810,6 +813,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
 
   const goToGuest = useCallback(() => {
     setSlideDirection(1);
+    parentViewRef.current = 'guest';
     setView('guest');
   }, []);
 
@@ -830,6 +834,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
           setPinModalFor(null);
           if (pinModalFor === 'family') {
             setSlideDirection(1);
+            parentViewRef.current = 'family';
             setView('family');
           } else if (pinModalFor === 'settings') {
             toast.success('Accès paramètres autorisé');

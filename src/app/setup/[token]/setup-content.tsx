@@ -127,6 +127,10 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
   const checkToken = useCallback(async () => {
     try {
       const res = await fetch(`/api/setup/${encodeURIComponent(token)}`);
+      if (!res.ok) {
+        setTokenStatus('error');
+        return;
+      }
       const data = await res.json();
       if (data.status === 'available') {
         setTokenStatus('available');
@@ -199,10 +203,15 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
         plan: selectedPlan,
       };
 
+      if (wifiSsid.trim()) body.wifiSsid = wifiSsid.trim();
+      if (wifiPassword.trim()) body.wifiPassword = wifiPassword.trim();
+      if (emergencyPhone.trim()) body.emergencyPhone = emergencyPhone.trim();
+
       if (!session?.user) {
         body.password = password;
       } else {
-        body.existingUserId = (session.user as Record<string, unknown>)?.id as string;
+        const userId = (session.user as Record<string, unknown>)?.id as string | undefined;
+        if (userId) body.existingUserId = userId;
       }
 
       const res = await fetch(`/api/setup/${encodeURIComponent(token)}`, {
