@@ -1614,3 +1614,49 @@ Stage Summary:
 - Bug Paramètres résolu: toast info au lieu de redirection 404
 - Bug Répondeur: code déjà correct, fonctionne si PIN validé
 - Bug modules famille: code correct, dépend des données en base (rooms + QR codes)
+---
+Task ID: 4
+Agent: main
+Task: Pré-créer toutes les pièces et modules à l'activation pour utilisation immédiate
+
+Work Log:
+- Analysé la structure QrBatch → PhysicalQrCode → QrCode
+- Conçu 5 pièces par défaut avec 11 modules pré-remplis
+- Chaque pièce a du contenu utile et prêt à l'emploi
+- Les QR codes physiques du batch sont liés aux modules créés
+- Les QR codes restants deviennent des modules "Note" génériques
+
+Pièces créées à l'activation:
+1. **Salon** (3 modules):
+   - WiFi (public, pré-rempli avec ssid/password)
+   - Contact propriétaire (public)
+   - Règles de la maison (public, 5 règles par défaut)
+2. **Chambre** (2 modules):
+   - Livre d'or (public)
+   - Infos chambre (public, guide pratique)
+3. **Cuisine** (2 modules):
+   - Liste de courses (privé, items par défaut)
+   - Guide cuisine (public, instructions appareils)
+4. **Salle de bain** (1 module):
+   - Consignes SdB (public, chauffe-eau, produits)
+5. **Entrée** (2 modules):
+   - Urgences (public, numéros d'urgence + contact)
+   - Arrivée/Départ (public, instructions clés/code)
+
+Logique de liaison QR physiques:
+- 1er QR physique → module WiFi
+- 2e QR → Contact
+- 3e QR → Règles
+- ...etc
+- QR restants → Notes génériques dans le Salon
+- Chaque module a un publicSlug pour scan direct
+
+Vérifications:
+- `bun run lint` : 0 erreurs
+- `npx next build` : succès
+
+Stage Summary:
+- Après activation, le client scanne n'importe quel QR → contenu immédiat
+- Plus besoin de passer par le dashboard pour configurer
+- 5 pièces, 11+ modules pré-remplis avec contenu utile
+- Chaque QR physique du batch est lié à un module fonctionnel
