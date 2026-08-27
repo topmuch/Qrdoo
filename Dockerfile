@@ -48,4 +48,4 @@ COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 RUN mkdir -p /app/data
 EXPOSE 3000
 
-CMD sh -c "mkdir -p /app/data && npx prisma db push --skip-generate 2>/dev/null || true && node scripts/create-admin.cjs 2>/dev/null || true && exec node server.js"
+CMD sh -c "mkdir -p /app/data && npx prisma db push --accept-data-loss --skip-generate 2>/dev/null || true && node scripts/create-admin.cjs 2>/dev/null || true && exec node server.js"

@@ -1807,3 +1807,21 @@ Stage Summary:
 - Plaques Hub page shows individual plaques instead of batches
 - Client 'Activer QR codes' tab removed (activation via setup wizard now)
 - ESLint: 0 errors, 0 warnings
+
+---
+Task ID: coolify-fix
+Agent: main
+Task: Fix Dockerfile start command and coolify.json for Coolify deployment
+
+Work Log:
+- Analyzed Coolify screenshot: app uses Dockerfile mode, no "Start Command" field available in UI
+- Identified CMD in Dockerfile IS the start command when using Dockerfile build mode
+- Updated Dockerfile CMD to use `--accept-data-loss` flag: `npx prisma db push --accept-data-loss --skip-generate`
+- Fixed coolify.json: removed `prisma db push` from buildCommand (should only be at runtime), added it to startCommand
+- Fixed coolify.json volume path from `/app/db` to `/app/data` to match DATABASE_URL
+
+Stage Summary:
+- Dockerfile line 51: CMD now includes `--accept-data-loss` flag
+- coolify.json: startCommand now includes prisma db push before node server.js
+- coolify.json: volume path corrected to /app/data
+- User needs to: (1) remove `php artisan migrate` from Pre/Post deployment in Coolify UI, (2) add volume mapping for /app/data for persistent SQLite
