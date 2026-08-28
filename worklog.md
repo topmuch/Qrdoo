@@ -1922,3 +1922,23 @@ Stage Summary:
 - No more white rectangle on dark backgrounds
 - No more color inversion destroying brand identity
 - All logos have rounded corners (rounded-lg for main, rounded for small footers)
+---
+Task ID: docker-schema-fix
+Agent: main
+Task: Fix prisma db push failing silently in Docker container on Coolify
+
+Work Log:
+- Analyzed the problem: prisma db push loaded schema but never created tables (no Prisma engine binaries in runner)
+- Previous attempt (copying node_modules/prisma + @prisma) still failed
+- Found that schema.sql existed but was executed via PrismaClient.$executeRawUnsafe which crashed silently
+- Generated new schema.sql using `prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script`
+- Added IF NOT EXISTS to all CREATE TABLE and CREATE INDEX statements for idempotency
+- Rewrote Dockerfile CMD to use `sqlite3 /app/data/qrdomotik.db < scripts/schema.sql` (sqlite3 already installed via `apk add sqlite`)
+- Simplified create-admin.cjs to only seed users (removed schema init logic entirely)
+- Tested: lint passes, committed and pushed to GitHub
+
+Stage Summary:
+- Root cause: Prisma CLI engines missing in Docker runner stage → prisma db push silently failed → no tables → auth fails
+- Fix: sqlite3 CLI creates tables directly from schema.sql (no prisma CLI needed at runtime)
+- Files changed: Dockerfile, scripts/create-admin.cjs, scripts/schema.sql
+- Committed as 717199c and pushed to main
