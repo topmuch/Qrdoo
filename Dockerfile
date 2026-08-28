@@ -48,14 +48,13 @@ RUN rm -f .env && echo 'DATABASE_URL=file:/app/data/qrdomotik.db' > .env
 COPY --from=builder /app/prisma ./prisma/
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy SQL files for init
-COPY --from=builder /app/scripts/schema.sql ./scripts/schema.sql
-COPY --from=builder /app/scripts/seed-users.sql ./scripts/seed-users.sql
+# Copy SQL files to /app/data/ (guaranteed absolute path, CWD-independent)
+COPY --from=builder /app/scripts/schema.sql /app/data/schema.sql
+COPY --from=builder /app/scripts/seed-users.sql /app/data/seed-users.sql
 
 RUN mkdir -p /app/data
 EXPOSE 3000
 
-# 1) Create all tables with sqlite3 CLI (zero Prisma dependency)
-# 2) Seed admin + demo users with sqlite3 CLI (pre-hashed passwords)
-# 3) Start Next.js
-CMD ["sh", "-c", "sqlite3 /app/data/qrdomotik.db < scripts/schema.sql && echo '[init] Schema OK' && sqlite3 /app/data/qrdomotik.db < scripts/seed-users.sql && echo '[init] Users seeded' && exec node server.js"]
+# instrumentation.ts (inside Next.js process) runs sqlite3 CLI.
+# CMD is simple - Coolify may override it, but can't override instrumentation.
+CMD ["node", "server.js"]
