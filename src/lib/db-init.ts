@@ -9,31 +9,42 @@ import path from 'path';
 import { hash } from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 
-// Separate PrismaClient for init (no query logging)
-const initDb = new PrismaClient();
-
 let initialized = false;
 
 export async function initDatabase() {
   if (initialized) return;
   initialized = true;
 
+  // Build DATABASE_URL: ensure file: prefix, use Docker path as fallback
+  const rawUrl = process.env.DATABASE_URL || '';
+  const dbUrl = rawUrl.startsWith('file:') ? rawUrl : `file:${rawUrl}`;
+  
   console.log('[db-init] Starting database initialization...');
+  console.log('[db-init] DATABASE_URL:', dbUrl);
+
+  // Create PrismaClient HERE (inside the function) with explicit datasource
+  // This avoids .env file from standalone output overriding the Docker ENV
+  const initDb = new PrismaClient({
+    datasources: {
+      db: { url: dbUrl },
+    },
+  });
 
   try {
-    await initSchema();
-    await seedUsers();
+    await initSchema(initDb);
+    await seedUsers(initDb);
     console.log('[db-init] COMPLETE.');
   } catch (err) {
     console.error('[db-init] FATAL:', err);
-    // Reset flag so it can retry on next request
     initialized = false;
+  } finally {
+    await initDb.$disconnect();
   }
 }
 
 // ── 1. Create tables from schema.sql ──
-async function initSchema() {
-  // Try multiple possible paths (works in both dev and Docker)
+async function initSchema(initDb: PrismaClient) {
+  // Try multiple possible paths (works in both dev and Docker standalone)
   const candidates = [
     path.join(process.cwd(), 'scripts', 'schema.sql'),
     path.join(process.cwd(), '.next', 'server', 'scripts', 'schema.sql'),
@@ -93,7 +104,7 @@ async function initSchema() {
 }
 
 // ── 2. Seed admin & demo users ──
-async function seedUsers() {
+async function seedUsers(initDb: PrismaClient) {
   try {
     // Super Admin
     const adminHash = await hash('QrDomotik2024!', 12);
