@@ -2,7 +2,7 @@
 
 # ── Stage 1: Dependencies ──
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat sqlite
+RUN apk add --no-cache libc6-compat
 RUN npm install -g bun
 WORKDIR /app
 COPY package.json bun.lock* package-lock* ./
@@ -26,7 +26,6 @@ RUN bun run build
 
 # ── Stage 3: Production (minimal) ──
 FROM node:20-alpine AS runner
-RUN apk add --no-cache sqlite
 
 WORKDIR /app
 
@@ -45,15 +44,13 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma/
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy seed scripts + bcryptjs
+# Copy init scripts + bcryptjs (only runtime deps needed)
 COPY --from=builder /app/scripts ./scripts/
 COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
 RUN mkdir -p /app/data
 EXPOSE 3000
 
-# 1) sqlite3 creates all tables from schema.sql (reliable, no prisma CLI needed)
-# 2) create-admin.cjs seeds admin & demo users
-# 3) setup-demo-hub.cjs creates demo hub (optional)
-# 4) Start Next.js
-CMD ["sh", "-c", "mkdir -p /app/data && sqlite3 /app/data/qrdomotik.db < scripts/schema.sql && echo '[schema] Tables created via sqlite3' && node scripts/create-admin.cjs && node scripts/setup-demo-hub.cjs 2>/dev/null || true; exec node server.js"]
+# docker-init.cjs: creates tables from schema.sql + seeds users
+# setup-demo-hub.cjs: creates demo hub data (optional, non-blocking)
+CMD ["sh", "-c", "node scripts/docker-init.cjs; node scripts/setup-demo-hub.cjs 2>/dev/null || true; exec node server.js"]

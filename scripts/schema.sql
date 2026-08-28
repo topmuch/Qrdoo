@@ -1002,14 +1002,3 @@ CREATE INDEX IF NOT EXISTS "voice_messages_is_read_idx" ON "voice_messages"("is_
 
 -- CreateIndex
 CREATE INDEX IF NOT EXISTS "voice_messages_created_at_idx" ON "voice_messages"("created_at");
-┌─────────────────────────────────────────────────────────┐
-│  Update available 6.19.2 -> 8.0.0-rc.12                 │
-│                                                         │
-│  This is a major update - please follow the guide at    │
-│  https://pris.ly/d/major-version-upgrade                │
-│                                                         │
-│  Run the following to update                            │
-│    npm i --save-dev prisma@latest                       │
-│    npm i @prisma/client@latest                          │
-└─────────────────────────────────────────────────────────┘
-
