@@ -36,16 +36,22 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL=file:/app/data/qrdomotik.db
 
-# Copy standalone output + static assets + prisma + scripts
+# Copy standalone output + static assets
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+
+# Copy prisma (CLI + schema + generated client + runtime)
 COPY --from=builder /app/prisma ./prisma/
-COPY --from=builder /app/scripts ./scripts/
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Copy seed scripts + bcryptjs
+COPY --from=builder /app/scripts ./scripts/
 COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
 RUN mkdir -p /app/data
 EXPOSE 3000
 
-CMD ["sh", "-c", "mkdir -p /app/data && (npx prisma db push --accept-data-loss --skip-generate 2>/dev/null || true) && node scripts/create-admin.cjs; node scripts/setup-demo-hub.cjs 2>/dev/null || true; exec node server.js"]
+CMD ["sh", "-c", "mkdir -p /app/data && npx prisma db push --accept-data-loss --skip-generate && node scripts/create-admin.cjs; node scripts/setup-demo-hub.cjs 2>/dev/null || true; exec node server.js"]
