@@ -2,7 +2,7 @@
 
 # ── Stage 1: Dependencies ──
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat sqlite
 RUN npm install -g bun
 WORKDIR /app
 COPY package.json bun.lock* package-lock* ./
@@ -26,6 +26,7 @@ RUN bun run build
 
 # ── Stage 3: Production (minimal) ──
 FROM node:20-alpine AS runner
+RUN apk add --no-cache sqlite
 
 WORKDIR /app
 
@@ -39,6 +40,11 @@ ENV DATABASE_URL=file:/app/data/qrdomotik.db
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
+
+# CRITICAL: Remove .env from standalone output!
+# The standalone copies the project's .env (with LOCAL db path),
+# which overrides the Docker DATABASE_URL env var in Prisma's lazy loading.
+RUN rm -f .env && echo 'DATABASE_URL=file:/app/data/qrdomotik.db' > .env
 
 # Copy prisma runtime (generated client)
 COPY --from=builder /app/prisma ./prisma/

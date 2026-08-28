@@ -6,6 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { hash } from 'bcryptjs';
 import { db } from '@/lib/db';
 
@@ -16,10 +17,14 @@ export async function initDatabase() {
   initialized = true;
 
   console.log('[db-init] Starting database initialization...');
+  console.log('[db-init] CWD:', process.cwd());
+  console.log('[db-init] DATABASE_URL env:', process.env.DATABASE_URL);
 
   try {
-    await initSchema();
-    await seedUsers();
+    const schemaOk = await initSchema();
+    if (schemaOk) {
+      await seedUsers();
+    }
     console.log('[db-init] COMPLETE.');
   } catch (err) {
     console.error('[db-init] FATAL:', err);
@@ -28,32 +33,91 @@ export async function initDatabase() {
 }
 
 // ── 1. Create tables from schema.sql ──
-async function initSchema() {
-  // Try multiple possible paths (works in both dev and Docker standalone)
-  const candidates = [
-    path.join(process.cwd(), 'scripts', 'schema.sql'),
-    path.join(process.cwd(), '.next', 'server', 'scripts', 'schema.sql'),
-    path.resolve('scripts', 'schema.sql'),
-  ];
-
-  let sqlPath: string | null = null;
-  for (const p of candidates) {
-    if (fs.existsSync(p)) {
-      sqlPath = p;
-      break;
-    }
-  }
-
+// Strategy: try PrismaClient first, fall back to sqlite3 CLI
+async function initSchema(): Promise<boolean> {
+  const sqlPath = findSchemaSql();
   if (!sqlPath) {
-    console.error('[db-init] FATAL: schema.sql not found. Tried:', candidates);
-    return;
+    console.error('[db-init] FATAL: schema.sql not found');
+    return false;
   }
 
   console.log('[db-init] Found schema.sql at:', sqlPath);
 
   const sql = fs.readFileSync(sqlPath, 'utf-8');
+  const statements = parseStatements(sql);
+  console.log(`[db-init] Parsed ${statements.length} SQL statements`);
 
-  // Split on semicolons, strip comment lines
+  // Try Prisma first
+  let errors = 0;
+  for (let i = 0; i < statements.length; i++) {
+    try {
+      await db.$executeRawUnsafe(statements[i] + ';');
+    } catch {
+      errors++;
+      if (errors === 1) {
+        console.log('[db-init] Prisma failed, switching to sqlite3 CLI...');
+        // First Prisma error → switch to sqlite3 CLI for all remaining
+        errors = await initSchemaSqlite3(sqlPath);
+        return errors === 0;
+      }
+    }
+  }
+
+  if (errors === 0) {
+    console.log(`[db-init] Schema done via Prisma. (${statements.length} stmts)`);
+    return true;
+  }
+
+  // Prisma failed completely, try sqlite3 CLI
+  return (await initSchemaSqlite3(sqlPath)) === 0;
+}
+
+// ── Fallback: use sqlite3 CLI ──
+async function initSchemaSqlite3(sqlPath: string): Promise<number> {
+  const dbPath = '/app/data/qrdomotik.db';
+  console.log('[db-init] Trying sqlite3 CLI:', dbPath);
+
+  try {
+    // Test if sqlite3 is available
+    execSync('sqlite3 --version', { stdio: 'pipe' });
+  } catch {
+    console.error('[db-init] sqlite3 CLI not available! Schema creation FAILED.');
+    return 999;
+  }
+
+  try {
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    const output = execSync(`sqlite3 "${dbPath}" < "${sqlPath}" 2>&1`, {
+      encoding: 'utf-8',
+      timeout: 30000,
+    });
+    if (output) {
+      console.log('[db-init] sqlite3 output:', output.substring(0, 200));
+    }
+    console.log('[db-init] Schema done via sqlite3 CLI.');
+    return 0;
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[db-init] sqlite3 CLI failed:', msg.substring(0, 200));
+    return 999;
+  }
+}
+
+// ── Find schema.sql ──
+function findSchemaSql(): string | null {
+  const candidates = [
+    path.join(process.cwd(), 'scripts', 'schema.sql'),
+    path.join(process.cwd(), '.next', 'server', 'scripts', 'schema.sql'),
+    path.resolve('scripts', 'schema.sql'),
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+// ── Parse SQL: split on ; and strip comments ──
+function parseStatements(sql: string): string[] {
   const raw = sql.split(';');
   const statements: string[] = [];
   for (const chunk of raw) {
@@ -70,22 +134,7 @@ async function initSchema() {
       statements.push(cleaned);
     }
   }
-
-  console.log(`[db-init] Executing ${statements.length} SQL statements...`);
-
-  let errors = 0;
-  for (let i = 0; i < statements.length; i++) {
-    try {
-      await db.$executeRawUnsafe(statements[i] + ';');
-    } catch (err: unknown) {
-      errors++;
-      if (errors <= 3) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[db-init] SQL error #${i + 1}: ${msg.substring(0, 150)}`);
-      }
-    }
-  }
-  console.log(`[db-init] Schema done. (${statements.length} stmts, ${errors} errors)`);
+  return statements;
 }
 
 // ── 2. Seed admin & demo users ──
