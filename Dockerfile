@@ -48,11 +48,18 @@ RUN rm -f .env && echo 'DATABASE_URL=file:/app/data/qrdomotik.db' > .env
 COPY --from=builder /app/prisma ./prisma/
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy SQL files to /app/data/ (guaranteed absolute path, CWD-independent)
+# Ensure data directory exists, then copy SQL files
+RUN mkdir -p /app/data
 COPY --from=builder /app/scripts/schema.sql /app/data/schema.sql
 COPY --from=builder /app/scripts/seed-users.sql /app/data/seed-users.sql
 
-RUN mkdir -p /app/data
+# Verify SQL files and sqlite3 CLI are present
+RUN echo "--- Container pre-flight ---" \
+  && echo "sqlite3: $(which sqlite3)" \
+  && sqlite3 --version \
+  && echo "schema.sql: $(wc -l < /app/data/schema.sql) lines" \
+  && echo "seed-users.sql: $(wc -l < /app/data/seed-users.sql) lines" \
+  && echo "--- End pre-flight ---"
 EXPOSE 3000
 
 # instrumentation.ts (inside Next.js process) runs sqlite3 CLI.

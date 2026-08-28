@@ -1961,3 +1961,22 @@ Stage Summary:
 - instrumentation.ts is the definitive fix - runs inside Next.js, no module resolution issues
 - Dockerfile is now minimal: just copy schema.sql + node server.js
 - Committed as 71b872b and pushed to main
+---
+Task ID: instrumentation-sqlite3-cli
+Agent: main
+Task: Fix Coolify auth - recreate instrumentation.ts with sqlite3 CLI only (no Prisma)
+
+Work Log:
+- Analyzed why previous attempt failed: instrumentation.ts DID execute in standalone (logs proved it), but used Prisma which can't connect at Docker startup
+- Confirmed db.ts ensureSchema() approach doesn't work because module-level code only runs on first import (first request), not at server startup
+- Recreated src/instrumentation.ts using ONLY execSync('sqlite3 ...') - zero Prisma imports
+- Added comprehensive logging: sqlite3 version check, schema apply, seed apply, table count, admin user verification
+- Added /app/data/init.log file writing for post-hoc debugging in Coolify
+- Updated Dockerfile: reordered mkdir before COPY, added pre-flight verification (sqlite3 path, SQL line counts)
+- Verified build output: instrumentation.js exists, db-init strings are in compiled server chunks, standalone/src/instrumentation.ts is copied
+
+Stage Summary:
+- instrumentation.ts with sqlite3 CLI is the final fix - runs at Next.js startup, no Prisma dependency, no external scripts
+- Build verification confirms instrumentation IS traced and bundled into standalone output
+- Dockerfile pre-flight checks will catch missing sqlite3 or SQL files at build time
+- Key difference from all previous attempts: NO Prisma import, NO external scripts, NO CMD tricks
