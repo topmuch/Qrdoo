@@ -7,7 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { hash } from 'bcryptjs';
-import { PrismaClient } from '@prisma/client';
+import { db } from '@/lib/db';
 
 let initialized = false;
 
@@ -15,35 +15,20 @@ export async function initDatabase() {
   if (initialized) return;
   initialized = true;
 
-  // Build DATABASE_URL: ensure file: prefix, use Docker path as fallback
-  const rawUrl = process.env.DATABASE_URL || '';
-  const dbUrl = rawUrl.startsWith('file:') ? rawUrl : `file:${rawUrl}`;
-  
   console.log('[db-init] Starting database initialization...');
-  console.log('[db-init] DATABASE_URL:', dbUrl);
-
-  // Create PrismaClient HERE (inside the function) with explicit datasource
-  // This avoids .env file from standalone output overriding the Docker ENV
-  const initDb = new PrismaClient({
-    datasources: {
-      db: { url: dbUrl },
-    },
-  });
 
   try {
-    await initSchema(initDb);
-    await seedUsers(initDb);
+    await initSchema();
+    await seedUsers();
     console.log('[db-init] COMPLETE.');
   } catch (err) {
     console.error('[db-init] FATAL:', err);
     initialized = false;
-  } finally {
-    await initDb.$disconnect();
   }
 }
 
 // ── 1. Create tables from schema.sql ──
-async function initSchema(initDb: PrismaClient) {
+async function initSchema() {
   // Try multiple possible paths (works in both dev and Docker standalone)
   const candidates = [
     path.join(process.cwd(), 'scripts', 'schema.sql'),
@@ -91,7 +76,7 @@ async function initSchema(initDb: PrismaClient) {
   let errors = 0;
   for (let i = 0; i < statements.length; i++) {
     try {
-      await initDb.$executeRawUnsafe(statements[i] + ';');
+      await db.$executeRawUnsafe(statements[i] + ';');
     } catch (err: unknown) {
       errors++;
       if (errors <= 3) {
@@ -104,11 +89,11 @@ async function initSchema(initDb: PrismaClient) {
 }
 
 // ── 2. Seed admin & demo users ──
-async function seedUsers(initDb: PrismaClient) {
+async function seedUsers() {
   try {
     // Super Admin
     const adminHash = await hash('QrDomotik2024!', 12);
-    const admin = await initDb.user.upsert({
+    const admin = await db.user.upsert({
       where: { email: 'admin@qrdomotik.roomscan.pro' },
       update: {
         passwordHash: adminHash,
@@ -124,11 +109,11 @@ async function seedUsers(initDb: PrismaClient) {
     });
     console.log('[db-init] Super Admin OK:', admin.email);
 
-    const adminHomeCount = await initDb.home.count({
+    const adminHomeCount = await db.home.count({
       where: { ownerId: admin.id },
     });
     if (adminHomeCount === 0) {
-      await initDb.home.create({
+      await db.home.create({
         data: {
           name: 'ORDOMOTIK HQ',
           ownerId: admin.id,
@@ -140,7 +125,7 @@ async function seedUsers(initDb: PrismaClient) {
 
     // Demo Client
     const demoHash = await hash('demo123', 12);
-    const demo = await initDb.user.upsert({
+    const demo = await db.user.upsert({
       where: { email: 'demo@qrdomotik.roomscan.pro' },
       update: {
         passwordHash: demoHash,
@@ -156,11 +141,11 @@ async function seedUsers(initDb: PrismaClient) {
     });
     console.log('[db-init] Demo Client OK:', demo.email);
 
-    const demoHomeCount = await initDb.home.count({
+    const demoHomeCount = await db.home.count({
       where: { ownerId: demo.id },
     });
     if (demoHomeCount === 0) {
-      await initDb.home.create({
+      await db.home.create({
         data: { name: 'Ma Maison Demo', ownerId: demo.id, address: '' },
       });
       console.log('[db-init] Home Ma Maison Demo created');
