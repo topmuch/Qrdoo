@@ -1980,3 +1980,18 @@ Stage Summary:
 - Build verification confirms instrumentation IS traced and bundled into standalone output
 - Dockerfile pre-flight checks will catch missing sqlite3 or SQL files at build time
 - Key difference from all previous attempts: NO Prisma import, NO external scripts, NO CMD tricks
+---
+Task ID: fix-oom-build
+Agent: main
+Task: Fix Docker build OOM failure on Coolify
+
+Work Log:
+- User reported build fails at 'next build' step with 'Deployment failed'
+- Root cause: OOM - 896 packages, 100+ components, Turbopack needs more memory
+- bun runtime doesn't respect NODE_OPTIONS, so changed from 'bun run build' to 'npx next build'
+- Added ENV NODE_OPTIONS=--max-old-space-size=4096 to builder stage
+- This ensures Node.js V8 heap can grow to 4GB during compilation
+
+Stage Summary:
+- Dockerfile: builder stage uses npx (not bun) + 4GB memory limit
+- If 4GB still OOMs, next step is to switch from Turbopack to webpack

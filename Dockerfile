@@ -21,8 +21,10 @@ COPY components.json .
 COPY src ./src/
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL=file:/app/data/qrdomotik.db
+# Use Node.js directly (not bun) so NODE_OPTIONS memory limit works
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npx prisma generate
-RUN bun run build
+RUN npx next build
 
 # ── Stage 3: Production ──
 FROM node:20-alpine AS runner
