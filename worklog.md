@@ -1942,3 +1942,22 @@ Stage Summary:
 - Fix: sqlite3 CLI creates tables directly from schema.sql (no prisma CLI needed at runtime)
 - Files changed: Dockerfile, scripts/create-admin.cjs, scripts/schema.sql
 - Committed as 717199c and pushed to main
+---
+Task ID: docker-init-fix-v3
+Agent: main
+Task: Fix docker init - external scripts can't resolve @prisma/client in standalone
+
+Work Log:
+- Discovered docker-init.cjs produced zero output in container (script crashed on require)
+- Root cause: standalone output remaps modules inside server.js only; external scripts can't resolve @prisma/client
+- Created src/lib/db-init.ts: schema SQL execution + user seeding using dedicated PrismaClient
+- Created src/instrumentation.ts: Next.js register() hook that calls db-init on server startup
+- Runs INSIDE the Next.js process where all module resolution works correctly
+- Simplified Dockerfile to just `CMD ["node", "server.js"]` - no external scripts needed
+- Only extra file copied: scripts/schema.sql (read at runtime)
+- Tested: 178 stmts, 0 errors, 2 users created, admin login returns 302
+
+Stage Summary:
+- instrumentation.ts is the definitive fix - runs inside Next.js, no module resolution issues
+- Dockerfile is now minimal: just copy schema.sql + node server.js
+- Committed as 71b872b and pushed to main
