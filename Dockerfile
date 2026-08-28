@@ -24,9 +24,9 @@ ENV DATABASE_URL=file:/app/data/qrdomotik.db
 RUN npx prisma generate
 RUN bun run build
 
-# ── Stage 3: Production (minimal) ──
+# ── Stage 3: Production ──
 FROM node:20-alpine AS runner
-RUN apk add --no-cache sqlite
+RUN apk add --no-cache sqlite && sqlite3 --version
 
 WORKDIR /app
 
@@ -41,20 +41,21 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# CRITICAL: Remove .env from standalone output!
-# The standalone copies the project's .env (with LOCAL db path),
-# which overrides the Docker DATABASE_URL env var in Prisma's lazy loading.
+# Remove project .env (has LOCAL db path) and write Docker-specific one
 RUN rm -f .env && echo 'DATABASE_URL=file:/app/data/qrdomotik.db' > .env
 
 # Copy prisma runtime (generated client)
 COPY --from=builder /app/prisma ./prisma/
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy schema.sql for db-init.ts to read at startup
+# Copy SQL files for init
 COPY --from=builder /app/scripts/schema.sql ./scripts/schema.sql
+COPY --from=builder /app/scripts/seed-users.sql ./scripts/seed-users.sql
 
 RUN mkdir -p /app/data
 EXPOSE 3000
 
-# DB init + seeding runs inside Next.js via instrumentation.ts
-CMD ["node", "server.js"]
+# 1) Create all tables with sqlite3 CLI (zero Prisma dependency)
+# 2) Seed admin + demo users with sqlite3 CLI (pre-hashed passwords)
+# 3) Start Next.js
+CMD ["sh", "-c", "sqlite3 /app/data/qrdomotik.db < scripts/schema.sql && echo '[init] Schema OK' && sqlite3 /app/data/qrdomotik.db < scripts/seed-users.sql && echo '[init] Users seeded' && exec node server.js"]
