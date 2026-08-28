@@ -1,87 +1,76 @@
 // =============================================================
-// ORDOMOTIK - Script de creation du compte admin au deploiement
-// Execute automatiquement par le Dockerfile au premier demarrage
+// ORDOMOTIK - Script de creation/mise a jour des comptes admin
+// Execute automatiquement par le Dockerfile a chaque demarrage
+// Force la mise a jour des hashes bcryptjs a chaque deploy
 // =============================================================
 
 const { hash } = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 
-async function createAdmin() {
+async function seedUsers() {
   const prisma = new PrismaClient();
 
   try {
     await prisma.user.count();
   } catch (error) {
-    console.log('[create-admin] Table users non trouvee, arret.');
+    console.log('[seed-users] Table users non trouvee, arret.');
     await prisma.$disconnect();
     return;
   }
 
   try {
     // --- Compte Super Admin ---
-    const existingAdmin = await prisma.user.findUnique({
+    const adminHash = await hash('QrDomotik2024!', 12);
+    const admin = await prisma.user.upsert({
       where: { email: 'admin@qrdomotik.roomscan.pro' },
+      update: { passwordHash: adminHash, fullName: 'Administrateur ORDOMOTIK', role: 'superadmin' },
+      create: {
+        email: 'admin@qrdomotik.roomscan.pro',
+        fullName: 'Administrateur ORDOMOTIK',
+        passwordHash: adminHash,
+        role: 'superadmin',
+      },
     });
+    console.log('[seed-users] Super Admin OK:', admin.email);
 
-    if (!existingAdmin) {
-      const adminPasswordHash = await hash('QrDomotik2024!', 12);
-      const admin = await prisma.user.create({
-        data: {
-          email: 'admin@qrdomotik.roomscan.pro',
-          fullName: 'Administrateur ORDOMOTIK',
-          passwordHash: adminPasswordHash,
-          role: 'superadmin',
-        },
-      });
-
+    // Creer le home s'il n'existe pas
+    const adminHomeCount = await prisma.home.count({ where: { ownerId: admin.id } });
+    if (adminHomeCount === 0) {
       await prisma.home.create({
-        data: {
-          name: 'ORDOMOTIK HQ',
-          ownerId: admin.id,
-          address: 'Siege Social',
-        },
+        data: { name: 'ORDOMOTIK HQ', ownerId: admin.id, address: 'Siege Social' },
       });
-
-      console.log('[create-admin] Compte Super Admin cree avec succes');
-    } else {
-      console.log('[create-admin] Compte Super Admin existe deja, bypass.');
+      console.log('[seed-users] Home ORDOMOTIK HQ cree');
     }
 
     // --- Compte Demo Client ---
-    const existingDemo = await prisma.user.findUnique({
+    const demoHash = await hash('demo123', 12);
+    const demo = await prisma.user.upsert({
       where: { email: 'demo@qrdomotik.roomscan.pro' },
+      update: { passwordHash: demoHash, fullName: 'Utilisateur Demo', role: 'user' },
+      create: {
+        email: 'demo@qrdomotik.roomscan.pro',
+        fullName: 'Utilisateur Demo',
+        passwordHash: demoHash,
+        role: 'user',
+      },
     });
+    console.log('[seed-users] Demo Client OK:', demo.email);
 
-    if (!existingDemo) {
-      const demoPasswordHash = await hash('demo123', 12);
-      const demo = await prisma.user.create({
-        data: {
-          email: 'demo@qrdomotik.roomscan.pro',
-          fullName: 'Utilisateur Demo',
-          passwordHash: demoPasswordHash,
-          role: 'user',
-        },
-      });
-
+    // Creer le home demo s'il n'existe pas
+    const demoHomeCount = await prisma.home.count({ where: { ownerId: demo.id } });
+    if (demoHomeCount === 0) {
       await prisma.home.create({
-        data: {
-          name: 'Ma Maison Demo',
-          ownerId: demo.id,
-          address: '',
-        },
+        data: { name: 'Ma Maison Demo', ownerId: demo.id, address: '' },
       });
-
-      console.log('[create-admin] Compte Demo Client cree avec succes');
-    } else {
-      console.log('[create-admin] Compte Demo Client existe deja, bypass.');
+      console.log('[seed-users] Home Ma Maison Demo cree');
     }
 
-    console.log('[create-admin] Initialisation terminee.');
+    console.log('[seed-users] Initialisation terminee avec succes.');
   } catch (error) {
-    console.error('[create-admin] Erreur:', error.message);
+    console.error('[seed-users] Erreur:', error.message);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-createAdmin();
+seedUsers();
