@@ -40,17 +40,15 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Copy prisma runtime (generated client only, no CLI needed)
+# Copy prisma runtime (generated client)
 COPY --from=builder /app/prisma ./prisma/
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy init scripts + bcryptjs (only runtime deps needed)
-COPY --from=builder /app/scripts ./scripts/
-COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+# Copy schema.sql for db-init.ts to read at startup
+COPY --from=builder /app/scripts/schema.sql ./scripts/schema.sql
 
 RUN mkdir -p /app/data
 EXPOSE 3000
 
-# docker-init.cjs: creates tables from schema.sql + seeds users
-# setup-demo-hub.cjs: creates demo hub data (optional, non-blocking)
-CMD ["sh", "-c", "node scripts/docker-init.cjs; node scripts/setup-demo-hub.cjs 2>/dev/null || true; exec node server.js"]
+# DB init + seeding runs inside Next.js via instrumentation.ts
+CMD ["node", "server.js"]
