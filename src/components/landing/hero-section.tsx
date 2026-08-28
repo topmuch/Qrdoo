@@ -58,7 +58,7 @@ function Navbar({ onGoToDashboard, onGoToSetup, onGoToHub }: { onGoToDashboard: 
     }`}>
       <div className="max-w-[1600px] mx-auto px-4 md:px-8 flex items-center justify-between h-16">
         <a href="#hero" onClick={(e) => handleNavClick(e, '#hero')} className="flex items-center gap-2.5 group">
-          <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-8 w-auto object-contain" />
+          <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-8 w-auto object-contain rounded-lg" />
         </a>
         <div className="hidden md:flex items-center gap-8">
           {links.map((link) => (
@@ -295,7 +295,7 @@ function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
-              <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-7 w-auto object-contain" />
+              <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-7 w-auto object-contain rounded-lg" />
             </div>
             <p className="text-sm text-white/30 leading-relaxed">
               Transformez votre maison grâce à la puissance des QR codes.

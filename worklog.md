@@ -1888,3 +1888,37 @@ Stage Summary:
 - Client nav reduced from 16+ to 6 clean items
 - Login page now full-width split layout with branding
 - Lint passes with 0 errors
+---
+Task ID: 1
+Agent: main
+Task: Fix logo display - transparent background + rounded corners on all pages
+
+Work Log:
+- Analyzed logo-ordomotik.jpg (275x61px JPEG, white bg, magenta text, green hexagon icon, black tagline)
+- Identified issue: `brightness-0 invert` CSS filter on dark pages was inverting ALL colors (magenta→green, green→magenta, black→white), destroying brand identity
+- Used VLM skill to confirm logo composition and that white JPEG background was the root cause
+- Created transparent PNG using sharp (Node.js): pixel-by-pixel white removal with threshold 230, output 550x122px 4-channel PNG
+- Verified transparent PNG quality with VLM: clean edges, no white halo, vibrant original colors
+- Updated all 17 logo `<img>` references across 9 files:
+  - login-form.tsx (3 refs)
+  - hero-section.tsx (2 refs)
+  - admin-layout.tsx (2 refs)
+  - super-admin-layout.tsx (2 refs)
+  - client-layout.tsx (2 refs)
+  - scan-page-wrapper.tsx (2 refs)
+  - activate-content.tsx (1 ref)
+  - setup-content.tsx (2 refs)
+  - hub-content.tsx (1 ref)
+- Changes applied: .jpg→.png, removed `brightness-0 invert`, added `rounded-lg`
+- Browser verification (Agent Browser + VLM) confirmed:
+  - Landing page navbar logo: original colors visible, rounded ✓
+  - Landing page footer logo: original colors, rounded ✓
+  - Login page left branding: large logo with original colors, transparent bg ✓
+  - Login page mobile header: small logo with original colors ✓
+
+Stage Summary:
+- Created /public/logo-ordomotik.png (transparent, 550x122px)
+- All 17 references updated across 9 files
+- No more white rectangle on dark backgrounds
+- No more color inversion destroying brand identity
+- All logos have rounded corners (rounded-lg for main, rounded for small footers)

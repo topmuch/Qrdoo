@@ -490,7 +490,7 @@ export function ActivatePageContent({ params }: { params: Promise<{ code: string
       {/* Footer */}
       <div className="px-5 pb-8 pt-4">
         <p className="text-center text-[10px] text-white/30 font-medium">
-          <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-4 w-auto object-contain brightness-0 invert opacity-30" />
+          <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-4 w-auto object-contain rounded opacity-30" />
         </p>
       </div>
     </div>

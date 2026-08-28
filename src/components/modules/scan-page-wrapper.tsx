@@ -26,7 +26,7 @@ export function ScanPageWrapper({ children, homeName, scanCount }: ScanPageWrapp
         <div className="mx-auto max-w-md px-4 py-3 flex items-center justify-between">
           {/* Logo + Home name */}
           <div className="flex items-center gap-2.5 min-w-0">
-            <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-7 w-auto object-contain" />
+            <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-7 w-auto object-contain rounded-lg" />
             {homeName && (
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground truncate leading-tight">
@@ -74,7 +74,7 @@ export function ScanPageWrapper({ children, homeName, scanCount }: ScanPageWrapp
         className="w-full border-t border-border/40 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md"
       >
         <div className="mx-auto max-w-md px-4 py-3 flex flex-col items-center gap-1">
-          <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-4 w-auto object-contain opacity-40" />
+          <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-4 w-auto object-contain rounded opacity-40" />
           <p className="text-[10px] text-muted-foreground">qrdomotik.roomscan.pro</p>
         </div>
       </motion.footer>

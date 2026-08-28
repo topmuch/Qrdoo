@@ -342,7 +342,7 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
         <div className="max-w-md mx-auto">
           {/* Logo + step indicator */}
           <div className="flex items-center justify-between mb-3">
-            <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-7 w-auto object-contain brightness-0 invert" />
+            <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-7 w-auto object-contain rounded-lg" />
             {step !== 'success' && (
               <span className="text-[11px] font-bold text-white/60">
                 \u00C9tape {currentIdx + 1} / 4
@@ -860,7 +860,7 @@ export function SetupPageContent({ params }: { params: Promise<{ token: string }
 
       {/* Footer */}
       <div className="mt-auto px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-center">
-        <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-5 w-auto object-contain brightness-0 invert opacity-30 mx-auto mb-1" />
+        <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-5 w-auto object-contain rounded opacity-30 mx-auto mb-1" />
         <p className="text-[10px] text-white/30 font-medium">
           qrdomotik.roomscan.pro
         </p>

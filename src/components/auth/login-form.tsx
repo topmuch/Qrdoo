@@ -128,7 +128,7 @@ export function AuthForm({ onSuccess, initialRegister }: AuthFormProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-              <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-12 w-auto object-contain brightness-0 invert mb-8" />
+              <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-12 w-auto object-contain rounded-lg mb-8" />
               <h1 className="text-4xl xl:text-5xl font-bold text-white tracking-tight leading-tight">
                 La maison connectée{' '}
                 <span className="bg-gradient-to-r from-violet-400 to-emerald-400 bg-clip-text text-transparent">
@@ -188,7 +188,7 @@ export function AuthForm({ onSuccess, initialRegister }: AuthFormProps) {
         <div className="flex-1 flex flex-col">
           {/* Mobile header with logo */}
           <div className="lg:hidden flex items-center justify-center px-6 pt-6">
-            <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-8 w-auto object-contain brightness-0 invert" />
+            <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-8 w-auto object-contain rounded-lg" />
           </div>
 
           <div className="flex-1 flex items-center justify-center px-6 py-8 lg:px-12">
@@ -393,7 +393,7 @@ export function AuthForm({ onSuccess, initialRegister }: AuthFormProps) {
           <div className="px-6 py-4 border-t border-slate-800/40">
             <div className="flex items-center justify-between text-xs text-slate-500">
               <div className="flex items-center gap-2">
-                <img src="/logo-ordomotik.jpg" alt="ORDOMOTIK" className="h-3.5 w-auto object-contain brightness-0 invert opacity-40" />
+                <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-3.5 w-auto object-contain rounded opacity-40" />
                 <span>ORDOMOTIK</span>
               </div>
               <span>Smart Home Solutions</span>
