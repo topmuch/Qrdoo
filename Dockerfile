@@ -52,5 +52,8 @@ COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 RUN mkdir -p /app/data
 EXPOSE 3000
 
-# create-admin.cjs handles schema init + user seeding (no prisma CLI needed)
-CMD ["sh", "-c", "mkdir -p /app/data && node scripts/create-admin.cjs; node scripts/setup-demo-hub.cjs 2>/dev/null || true; exec node server.js"]
+# 1) sqlite3 creates all tables from schema.sql (reliable, no prisma CLI needed)
+# 2) create-admin.cjs seeds admin & demo users
+# 3) setup-demo-hub.cjs creates demo hub (optional)
+# 4) Start Next.js
+CMD ["sh", "-c", "mkdir -p /app/data && sqlite3 /app/data/qrdomotik.db < scripts/schema.sql && echo '[schema] Tables created via sqlite3' && node scripts/create-admin.cjs && node scripts/setup-demo-hub.cjs 2>/dev/null || true; exec node server.js"]

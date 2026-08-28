@@ -1,63 +1,14 @@
 // =============================================================
-// ORDOMOTIK - Seed: init DB + create/update admin & demo users
-// Auto-runs on every container start (Dockerfile CMD)
-// Creates tables from schema.sql if they don't exist
+// ORDOMOTIK - Seed: create/update admin & demo users
+// Schema tables are created by sqlite3 CLI in Dockerfile CMD
+// This script ONLY handles user seeding
 // =============================================================
 
-const fs = require('fs');
-const path = require('path');
 const { hash } = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-// ── Check if tables exist ──
-async function tablesExist() {
-  try {
-    const result = await prisma.$queryRawUnsafe(
-      `SELECT count(*) as c FROM sqlite_master WHERE type='table' AND name='users'`
-    );
-    return result[0].c > 0;
-  } catch {
-    return false;
-  }
-}
-
-// ── Execute schema SQL file to create all tables ──
-async function initSchema() {
-  const schemaPath = path.join(__dirname, 'schema.sql');
-  if (!fs.existsSync(schemaPath)) {
-    console.error('[seed] schema.sql not found at', schemaPath);
-    process.exit(1);
-  }
-
-  const sql = fs.readFileSync(schemaPath, 'utf-8');
-  // Split on semicolons, filter empty, skip pragmas
-  const statements = sql
-    .split(';')
-    .map(s => s.trim())
-    .filter(s => s.length > 0 && !s.startsWith('--') && s.toUpperCase() !== 'BEGIN TRANSACTION' && s.toUpperCase() !== 'COMMIT');
-
-  // Disable FK checks during schema creation
-  await prisma.$executeRawUnsafe('PRAGMA foreign_keys=OFF;');
-
-  for (let i = 0; i < statements.length; i++) {
-    const stmt = statements[i];
-    try {
-      await prisma.$executeRawUnsafe(stmt);
-    } catch (err) {
-      // Ignore "already exists" errors
-      if (!err.message?.includes('already exists')) {
-        console.error(`[seed] SQL error on statement ${i + 1}:`, err.message);
-      }
-    }
-  }
-
-  await prisma.$executeRawUnsafe('PRAGMA foreign_keys=ON;');
-  console.log(`[seed] Schema initialized (${statements.length} statements)`);
-}
-
-// ── Seed users ──
 async function seedUsers() {
   // Super Admin
   const adminHash = await hash('QrDomotik2024!', 12);
@@ -100,20 +51,13 @@ async function seedUsers() {
   }
 }
 
-// ── Main ──
 async function main() {
   try {
-    const exists = await tablesExist();
-    if (!exists) {
-      console.log('[seed] No tables found, initializing schema...');
-      await initSchema();
-    } else {
-      console.log('[seed] Tables already exist, skipping schema init.');
-    }
     await seedUsers();
     console.log('[seed] Done.');
   } catch (err) {
     console.error('[seed] Fatal error:', err.message);
+    console.error(err.stack);
   } finally {
     await prisma.$disconnect();
   }
