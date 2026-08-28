@@ -1,7 +1,68 @@
 import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
-import { db } from '@/lib/db';
+import { execSync } from 'child_process';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { PrismaClient } from '@prisma/client';
+
+// =============================================================
+// DB Init: runs inside authorize() — guaranteed to execute
+// Uses sqlite3 CLI + pre-hashed passwords (no Prisma needed)
+// =============================================================
+let _schemaReady = false;
+
+function ensureSchemaAndUsers() {
+  if (_schemaReady) return;
+  _schemaReady = true;
+
+  try {
+    const dbUrl = process.env.DATABASE_URL || 'file:/app/data/qrdomotik.db';
+    const dbPath = dbUrl.replace(/^file:\/\//, '/');
+
+    mkdirSync(dirname(dbPath), { recursive: true });
+
+    // Find SQL files
+    const paths = [
+      '/app/data/schema.sql',
+      '/app/scripts/schema.sql',
+      join(process.cwd(), 'scripts', 'schema.sql'),
+      join(process.cwd(), 'data', 'schema.sql'),
+    ];
+    const schemaPath = paths.find(p => existsSync(p));
+    const seedPath = paths.find(p => existsSync(p.replace('schema.sql', 'seed-users.sql')));
+
+    if (schemaPath) {
+      execSync(`sqlite3 "${dbPath}" < "${schemaPath}"`, { stdio: 'pipe' });
+      console.log('[auth-init] Schema OK');
+    }
+
+    if (seedPath) {
+      execSync(`sqlite3 "${dbPath}" < "${seedPath}"`, { stdio: 'pipe' });
+      console.log('[auth-init] Users seeded');
+    }
+
+    // Write marker file for debugging
+    writeFileSync('/app/data/.init-done', new Date().toISOString());
+  } catch (err) {
+    console.error('[auth-init] FAILED:', String(err).substring(0, 300));
+  }
+}
+
+// =============================================================
+// Prisma Client (lazy, created after schema is ready)
+// =============================================================
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
+};
+
+function getDb() {
+  ensureSchemaAndUsers();
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = new PrismaClient({ log: ['query'] });
+  }
+  return globalForPrisma.prisma;
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -15,6 +76,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         try {
+          const db = getDb();
           const user = await db.user.findUnique({
             where: { email: credentials.email },
           });
