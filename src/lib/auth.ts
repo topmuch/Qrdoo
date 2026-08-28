@@ -95,7 +95,8 @@ export const authOptions: NextAuthOptions = {
             name: user.fullName,
             role: user.role,
           };
-        } catch {
+        } catch (err) {
+          console.error('[auth] authorize() error:', err);
           return null;
         }
       },
