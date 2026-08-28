@@ -80,7 +80,7 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, o
       )}>
         {/* Brand */}
         <div className="flex h-16 items-center gap-3 px-5">
-          <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-7 w-auto object-contain rounded-lg" />
+          <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-9 w-auto object-contain rounded-lg" />
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-white tracking-tight">ORDOMOTIK</span>
             <span className="text-[10px] text-slate-500 font-medium">Super Admin</span>
@@ -229,7 +229,7 @@ export function SuperAdminLayout({ activePage, onPageChange, onSwitchToClient, o
         <footer className="border-t px-6 py-3 lg:px-8">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
-              <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-3.5 w-auto object-contain rounded opacity-40" />
+              <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-5 w-auto object-contain rounded opacity-40" />
               <span>ORDOMOTIK</span>
             </div>
             <span>Super Administration</span>

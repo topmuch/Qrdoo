@@ -1518,7 +1518,7 @@ export function HubPageContent({ params }: { params: Promise<{ slug: string }> }
 
           {/* Footer */}
           <div className="mt-auto px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-center">
-            <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-5 w-auto object-contain rounded opacity-30 mx-auto mb-1" />
+            <img src="/logo-ordomotik.png" alt="ORDOMOTIK" className="h-6 w-auto object-contain rounded opacity-30 mx-auto mb-1" />
             <p className="text-[10px] text-white/25">
               qrdomotik.roomscan.pro
             </p>
