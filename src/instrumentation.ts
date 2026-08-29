@@ -2,9 +2,10 @@ import { execSync } from 'child_process'
 import { existsSync, mkdirSync, appendFileSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 
-// IMPORTANT: This file runs at Next.js startup in standalone mode.
-// It uses ONLY sqlite3 CLI — NO Prisma imports (Prisma can't connect at Docker startup).
-// Coolify cannot override instrumentation.ts (it overrides CMD, not the Node.js process internals).
+// =============================================================
+// Runs at Next.js startup in standalone mode.
+// Uses ONLY sqlite3 CLI — NO Prisma.
+// =============================================================
 
 const LOG_FILE = '/app/data/init.log'
 
@@ -19,8 +20,39 @@ function log(msg: string) {
   console.log(`[db-init] ${msg}`)
 }
 
+/** Resolve the actual database file path (works in any CWD including standalone) */
+function getDbPath(): string {
+  const envUrl = process.env.DATABASE_URL || ''
+  if (envUrl.includes('://')) {
+    return envUrl.replace(/^file:\/\//, '/')
+  }
+  if (envUrl.startsWith('file:')) {
+    const rest = envUrl.replace(/^file:/, '')
+    if (rest.startsWith('/')) return rest
+    return join(process.cwd(), rest)
+  }
+  if (envUrl.startsWith('/')) return envUrl
+  return join(process.cwd(), 'data', 'qrdomotik.db')
+}
+
+/** Find a SQL file by searching multiple possible locations */
+function findSqlFile(filename: string): string | undefined {
+  const dbDir = dirname(getDbPath())
+  const searchPaths = [
+    '/app/data',
+    '/app/scripts',
+    dbDir,
+    join(process.cwd(), 'data'),
+    join(process.cwd(), 'scripts'),
+  ]
+  for (const dir of searchPaths) {
+    const candidate = join(dir, filename)
+    if (existsSync(candidate)) return candidate
+  }
+  return undefined
+}
+
 export async function register() {
-  // Only run in production (standalone/Docker)
   if (process.env.NODE_ENV !== 'production') {
     console.log('[db-init] Skipped (not production)')
     return
@@ -29,100 +61,65 @@ export async function register() {
   log('=== ORDOMOTIK Database Initialization ===')
 
   try {
-    // 1. Verify sqlite3 CLI is available
     const sqliteVersion = execSync('sqlite3 --version', { encoding: 'utf-8', stdio: 'pipe' }).trim()
     log(`sqlite3 available: ${sqliteVersion}`)
   } catch (err) {
-    log('FATAL: sqlite3 CLI not found! Database cannot be initialized.')
+    log('FATAL: sqlite3 CLI not found!')
     log(`Error: ${String(err).substring(0, 200)}`)
     return
   }
 
   try {
-    // 2. Resolve database path from DATABASE_URL
-    const dbUrl = process.env.DATABASE_URL || 'file:/app/data/qrdomotik.db'
-    let dbPath: string
-    if (dbUrl.includes('://')) {
-      dbPath = dbUrl.replace(/^file:\/\//, '/')
-    } else {
-      dbPath = join(process.cwd(), dbUrl.replace(/^file:/, ''))
-    }
+    const dbPath = getDbPath()
     log(`Database path: ${dbPath}`)
 
-    // 3. Ensure data directory exists
     const dataDir = dirname(dbPath)
     mkdirSync(dataDir, { recursive: true })
-    log(`Data directory ready: ${dataDir}`)
+    log(`Data directory: ${dataDir}`)
 
-    // 4. Find SQL files (search multiple possible locations)
-    const candidates = [
-      '/app/data/schema.sql',        // Docker COPY target (primary)
-      '/app/scripts/schema.sql',      // Alternative
-      join(process.cwd(), 'data', 'schema.sql'),
-      join(process.cwd(), 'scripts', 'schema.sql'),
-    ]
-    const schemaPath = candidates.find(p => existsSync(p))
+    const schemaPath = findSqlFile('schema.sql')
     if (!schemaPath) {
-      log(`WARN: schema.sql not found. Searched: ${candidates.join(', ')}`)
-      // Try to find any .sql file
+      log(`WARN: schema.sql not found! Searched: /app/data, /app/scripts, ${dirname(dbPath)}, ${join(process.cwd(), 'data')}, ${join(process.cwd(), 'scripts')}`)
       return
     }
-    log(`Schema file: ${schemaPath}`)
+    log(`Schema: ${schemaPath}`)
 
-    // 5. Apply schema (CREATE TABLE IF NOT EXISTS is idempotent)
     log('Applying schema...')
-    const schemaResult = execSync(`sqlite3 "${dbPath}" < "${schemaPath}" 2>&1`, {
+    execSync(`sqlite3 "${dbPath}" < "${schemaPath}" 2>&1`, {
       encoding: 'utf-8',
       stdio: 'pipe',
       timeout: 30000,
     })
-    if (schemaResult.trim()) {
-      log(`Schema output: ${schemaResult.trim().substring(0, 300)}`)
-    }
-    log('Schema applied successfully ✓')
+    log('Schema applied ✓')
 
-    // 6. Apply seed users (INSERT OR IGNORE is idempotent)
-    const seedPath = schemaPath.replace('schema.sql', 'seed-users.sql')
-    if (existsSync(seedPath)) {
-      log(`Seed file: ${seedPath}`)
-      const seedResult = execSync(`sqlite3 "${dbPath}" < "${seedPath}" 2>&1`, {
+    const seedPath = findSqlFile('seed-users.sql')
+    if (seedPath) {
+      log(`Seed: ${seedPath}`)
+      execSync(`sqlite3 "${dbPath}" < "${seedPath}" 2>&1`, {
         encoding: 'utf-8',
         stdio: 'pipe',
         timeout: 10000,
       })
-      if (seedResult.trim()) {
-        log(`Seed output: ${seedResult.trim().substring(0, 300)}`)
-      }
-      log('Users seeded successfully ✓')
+      log('Users seeded ✓')
     } else {
-      log(`WARN: seed-users.sql not found at ${seedPath}`)
+      log('WARN: seed-users.sql not found')
     }
 
-    // 7. Verify tables exist
-    const tables = execSync(`sqlite3 "${dbPath}" "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"`, {
-      encoding: 'utf-8',
-      stdio: 'pipe',
+    // Verify
+    const tables = execSync(`sqlite3 "${dbPath}" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';"`, {
+      encoding: 'utf-8', stdio: 'pipe',
     }).trim()
-    log(`Tables created: ${tables.split('\n').length} tables`) 
-    log(`Table names: ${tables.substring(0, 200)}`)
+    log(`Tables: ${tables}`)
 
-    // 8. Verify admin user exists
     const adminCheck = execSync(
-      `sqlite3 "${dbPath}" "SELECT email, role FROM users WHERE email='admin@qrdomotik.roomscan.pro';"`,
+      `sqlite3 "${dbPath}" "SELECT email || '|' || role FROM users WHERE email='admin@qrdomotik.roomscan.pro';"`,
       { encoding: 'utf-8', stdio: 'pipe' }
     ).trim()
-    log(`Admin user: ${adminCheck || 'NOT FOUND!'}`)
+    log(`Admin: ${adminCheck || 'NOT FOUND'}`)
 
-    // 9. Write init log to file for debugging
-    try {
-      writeFileSync(LOG_FILE, `Last init: ${new Date().toISOString()}
-Tables: ${tables.split('\n').length}\n`, 'utf-8')
-    } catch { /* ignore */ }
-
-    log('=== Database Initialization Complete ===')
-
+    try { writeFileSync(LOG_FILE, `OK ${new Date().toISOString()} ${tables} tables\n`) } catch { /* ignore */ }
+    log('=== Init Complete ===')
   } catch (err) {
-    log(`FATAL ERROR: ${String(err).substring(0, 500)}`)
-    log('Database may not be initialized properly!')
+    log(`FATAL: ${String(err).substring(0, 500)}`)
   }
 }

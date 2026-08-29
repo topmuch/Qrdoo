@@ -20,7 +20,7 @@ COPY tailwind.config.ts .
 COPY components.json .
 COPY src ./src/
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL=file:/app/data/qrdomotik.db
+ENV DATABASE_URL=file:///app/data/qrdomotik.db
 # Use Node.js directly (not bun) so NODE_OPTIONS memory limit works
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN npx prisma generate
@@ -36,7 +36,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-ENV DATABASE_URL=file:/app/data/qrdomotik.db
+ENV DATABASE_URL=file:///app/data/qrdomotik.db
 
 # Copy standalone output + static assets
 COPY --from=builder /app/.next/standalone ./
@@ -47,7 +47,7 @@ COPY --from=builder /app/public ./public
 # Generate a stable NEXTAUTH_SECRET so sessions survive container restarts
 RUN SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))") \
   && rm -f .env \
-  && echo "DATABASE_URL=file:/app/data/qrdomotik.db" > .env \
+  && echo "DATABASE_URL=file:///app/data/qrdomotik.db" > .env \
   && echo "NEXTAUTH_SECRET=$SECRET" >> .env \
   && echo "NEXTAUTH_URL=https://qrdomotik.roomscan.pro" >> .env
 

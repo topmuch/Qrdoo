@@ -2,66 +2,95 @@ import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
 import { join, dirname } from 'path';
-import { PrismaClient } from '@prisma/client';
 
 // =============================================================
-// DB Init: runs inside authorize() — guaranteed to execute
-// Uses sqlite3 CLI + pre-hashed passwords (no Prisma needed)
+// NO PRISMA IN AUTH - uses sqlite3 CLI exclusively.
+// Prisma 6.19.2 cannot parse connection strings in standalone mode.
+// sqlite3 CLI is proven to work (see instrumentation.ts logs).
 // =============================================================
+
 let _schemaReady = false;
+
+/** Resolve the actual database file path (works in any CWD) */
+function getDbPath(): string {
+  // In Docker: /app/data/qrdomotik.db
+  // In dev: <project>/data/qrdomotik.db
+  const envUrl = process.env.DATABASE_URL || '';
+  if (envUrl.includes('://')) {
+    // file:///path → /path
+    return envUrl.replace(/^file:\/\//, '/');
+  }
+  if (envUrl.startsWith('file:')) {
+    // file:/path → /path  OR  file:./path → resolve from CWD
+    const rest = envUrl.replace(/^file:/, '');
+    if (rest.startsWith('/')) return rest;
+    return join(process.cwd(), rest);
+  }
+  // Bare path or relative
+  if (envUrl.startsWith('/')) return envUrl;
+  return join(process.cwd(), 'data', 'qrdomotik.db');
+}
 
 function ensureSchemaAndUsers() {
   if (_schemaReady) return;
   _schemaReady = true;
 
   try {
-    const dbUrl = process.env.DATABASE_URL || 'file:/app/data/qrdomotik.db';
-    const dbPath = dbUrl.replace(/^file:\/\//, '/');
-
+    const dbPath = getDbPath();
     mkdirSync(dirname(dbPath), { recursive: true });
 
-    // Find SQL files
-    const paths = [
-      '/app/data/schema.sql',
-      '/app/scripts/schema.sql',
-      join(process.cwd(), 'scripts', 'schema.sql'),
-      join(process.cwd(), 'data', 'schema.sql'),
+    // Find SQL files - check multiple locations for Docker / dev / standalone
+    const sqlSearchPaths = [
+      '/app/data',
+      '/app/scripts',
+      join(process.cwd(), 'data'),
+      join(process.cwd(), 'scripts'),
+      join(dirname(getDbPath())),  // same dir as DB file
     ];
-    const schemaPath = paths.find(p => existsSync(p));
-    const seedPath = paths.find(p => existsSync(p.replace('schema.sql', 'seed-users.sql')));
+    let schemaPath: string | undefined;
+    let seedPath: string | undefined;
+
+    for (const dir of sqlSearchPaths) {
+      const candidate = join(dir, 'schema.sql');
+      if (!schemaPath && existsSync(candidate)) schemaPath = candidate;
+      const seedCandidate = join(dir, 'seed-users.sql');
+      if (!seedPath && existsSync(seedCandidate)) seedPath = seedCandidate;
+    }
 
     if (schemaPath) {
       execSync(`sqlite3 "${dbPath}" < "${schemaPath}"`, { stdio: 'pipe' });
       console.log('[auth-init] Schema OK');
+    } else {
+      console.error('[auth-init] WARN: schema.sql not found in:', sqlSearchPaths.join(', '));
     }
 
     if (seedPath) {
       execSync(`sqlite3 "${dbPath}" < "${seedPath}"`, { stdio: 'pipe' });
       console.log('[auth-init] Users seeded');
     }
-
-    // Write marker file for debugging
-    writeFileSync('/app/data/.init-done', new Date().toISOString());
   } catch (err) {
     console.error('[auth-init] FAILED:', String(err).substring(0, 300));
   }
 }
 
-// =============================================================
-// Prisma Client (lazy, created after schema is ready)
-// =============================================================
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-};
-
-function getDb() {
-  ensureSchemaAndUsers();
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = new PrismaClient({ log: ['query'] });
+/** Query a user by email using sqlite3 CLI */
+function queryUserByEmail(email: string): { id: string; email: string; full_name: string; password_hash: string; role: string } | null {
+  try {
+    const dbPath = getDbPath();
+    if (!existsSync(dbPath)) {
+      console.error('[auth] DB file not found:', dbPath);
+      return null;
+    }
+    const sql = `SELECT id, email, full_name, password_hash, role FROM users WHERE email = '${email.replace(/'/g, "''")}' LIMIT 1;`;
+    const result = execSync(`sqlite3 -json "${dbPath}" "${sql}"`, { encoding: 'utf-8', stdio: 'pipe' });
+    const rows = JSON.parse(result);
+    return rows.length > 0 ? rows[0] : null;
+  } catch (err) {
+    console.error('[auth] queryUserByEmail error:', String(err).substring(0, 200));
+    return null;
   }
-  return globalForPrisma.prisma;
 }
 
 export const authOptions: NextAuthOptions = {
@@ -76,23 +105,34 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         try {
-          const db = getDb();
-          const user = await db.user.findUnique({
-            where: { email: credentials.email },
-          });
+          // 1. Ensure DB is initialized (sqlite3 CLI)
+          ensureSchemaAndUsers();
 
-          if (!user) return null;
+          // 2. Query user via sqlite3 CLI (NO Prisma)
+          const user = queryUserByEmail(credentials.email);
+          if (!user) {
+            console.log('[auth] User not found:', credentials.email);
+            return null;
+          }
 
-          const hash = user.passwordHash || '';
-          if (!hash) return null;
+          // 3. Verify password with bcryptjs
+          const hash = user.password_hash || '';
+          if (!hash) {
+            console.error('[auth] User has no password hash:', credentials.email);
+            return null;
+          }
 
           const isValid = await compare(credentials.password, hash);
-          if (!isValid) return null;
+          if (!isValid) {
+            console.log('[auth] Invalid password for:', credentials.email);
+            return null;
+          }
 
+          console.log('[auth] Login OK:', credentials.email, 'role:', user.role);
           return {
             id: user.id,
             email: user.email,
-            name: user.fullName,
+            name: user.full_name,
             role: user.role,
           };
         } catch (err) {

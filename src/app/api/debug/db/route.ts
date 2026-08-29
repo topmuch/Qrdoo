@@ -1,69 +1,74 @@
 import { NextResponse } from 'next/server';
 import { existsSync, readFileSync } from 'fs';
-import { PrismaClient } from '@prisma/client';
+import { execSync } from 'child_process';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
-};
-
-function getDb() {
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = new PrismaClient();
+/** Same path resolution as auth.ts and instrumentation.ts */
+function getDbPath(): string {
+  const envUrl = process.env.DATABASE_URL || ''
+  if (envUrl.includes('://')) return envUrl.replace(/^file:\/\//, '/')
+  if (envUrl.startsWith('file:')) {
+    const rest = envUrl.replace(/^file:/, '')
+    if (rest.startsWith('/')) return rest
   }
-  return globalForPrisma.prisma;
+  return '/app/data/qrdomotik.db'
 }
 
 export async function GET() {
-  const isDev = process.env.NODE_ENV !== 'production';
-  const dbUrl = process.env.DATABASE_URL || 'file:/app/data/qrdomotik.db';
-  const dbPath = dbUrl.replace(/^file:\/\//, '/');
+  const dbPath = getDbPath()
+  const dbExists = existsSync(dbPath)
+  const isDev = process.env.NODE_ENV !== 'production'
 
-  // Check schema.sql existence
-  const prodSchemaPath = '/app/data/schema.sql';
-  const devSchemaPath = './scripts/schema.sql';
-  const schemaPath = isDev ? devSchemaPath : prodSchemaPath;
-  const schemaExists = existsSync(schemaPath);
-
-  // Check database file existence
-  const dbExists = existsSync(dbPath);
-
-  // Count tables
-  let tableCount = 0;
-  let users: { email: string; role: string }[] = [];
+  let tableCount = 0
+  let tables: string[] = []
+  let users: { email: string; role: string }[] = []
 
   try {
-    const db = getDb();
-    const tables = await db.$queryRawUnsafe(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-    );
-    tableCount = Array.isArray(tables) ? tables.length : 0;
+    if (dbExists) {
+      const result = execSync(
+        `sqlite3 -json "${dbPath}" "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"`,
+        { encoding: 'utf-8', stdio: 'pipe' }
+      )
+      tables = JSON.parse(result).map((r: { name: string }) => r.name)
+      tableCount = tables.length
 
-    const rows = await db.user.findMany({ select: { email: true, role: true } });
-    users = rows.map((r: { email: string; role: string }) => ({ email: r.email, role: r.role }));
+      const usersResult = execSync(
+        `sqlite3 -json "${dbPath}" "SELECT email, role FROM users ORDER BY email;"`,
+        { encoding: 'utf-8', stdio: 'pipe' }
+      )
+      users = JSON.parse(usersResult)
+    }
   } catch (err) {
-    console.error('[debug/db]', err);
+    console.error('[debug/db]', err)
   }
 
-  // Check instrumentation ran
-  let initRan = false;
-  let initLog = '';
-  if (existsSync('/app/data/.init-done')) {
-    initRan = true;
-    initLog = readFileSync('/app/data/.init-done', 'utf-8').trim();
-  } else if (existsSync('/app/data/init.log')) {
-    initRan = true;
-    initLog = readFileSync('/app/data/init.log', 'utf-8').trim();
+  // Check SQL files
+  const sqlDirs = ['/app/data', '/app/scripts']
+  const schemaInfo = sqlDirs.map(d => ({
+    path: `${d}/schema.sql`,
+    exists: existsSync(`${d}/schema.sql`)
+  }))
+  const seedInfo = sqlDirs.map(d => ({
+    path: `${d}/seed-users.sql`,
+    exists: existsSync(`${d}/seed-users.sql`)
+  }))
+
+  // Check init log
+  let initLog = ''
+  const logPath = '/app/data/init.log'
+  if (existsSync(logPath)) {
+    initLog = readFileSync(logPath, 'utf-8').trim()
   }
 
   return NextResponse.json({
     environment: isDev ? 'development' : 'production',
-    schemaPath,
-    schemaExists,
     dbPath,
     dbExists,
     tableCount,
+    tables: tables.slice(0, 10),
     users,
-    initRan,
+    schemaFiles: schemaInfo,
+    seedFiles: seedInfo,
     initLog,
-  });
+    cwd: process.cwd(),
+  })
 }
