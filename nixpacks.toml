@@ -1,24 +1,9 @@
-# Nixpacks config pour Coolify
-[phases.setup]
-npmInstall = true
-
-[phases.install]
-cmds = [
-  'npm install -g bun',
-  'bun install --frozen-lockfile',
-]
-
-[phases.build]
-cmds = [
-  'npx prisma generate',
-  'npx prisma db push --accept-data-loss',
-  'bun run build',
-]
+# Nixpacks configuration for Coolify
+# Coolify auto-detects the framework and uses Nixpacks (not our Dockerfile).
+# This file tells Nixpacks to install sqlite3 CLI at runtime.
 
 [phases.start]
-cmd = 'node server.js'
+nixPkgs = ["sqlite"]
 
-[variables]
-NODE_ENV = 'production'
-PORT = '3000'
-NIXPACKS_PKGS = 'openssl sqlite'
+[start]
+cmd = "node server.js"
