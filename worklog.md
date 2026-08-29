@@ -2014,3 +2014,21 @@ Stage Summary:
 - Three files modified: Dockerfile, src/instrumentation.ts, src/lib/auth.ts
 - Belt-and-suspenders approach: Dockerfile chmod 777 + runtime chmod 777 fallback in both TS files
 - Ready for push to GitHub and Coolify redeploy
+---
+Task ID: stdin-pipe-fix
+Agent: Main
+Task: Fix sqlite3 shell redirect failure in Coolify Docker
+
+Work Log:
+- Analyzed logs: directory writable via Node.js but sqlite3 shell redirect `<` still fails
+- Root cause: shell `<` redirect in execSync does not work in this Docker/Coolify context
+- Fix: two-pronged approach in both instrumentation.ts and auth.ts:
+  1. Pre-create the .db file with Node.js writeFileSync + chmod 0o666 (proven to work)
+  2. Read SQL with readFileSync, pipe via execSync `input` option (stdin) instead of shell redirect
+  3. Use /usr/bin/sqlite3 full path
+- Lint clean, pushed to GitHub
+
+Stage Summary:
+- Shell redirect `<` fundamentally broken in this Docker context (Node.js fs works fine)
+- Solution: bypass shell entirely — Node.js handles file I/O, sqlite3 only receives stdin
+- Commit: 745a8d7 pushed to main
