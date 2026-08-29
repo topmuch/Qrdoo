@@ -2,49 +2,73 @@ import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync, chmodSync, accessSync, readFileSync, writeFileSync, constants } from 'fs';
+import { existsSync, mkdirSync, chmodSync, accessSync, readFileSync, unlinkSync, constants } from 'fs';
 import { join, dirname } from 'path';
 
 // =============================================================
 // NO PRISMA IN AUTH - uses sqlite3 CLI exclusively.
-// Pipes SQL via Node.js stdin (not shell redirect)
-// because shell < redirect fails in some Docker contexts.
+// Reads the working DB path from /tmp/ordomotik-db-path
+// (set by instrumentation.ts) with fallback probing.
 // =============================================================
 
 let _schemaReady = false;
+let _workingDbPath: string | null = null;
 
-/** Resolve the actual database file path (works in any CWD) */
-function getDbPath(): string {
-  const envUrl = process.env.DATABASE_URL || '';
-  if (envUrl.includes('://')) {
-    return envUrl.replace(/^file:\/\//, '/');
-  }
-  if (envUrl.startsWith('file:')) {
-    const rest = envUrl.replace(/^file:/, '');
-    if (rest.startsWith('/')) return rest;
-    return join(process.cwd(), rest);
-  }
-  if (envUrl.startsWith('/')) return envUrl;
-  return join(process.cwd(), 'data', 'qrdomotik.db');
-}
-
-/** Ensure the data directory exists AND is writable */
-function ensureDataDir(dir: string): boolean {
+/** Test if sqlite3 can write to a directory */
+function testSqlite3Write(dir: string): boolean {
   try {
     mkdirSync(dir, { recursive: true });
-  } catch { /* ignore */ }
-  try {
-    accessSync(dir, constants.W_OK);
+    try { chmodSync(dir, 0o777) } catch { /* ignore */ }
+    const testDb = join(dir, '.sqlite3-test');
+    execSync(`/usr/bin/sqlite3 "${testDb}" "CREATE TABLE t(x); DROP TABLE t;"`, {
+      stdio: 'pipe', timeout: 5000,
+    });
+    try { unlinkSync(testDb) } catch { /* ignore */ }
     return true;
   } catch {
-    try {
-      chmodSync(dir, 0o777);
-      accessSync(dir, constants.W_OK);
-      return true;
-    } catch {
-      return false;
+    return false;
+  }
+}
+
+/** Get the working DB path — read from instrumentation's saved path or probe */
+function getWorkingDbPath(): string {
+  if (_workingDbPath) return _workingDbPath;
+
+  // 1. Try the path saved by instrumentation.ts
+  try {
+    const saved = readFileSync('/tmp/ordomotik-db-path', 'utf-8').trim();
+    if (saved && existsSync(saved)) {
+      _workingDbPath = saved;
+      return saved;
+    }
+  } catch { /* ignore */ }
+
+  // 2. Probe candidate paths
+  const envUrl = process.env.DATABASE_URL || '';
+  let configured = '';
+  if (envUrl.includes('://')) configured = envUrl.replace(/^file:\/\//, '/');
+  else if (envUrl.startsWith('file:')) {
+    const rest = envUrl.replace(/^file:/, '');
+    configured = rest.startsWith('/') ? rest : join(process.cwd(), rest);
+  } else if (envUrl.startsWith('/')) configured = envUrl;
+  else configured = join(process.cwd(), 'data', 'qrdomotik.db');
+
+  const candidates = [
+    dirname(configured),
+    '/tmp',
+    process.cwd(),
+  ];
+
+  for (const dir of candidates) {
+    if (testSqlite3Write(dir)) {
+      _workingDbPath = join(dir, 'qrdomotik.db');
+      return _workingDbPath;
     }
   }
+
+  // Last resort
+  _workingDbPath = '/tmp/qrdomotik.db';
+  return _workingDbPath;
 }
 
 function ensureSchemaAndUsers() {
@@ -52,52 +76,32 @@ function ensureSchemaAndUsers() {
   _schemaReady = true;
 
   try {
-    const dbPath = getDbPath();
-    const dataDir = dirname(dbPath);
+    const dbPath = getWorkingDbPath();
 
-    if (!ensureDataDir(dataDir)) {
-      console.error('[auth-init] FATAL: Data directory not writable:', dataDir);
-      return;
-    }
-
-    // Pre-create DB file with Node.js (proven to work when shell redirect fails)
-    if (!existsSync(dbPath)) {
-      try {
-        writeFileSync(dbPath, '');
-        chmodSync(dbPath, 0o666);
-      } catch { /* instrumentation may have done it already */ }
-    }
-
-    // Find SQL files — prefer /app/data (Dockerfile copies here)
+    // Find SQL files
     const sqlSearchPaths = [
-      '/app/data',
-      dataDir,
-      join(process.cwd(), 'data'),
-      '/app/scripts',
-      join(process.cwd(), 'scripts'),
+      '/app/data', '/app/scripts',
+      join(process.cwd(), 'data'), join(process.cwd(), 'scripts'),
     ];
     let schemaPath: string | undefined;
     let seedPath: string | undefined;
 
     for (const dir of sqlSearchPaths) {
-      const candidate = join(dir, 'schema.sql');
-      if (!schemaPath && existsSync(candidate)) schemaPath = candidate;
-      const seedCandidate = join(dir, 'seed-users.sql');
-      if (!seedPath && existsSync(seedCandidate)) seedPath = seedCandidate;
+      if (!schemaPath && existsSync(join(dir, 'schema.sql'))) schemaPath = join(dir, 'schema.sql');
+      if (!seedPath && existsSync(join(dir, 'seed-users.sql'))) seedPath = join(dir, 'seed-users.sql');
     }
 
     if (schemaPath) {
-      // Read SQL with Node.js and pipe via stdin (no shell redirect)
-      const schemaSql = readFileSync(schemaPath, 'utf-8');
-      execSync(`/usr/bin/sqlite3 "${dbPath}"`, { input: schemaSql, stdio: ['pipe', 'pipe', 'pipe'] });
+      const sql = readFileSync(schemaPath, 'utf-8');
+      execSync(`/usr/bin/sqlite3 "${dbPath}"`, { input: sql, stdio: ['pipe', 'pipe', 'pipe'] });
       console.log('[auth-init] Schema OK');
     } else {
-      console.error('[auth-init] WARN: schema.sql not found in:', sqlSearchPaths.join(', '));
+      console.error('[auth-init] WARN: schema.sql not found');
     }
 
     if (seedPath) {
-      const seedSql = readFileSync(seedPath, 'utf-8');
-      execSync(`/usr/bin/sqlite3 "${dbPath}"`, { input: seedSql, stdio: ['pipe', 'pipe', 'pipe'] });
+      const sql = readFileSync(seedPath, 'utf-8');
+      execSync(`/usr/bin/sqlite3 "${dbPath}"`, { input: sql, stdio: ['pipe', 'pipe', 'pipe'] });
       console.log('[auth-init] Users seeded');
     }
   } catch (err) {
@@ -108,7 +112,7 @@ function ensureSchemaAndUsers() {
 /** Query a user by email using sqlite3 CLI */
 function queryUserByEmail(email: string): { id: string; email: string; full_name: string; password_hash: string; role: string } | null {
   try {
-    const dbPath = getDbPath();
+    const dbPath = getWorkingDbPath();
     if (!existsSync(dbPath)) {
       console.error('[auth] DB file not found:', dbPath);
       return null;
@@ -135,17 +139,13 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         try {
-          // 1. Ensure DB is initialized (sqlite3 CLI)
           ensureSchemaAndUsers();
-
-          // 2. Query user via sqlite3 CLI (NO Prisma)
           const user = queryUserByEmail(credentials.email);
           if (!user) {
             console.log('[auth] User not found:', credentials.email);
             return null;
           }
 
-          // 3. Verify password with bcryptjs
           const hash = user.password_hash || '';
           if (!hash) {
             console.error('[auth] User has no password hash:', credentials.email);
