@@ -150,6 +150,8 @@ function AppContent() {
   const [clientPage, setClientPage] = useState<ClientPage>('client-home');
   const initialRegister = isActivateFlow;
   const hasCheckedPending = useRef(false);
+  // Once user manually switches view (admin ↔ client), stop auto-overriding from role
+  const [sessionOverride, setSessionOverride] = useState(false);
 
   // Redirect to activate page after auth if coming from QR scan
   useEffect(() => {
@@ -168,10 +170,12 @@ function AppContent() {
       window.location.href = `/activate/${pendingCode}`;
       return;
     }
+    setSessionOverride(false);
     setView(role === 'superadmin' ? 'superadmin' : 'client');
   }, []);
 
   const handleLogout = useCallback(() => {
+    setSessionOverride(false);
     setView('landing');
   }, []);
 
@@ -180,10 +184,12 @@ function AppContent() {
   }, []);
 
   // Determine effective view
+  // Only auto-set from role on FIRST session load (not on every render,
+  // otherwise onSwitchToAdmin / onSwitchToClient buttons would be overridden)
   let effectiveView: AppView = view;
-  if (session?.user) {
+  if (session?.user && !sessionOverride) {
     effectiveView = session.user.role === 'superadmin' ? 'superadmin' : 'client';
-  } else if (status !== 'loading' && view !== 'landing' && view !== 'auth' && view !== 'setup-demo' && view !== 'hub-demo') {
+  } else if (!session?.user && status !== 'loading' && view !== 'landing' && view !== 'auth' && view !== 'setup-demo' && view !== 'hub-demo') {
     effectiveView = 'auth';
   }
 
@@ -266,7 +272,7 @@ function AppContent() {
       <SuperAdminLayout
         activePage={adminPage}
         onPageChange={setAdminPage}
-        onSwitchToClient={() => setView('client')}
+        onSwitchToClient={() => { setSessionOverride(true); setView('client'); }}
         onLogout={handleLogout}
       >
         <ErrorBoundary key={adminPage}>{renderAdminPage()}</ErrorBoundary>
@@ -302,7 +308,7 @@ function AppContent() {
     <ClientLayout
       activePage={clientPage}
       onPageChange={setClientPage}
-      onSwitchToAdmin={() => setView('superadmin')}
+      onSwitchToAdmin={() => { setSessionOverride(true); setView('superadmin'); }}
       onLogout={handleLogout}
     >
       <ErrorBoundary key={clientPage}>{renderClientPage()}</ErrorBoundary>

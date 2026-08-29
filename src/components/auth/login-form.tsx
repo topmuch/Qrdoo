@@ -22,7 +22,7 @@ const DEPLOY_CREDENTIALS = [
     role: 'user',
     label: 'Client Demo',
     email: 'demo@qrdomotik.roomscan.pro',
-    password: 'demo123',
+    password: 'Demo2024!',
     icon: Users,
   },
 ];

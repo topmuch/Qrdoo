@@ -44,7 +44,12 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
 # Remove project .env (has LOCAL db path) and write Docker-specific one
-RUN rm -f .env && echo 'DATABASE_URL=file:/app/data/qrdomotik.db' > .env
+# Generate a stable NEXTAUTH_SECRET so sessions survive container restarts
+RUN SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))") \
+  && rm -f .env \
+  && echo "DATABASE_URL=file:/app/data/qrdomotik.db" > .env \
+  && echo "NEXTAUTH_SECRET=$SECRET" >> .env \
+  && echo "NEXTAUTH_URL=https://qrdomotik.roomscan.pro" >> .env
 
 # Copy prisma runtime (generated client)
 COPY --from=builder /app/prisma ./prisma/

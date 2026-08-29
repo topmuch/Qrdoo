@@ -1,49 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 
-async function ensureDemoUser() {
-  let user = await db.user.findFirst({
-    where: { email: 'demo@qrdomotik.roomscan.pro' },
-  });
-
-  if (!user) {
-    user = await db.user.create({
-      data: {
-        email: 'demo@qrdomotik.roomscan.pro',
-        fullName: 'Utilisateur Démo',
-        role: 'user',
-      },
-    });
-
-    const home = await db.home.create({
-      data: {
-        ownerId: user.id,
-        name: 'Ma Maison',
-        address: 'Dakar, Sénégal',
-        isActive: true,
-      },
-    });
-
-    await db.homeMember.create({
-      data: {
-        homeId: home.id,
-        userId: user.id,
-        role: 'owner',
-      },
-    });
-  }
-
-  return user;
-}
-
-// GET: List homes for the demo user
+// GET: List homes for the logged-in user
 export async function GET() {
   try {
-    const user = await ensureDemoUser();
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+
+    // Fallback to demo user if no session (development / public demo)
+    let effectiveUserId = userId;
+    if (!userId) {
+      const demoUser = await db.user.findFirst({
+        where: { email: 'demo@qrdomotik.roomscan.pro' },
+        select: { id: true },
+      });
+      effectiveUserId = demoUser?.id;
+    }
+
+    if (!effectiveUserId) {
+      return NextResponse.json({ homes: [] });
+    }
 
     // Get all home IDs the user belongs to
     const memberships = await db.homeMember.findMany({
-      where: { userId: user.id },
+      where: { userId: effectiveUserId },
       select: { homeId: true },
     });
 
@@ -81,10 +63,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, address, userId } = body as {
+    const { name, address } = body as {
       name: string;
       address?: string;
-      userId?: string;
     };
 
     if (!name) {
@@ -94,20 +75,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Resolve user
-    let user;
-    if (userId) {
-      user = await db.user.findUnique({ where: { id: userId } });
-      if (!user) {
-        return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
-      }
-    } else {
-      user = await ensureDemoUser();
+    // Resolve user from session, fallback to demo
+    const session = await getServerSession(authOptions);
+    let userId = session?.user?.id;
+
+    if (!userId) {
+      const demoUser = await db.user.findFirst({
+        where: { email: 'demo@qrdomotik.roomscan.pro' },
+        select: { id: true },
+      });
+      userId = demoUser?.id;
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Utilisateur non identifié' }, { status: 401 });
     }
 
     const home = await db.home.create({
       data: {
-        ownerId: user.id,
+        ownerId: userId,
         name,
         address: address ?? null,
         isActive: true,
@@ -118,7 +104,7 @@ export async function POST(request: NextRequest) {
     await db.homeMember.create({
       data: {
         homeId: home.id,
-        userId: user.id,
+        userId,
         role: 'owner',
       },
     });
@@ -146,7 +132,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Verify home exists
     const home = await db.home.findUnique({ where: { id: homeId } });
     if (!home) {
       return NextResponse.json(
@@ -155,7 +140,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete the home — cascade will handle rooms, qrCodes, content, etc.
     await db.home.delete({ where: { id: homeId } });
 
     return NextResponse.json({ success: true });
