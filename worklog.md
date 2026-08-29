@@ -1995,3 +1995,22 @@ Work Log:
 Stage Summary:
 - Dockerfile: builder stage uses npx (not bun) + 4GB memory limit
 - If 4GB still OOMs, next step is to switch from Turbopack to webpack
+---
+Task ID: permissions-fix
+Agent: Main
+Task: Fix "unable to open database file" — /app/data/ permissions in Docker container
+
+Work Log:
+- Analyzed Coolify logs: DB path now correct (/app/data/qrdomotik.db) but sqlite3 CLI can't create the file
+- Root cause: Dockerfile creates /app/data/ as root during build. Coolify runs containers as non-root user (node:1000), so the runtime process can't write to the directory
+- Fixed Dockerfile: `mkdir -p /app/data && chmod 777 /app/data` + write-test verification in pre-flight
+- Fixed instrumentation.ts: added `ensureDataDir()` with chmod 777 fallback, write test, and improved logging
+- Fixed auth.ts: same `ensureDataDir()` with chmod 777 fallback for data directory
+- Changed SQL file search order to prefer /app/data over /app/scripts
+- Ran lint — all clean
+
+Stage Summary:
+- Root cause: permission mismatch between build-time root user and runtime non-root user in Coolify
+- Three files modified: Dockerfile, src/instrumentation.ts, src/lib/auth.ts
+- Belt-and-suspenders approach: Dockerfile chmod 777 + runtime chmod 777 fallback in both TS files
+- Ready for push to GitHub and Coolify redeploy

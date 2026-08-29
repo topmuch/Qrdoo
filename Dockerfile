@@ -55,17 +55,22 @@ RUN SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('ba
 COPY --from=builder /app/prisma ./prisma/
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Ensure data directory exists, then copy SQL files
-RUN mkdir -p /app/data
+# Ensure data directory exists with WORLD-WRITABLE permissions.
+# Coolify runs containers as non-root user (node:1000), so root-owned
+# /app/data/ would be unwritable at runtime → sqlite3 "unable to open".
+RUN mkdir -p /app/data && chmod 777 /app/data
 COPY --from=builder /app/scripts/schema.sql /app/data/schema.sql
 COPY --from=builder /app/scripts/seed-users.sql /app/data/seed-users.sql
 
-# Verify SQL files and sqlite3 CLI are present
+# Verify SQL files, sqlite3 CLI, and write permission
 RUN echo "--- Container pre-flight ---" \
   && echo "sqlite3: $(which sqlite3)" \
   && sqlite3 --version \
   && echo "schema.sql: $(wc -l < /app/data/schema.sql) lines" \
   && echo "seed-users.sql: $(wc -l < /app/data/seed-users.sql) lines" \
+  && echo "/app/data perms: $(stat -c '%a %U:%G' /app/data)" \
+  && touch /app/data/.write-test && rm -f /app/data/.write-test \
+  && echo "Write test: OK" \
   && echo "--- End pre-flight ---"
 EXPOSE 3000
 

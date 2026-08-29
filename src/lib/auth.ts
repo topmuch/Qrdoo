@@ -2,7 +2,7 @@ import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, chmodSync, accessSync, constants } from 'fs';
 import { join, dirname } from 'path';
 
 // =============================================================
@@ -15,22 +15,36 @@ let _schemaReady = false;
 
 /** Resolve the actual database file path (works in any CWD) */
 function getDbPath(): string {
-  // In Docker: /app/data/qrdomotik.db
-  // In dev: <project>/data/qrdomotik.db
   const envUrl = process.env.DATABASE_URL || '';
   if (envUrl.includes('://')) {
-    // file:///path → /path
     return envUrl.replace(/^file:\/\//, '/');
   }
   if (envUrl.startsWith('file:')) {
-    // file:/path → /path  OR  file:./path → resolve from CWD
     const rest = envUrl.replace(/^file:/, '');
     if (rest.startsWith('/')) return rest;
     return join(process.cwd(), rest);
   }
-  // Bare path or relative
   if (envUrl.startsWith('/')) return envUrl;
   return join(process.cwd(), 'data', 'qrdomotik.db');
+}
+
+/** Ensure the data directory exists AND is writable */
+function ensureDataDir(dir: string): boolean {
+  try {
+    mkdirSync(dir, { recursive: true });
+  } catch { /* ignore */ }
+  try {
+    accessSync(dir, constants.W_OK);
+    return true;
+  } catch {
+    try {
+      chmodSync(dir, 0o777);
+      accessSync(dir, constants.W_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 function ensureSchemaAndUsers() {
@@ -39,15 +53,20 @@ function ensureSchemaAndUsers() {
 
   try {
     const dbPath = getDbPath();
-    mkdirSync(dirname(dbPath), { recursive: true });
+    const dataDir = dirname(dbPath);
 
-    // Find SQL files - check multiple locations for Docker / dev / standalone
+    if (!ensureDataDir(dataDir)) {
+      console.error('[auth-init] FATAL: Data directory not writable:', dataDir);
+      return;
+    }
+
+    // Find SQL files — prefer /app/data (Dockerfile copies here)
     const sqlSearchPaths = [
       '/app/data',
-      '/app/scripts',
+      dataDir,
       join(process.cwd(), 'data'),
+      '/app/scripts',
       join(process.cwd(), 'scripts'),
-      join(dirname(getDbPath())),  // same dir as DB file
     ];
     let schemaPath: string | undefined;
     let seedPath: string | undefined;

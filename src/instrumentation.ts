@@ -1,5 +1,5 @@
 import { execSync } from 'child_process'
-import { existsSync, mkdirSync, appendFileSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, appendFileSync, writeFileSync, chmodSync, accessSync, constants } from 'fs'
 import { join, dirname } from 'path'
 
 // =============================================================
@@ -35,14 +35,41 @@ function getDbPath(): string {
   return join(process.cwd(), 'data', 'qrdomotik.db')
 }
 
+/** Ensure the data directory exists AND is writable */
+function ensureDataDir(dir: string): boolean {
+  try {
+    mkdirSync(dir, { recursive: true })
+  } catch (e) {
+    log(`mkdir failed for ${dir}: ${String(e).substring(0, 100)}`)
+  }
+
+  // Verify write access
+  try {
+    accessSync(dir, constants.W_OK)
+    return true
+  } catch {
+    log(`No write access to ${dir} — attempting chmod 777`)
+    try {
+      chmodSync(dir, 0o777)
+      accessSync(dir, constants.W_OK)
+      log(`chmod 777 succeeded for ${dir}`)
+      return true
+    } catch (e2) {
+      log(`FATAL: Cannot make ${dir} writable: ${String(e2).substring(0, 100)}`)
+      return false
+    }
+  }
+}
+
 /** Find a SQL file by searching multiple possible locations */
 function findSqlFile(filename: string): string | undefined {
   const dbDir = dirname(getDbPath())
+  // Order matters: prefer /app/data (Dockerfile copies here)
   const searchPaths = [
     '/app/data',
-    '/app/scripts',
     dbDir,
     join(process.cwd(), 'data'),
+    '/app/scripts',
     join(process.cwd(), 'scripts'),
   ]
   for (const dir of searchPaths) {
@@ -74,12 +101,26 @@ export async function register() {
     log(`Database path: ${dbPath}`)
 
     const dataDir = dirname(dbPath)
-    mkdirSync(dataDir, { recursive: true })
-    log(`Data directory: ${dataDir}`)
+    const dirOk = ensureDataDir(dataDir)
+    if (!dirOk) {
+      log('FATAL: Data directory not writable, aborting')
+      return
+    }
+    log(`Data directory: ${dataDir} (writable ✓)`)
+
+    // Verify write by touching a temp file
+    try {
+      const testFile = join(dataDir, '.write-test')
+      writeFileSync(testFile, 'ok')
+      // Keep the file as proof of write access
+    } catch (e) {
+      log(`FATAL: Write test failed: ${String(e).substring(0, 100)}`)
+      return
+    }
 
     const schemaPath = findSqlFile('schema.sql')
     if (!schemaPath) {
-      log(`WARN: schema.sql not found! Searched: /app/data, /app/scripts, ${dirname(dbPath)}, ${join(process.cwd(), 'data')}, ${join(process.cwd(), 'scripts')}`)
+      log(`WARN: schema.sql not found! Searched: /app/data, ${dirname(dbPath)}, ${join(process.cwd(), 'data')}, /app/scripts, ${join(process.cwd(), 'scripts')}`)
       return
     }
     log(`Schema: ${schemaPath}`)
