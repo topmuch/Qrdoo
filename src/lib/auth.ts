@@ -2,13 +2,13 @@ import { type NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compare } from 'bcryptjs';
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync, chmodSync, accessSync, constants } from 'fs';
+import { existsSync, mkdirSync, chmodSync, accessSync, readFileSync, writeFileSync, constants } from 'fs';
 import { join, dirname } from 'path';
 
 // =============================================================
 // NO PRISMA IN AUTH - uses sqlite3 CLI exclusively.
-// Prisma 6.19.2 cannot parse connection strings in standalone mode.
-// sqlite3 CLI is proven to work (see instrumentation.ts logs).
+// Pipes SQL via Node.js stdin (not shell redirect)
+// because shell < redirect fails in some Docker contexts.
 // =============================================================
 
 let _schemaReady = false;
@@ -60,6 +60,14 @@ function ensureSchemaAndUsers() {
       return;
     }
 
+    // Pre-create DB file with Node.js (proven to work when shell redirect fails)
+    if (!existsSync(dbPath)) {
+      try {
+        writeFileSync(dbPath, '');
+        chmodSync(dbPath, 0o666);
+      } catch { /* instrumentation may have done it already */ }
+    }
+
     // Find SQL files — prefer /app/data (Dockerfile copies here)
     const sqlSearchPaths = [
       '/app/data',
@@ -79,14 +87,17 @@ function ensureSchemaAndUsers() {
     }
 
     if (schemaPath) {
-      execSync(`sqlite3 "${dbPath}" < "${schemaPath}"`, { stdio: 'pipe' });
+      // Read SQL with Node.js and pipe via stdin (no shell redirect)
+      const schemaSql = readFileSync(schemaPath, 'utf-8');
+      execSync(`/usr/bin/sqlite3 "${dbPath}"`, { input: schemaSql, stdio: ['pipe', 'pipe', 'pipe'] });
       console.log('[auth-init] Schema OK');
     } else {
       console.error('[auth-init] WARN: schema.sql not found in:', sqlSearchPaths.join(', '));
     }
 
     if (seedPath) {
-      execSync(`sqlite3 "${dbPath}" < "${seedPath}"`, { stdio: 'pipe' });
+      const seedSql = readFileSync(seedPath, 'utf-8');
+      execSync(`/usr/bin/sqlite3 "${dbPath}"`, { input: seedSql, stdio: ['pipe', 'pipe', 'pipe'] });
       console.log('[auth-init] Users seeded');
     }
   } catch (err) {
@@ -103,7 +114,7 @@ function queryUserByEmail(email: string): { id: string; email: string; full_name
       return null;
     }
     const sql = `SELECT id, email, full_name, password_hash, role FROM users WHERE email = '${email.replace(/'/g, "''")}' LIMIT 1;`;
-    const result = execSync(`sqlite3 -json "${dbPath}" "${sql}"`, { encoding: 'utf-8', stdio: 'pipe' });
+    const result = execSync(`/usr/bin/sqlite3 -json "${dbPath}" "${sql}"`, { encoding: 'utf-8', stdio: 'pipe' });
     const rows = JSON.parse(result);
     return rows.length > 0 ? rows[0] : null;
   } catch (err) {

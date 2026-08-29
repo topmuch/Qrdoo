@@ -1,10 +1,12 @@
 import { execSync } from 'child_process'
-import { existsSync, mkdirSync, appendFileSync, writeFileSync, chmodSync, accessSync, constants } from 'fs'
+import { existsSync, mkdirSync, appendFileSync, writeFileSync, chmodSync, accessSync, readFileSync, constants } from 'fs'
 import { join, dirname } from 'path'
 
 // =============================================================
 // Runs at Next.js startup in standalone mode.
 // Uses ONLY sqlite3 CLI — NO Prisma.
+// Key: pipes SQL via Node.js stdin (not shell redirect)
+// because shell < redirect fails in some Docker contexts.
 // =============================================================
 
 const LOG_FILE = '/app/data/init.log'
@@ -61,10 +63,21 @@ function ensureDataDir(dir: string): boolean {
   }
 }
 
+/** Execute SQL via sqlite3, piping content via stdin (NO shell redirect) */
+function execSql(dbPath: string, sql: string, label: string, timeout = 30000): string {
+  const result = execSync(`/usr/bin/sqlite3 "${dbPath}"`, {
+    input: sql,
+    encoding: 'utf-8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+    timeout,
+  })
+  log(`${label} ✓`)
+  return result
+}
+
 /** Find a SQL file by searching multiple possible locations */
 function findSqlFile(filename: string): string | undefined {
   const dbDir = dirname(getDbPath())
-  // Order matters: prefer /app/data (Dockerfile copies here)
   const searchPaths = [
     '/app/data',
     dbDir,
@@ -88,7 +101,7 @@ export async function register() {
   log('=== ORDOMOTIK Database Initialization ===')
 
   try {
-    const sqliteVersion = execSync('sqlite3 --version', { encoding: 'utf-8', stdio: 'pipe' }).trim()
+    const sqliteVersion = execSync('/usr/bin/sqlite3 --version', { encoding: 'utf-8', stdio: 'pipe' }).trim()
     log(`sqlite3 available: ${sqliteVersion}`)
   } catch (err) {
     log('FATAL: sqlite3 CLI not found!')
@@ -108,52 +121,51 @@ export async function register() {
     }
     log(`Data directory: ${dataDir} (writable ✓)`)
 
-    // Verify write by touching a temp file
-    try {
-      const testFile = join(dataDir, '.write-test')
-      writeFileSync(testFile, 'ok')
-      // Keep the file as proof of write access
-    } catch (e) {
-      log(`FATAL: Write test failed: ${String(e).substring(0, 100)}`)
-      return
+    // CRITICAL: Create the DB file with Node.js FIRST.
+    // Node.js can write here (proven), sqlite3 shell redirect cannot.
+    // By pre-creating the file, sqlite3 just opens an existing file.
+    if (!existsSync(dbPath)) {
+      try {
+        writeFileSync(dbPath, '')
+        chmodSync(dbPath, 0o666)
+        log(`DB file pre-created by Node.js ✓`)
+      } catch (e) {
+        log(`FATAL: Cannot create DB file: ${String(e).substring(0, 200)}`)
+        return
+      }
+    } else {
+      log(`DB file already exists`)
     }
 
     const schemaPath = findSqlFile('schema.sql')
     if (!schemaPath) {
-      log(`WARN: schema.sql not found! Searched: /app/data, ${dirname(dbPath)}, ${join(process.cwd(), 'data')}, /app/scripts, ${join(process.cwd(), 'scripts')}`)
+      log(`WARN: schema.sql not found! Searched: /app/data, ${dataDir}, ${join(process.cwd(), 'data')}, /app/scripts, ${join(process.cwd(), 'scripts')}`)
       return
     }
     log(`Schema: ${schemaPath}`)
 
-    log('Applying schema...')
-    execSync(`sqlite3 "${dbPath}" < "${schemaPath}" 2>&1`, {
-      encoding: 'utf-8',
-      stdio: 'pipe',
-      timeout: 30000,
-    })
-    log('Schema applied ✓')
+    // Read SQL with Node.js (proven to work) and pipe via stdin
+    const schemaSql = readFileSync(schemaPath, 'utf-8')
+    log(`Schema SQL: ${schemaSql.split('\n').length} lines, piping via stdin...`)
+    execSql(dbPath, schemaSql, 'Schema applied')
 
     const seedPath = findSqlFile('seed-users.sql')
     if (seedPath) {
       log(`Seed: ${seedPath}`)
-      execSync(`sqlite3 "${dbPath}" < "${seedPath}" 2>&1`, {
-        encoding: 'utf-8',
-        stdio: 'pipe',
-        timeout: 10000,
-      })
-      log('Users seeded ✓')
+      const seedSql = readFileSync(seedPath, 'utf-8')
+      execSql(dbPath, seedSql, 'Users seeded', 10000)
     } else {
       log('WARN: seed-users.sql not found')
     }
 
     // Verify
-    const tables = execSync(`sqlite3 "${dbPath}" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';"`, {
+    const tables = execSync(`/usr/bin/sqlite3 "${dbPath}" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';"`, {
       encoding: 'utf-8', stdio: 'pipe',
     }).trim()
     log(`Tables: ${tables}`)
 
     const adminCheck = execSync(
-      `sqlite3 "${dbPath}" "SELECT email || '|' || role FROM users WHERE email='admin@qrdomotik.roomscan.pro';"`,
+      `/usr/bin/sqlite3 "${dbPath}" "SELECT email || '|' || role FROM users WHERE email='admin@qrdomotik.roomscan.pro';"`,
       { encoding: 'utf-8', stdio: 'pipe' }
     ).trim()
     log(`Admin: ${adminCheck || 'NOT FOUND'}`)
